@@ -8,15 +8,29 @@ import Staff from '../pages/manager/Staff';
 
 export default function ManagerLayout({ onNavigate }) {
   const { currentUser, logout, inventory } = useApp();
-  const [currentTab, setCurrentTab] = useState('dashboard'); // 'dashboard' | 'sales' | 'products' | 'inventory' | 'staff'
+  const [currentTab, setCurrentTab] = useState('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const lowStockCount = inventory.filter((i) => i.stock <= i.minThreshold).length;
+
+  const handleTabChange = (tab) => {
+    setCurrentTab(tab);
+    setIsSidebarOpen(false); // Auto collapse sidebar on mobile selection
+  };
 
   return (
     <div className="portal-layout-container">
       {/* Top Header Bar */}
       <header className="portal-top-bar">
         <div className="portal-brand-title">
+          <button
+            type="button"
+            className="btn-sidebar-toggle"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            title="Toggle Sidebar Navigation"
+          >
+            {isSidebarOpen ? '✕' : '☰'}
+          </button>
           <span className="brand-bold">SCIALLA</span>
           <span className="portal-tag tag-manager">MANAGER</span>
         </div>
@@ -39,40 +53,48 @@ export default function ManagerLayout({ onNavigate }) {
 
       {/* Main Two-Column Layout (Sidebar + Content) */}
       <div className="portal-body-wrapper">
+        {/* Mobile Backdrop Overlay */}
+        {isSidebarOpen && (
+          <div
+            className="portal-sidebar-backdrop"
+            onClick={() => setIsSidebarOpen(false)}
+          ></div>
+        )}
+
         {/* Left Sidebar */}
-        <aside className="portal-sidebar">
+        <aside className={`portal-sidebar ${isSidebarOpen ? 'mobile-open' : ''}`}>
           <button
             type="button"
             className={`sidebar-nav-item ${currentTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setCurrentTab('dashboard')}
+            onClick={() => handleTabChange('dashboard')}
           >
             Dashboard
           </button>
           <button
             type="button"
             className={`sidebar-nav-item ${currentTab === 'sales' ? 'active' : ''}`}
-            onClick={() => setCurrentTab('sales')}
+            onClick={() => handleTabChange('sales')}
           >
             Sales
           </button>
           <button
             type="button"
             className={`sidebar-nav-item ${currentTab === 'products' ? 'active' : ''}`}
-            onClick={() => setCurrentTab('products')}
+            onClick={() => handleTabChange('products')}
           >
             Products
           </button>
           <button
             type="button"
             className={`sidebar-nav-item ${currentTab === 'inventory' ? 'active' : ''}`}
-            onClick={() => setCurrentTab('inventory')}
+            onClick={() => handleTabChange('inventory')}
           >
             Inventory {lowStockCount > 0 && <span className="sidebar-count">{lowStockCount}</span>}
           </button>
           <button
             type="button"
             className={`sidebar-nav-item ${currentTab === 'staff' ? 'active' : ''}`}
-            onClick={() => setCurrentTab('staff')}
+            onClick={() => handleTabChange('staff')}
           >
             Staff
           </button>

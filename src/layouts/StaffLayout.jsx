@@ -7,14 +7,28 @@ import Inventory from '../pages/staff/Inventory';
 export default function StaffLayout({ onNavigate }) {
   const { currentUser, logout, orders } = useApp();
   const [currentTab, setCurrentTab] = useState('orders');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const newOrdersCount = orders.filter((o) => o.status === 'new').length;
+
+  const handleTabChange = (tab) => {
+    setCurrentTab(tab);
+    setIsSidebarOpen(false); // Auto collapse sidebar on mobile selection
+  };
 
   return (
     <div className="portal-layout-container">
       {/* Top Header Bar */}
       <header className="portal-top-bar">
         <div className="portal-brand-title">
+          <button
+            type="button"
+            className="btn-sidebar-toggle"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            title="Toggle Sidebar Navigation"
+          >
+            {isSidebarOpen ? '✕' : '☰'}
+          </button>
           <span className="brand-bold">SCIALLA</span>
           <span className="portal-tag">STAFF</span>
         </div>
@@ -37,26 +51,34 @@ export default function StaffLayout({ onNavigate }) {
 
       {/* Main Two-Column Layout (Sidebar + Content) */}
       <div className="portal-body-wrapper">
+        {/* Mobile Backdrop Overlay */}
+        {isSidebarOpen && (
+          <div
+            className="portal-sidebar-backdrop"
+            onClick={() => setIsSidebarOpen(false)}
+          ></div>
+        )}
+
         {/* Left Sidebar */}
-        <aside className="portal-sidebar">
+        <aside className={`portal-sidebar ${isSidebarOpen ? 'mobile-open' : ''}`}>
           <button
             type="button"
             className={`sidebar-nav-item ${currentTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setCurrentTab('dashboard')}
+            onClick={() => handleTabChange('dashboard')}
           >
             Dashboard
           </button>
           <button
             type="button"
             className={`sidebar-nav-item ${currentTab === 'orders' ? 'active' : ''}`}
-            onClick={() => setCurrentTab('orders')}
+            onClick={() => handleTabChange('orders')}
           >
             Orders {newOrdersCount > 0 && <span className="sidebar-count">{newOrdersCount}</span>}
           </button>
           <button
             type="button"
             className={`sidebar-nav-item ${currentTab === 'inventory' ? 'active' : ''}`}
-            onClick={() => setCurrentTab('inventory')}
+            onClick={() => handleTabChange('inventory')}
           >
             Inventory
           </button>
