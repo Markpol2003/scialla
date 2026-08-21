@@ -5,10 +5,11 @@ import Menu from '../pages/customer/Menu';
 import Cart from '../pages/customer/Cart';
 import Checkout from '../pages/customer/Checkout';
 import LoginPage from '../pages/auth/LoginPage';
+import UserProfileDropdown from '../components/UserProfileDropdown';
 import '../CoffeeMenu.css';
 
 export default function CustomerLayout({ onNavigate }) {
-  const { lastCustomerOrder, currentUser, logout } = useApp();
+  const { lastCustomerOrder, currentUser } = useApp();
 
   const [cart, setCart] = useState([]);
   const [tableNumber, setTableNumber] = useState('4');
@@ -53,7 +54,7 @@ export default function CustomerLayout({ onNavigate }) {
 
       {/* ONE UNIFIED HEADER BLOCK (No Hole / Gap In Between!) */}
       <header className="scialla-unified-header">
-        {/* Top Row: Brand & SIGN IN Button */}
+        {/* Top Row: Brand & SIGN IN Button / User Dropdown */}
         <div className="unified-top-row">
           <div className="nav-brand">
             <span className="brand-name">Scialla</span>
@@ -62,16 +63,7 @@ export default function CustomerLayout({ onNavigate }) {
 
           <div className="nav-portal-links">
             {currentUser ? (
-              <div className="user-profile-pill">
-                <span className="user-name">{currentUser.name}</span>
-                <button
-                  type="button"
-                  className="btn-nav-logout"
-                  onClick={logout}
-                >
-                  Sign Out
-                </button>
-              </div>
+              <UserProfileDropdown onNavigate={onNavigate} />
             ) : (
               <button
                 type="button"

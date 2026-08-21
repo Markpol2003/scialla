@@ -5,9 +5,10 @@ import Sales from '../pages/manager/Sales';
 import Products from '../pages/manager/Products';
 import Inventory from '../pages/manager/Inventory';
 import Staff from '../pages/manager/Staff';
+import UserProfileDropdown from '../components/UserProfileDropdown';
 
 export default function ManagerLayout({ onNavigate }) {
-  const { currentUser, logout, inventory } = useApp();
+  const { inventory } = useApp();
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -35,20 +36,8 @@ export default function ManagerLayout({ onNavigate }) {
           <span className="portal-tag tag-manager">MANAGER</span>
         </div>
 
-        <div className="portal-user-meta">
-          <span className="user-name">{currentUser?.name || 'Store Manager'}</span>
-          <span className="status-dot-active">●</span>
-          <button
-            type="button"
-            className="btn-portal-logout"
-            onClick={() => {
-              logout();
-              if (onNavigate) onNavigate('/');
-            }}
-          >
-            Sign Out
-          </button>
-        </div>
+        {/* User Profile Dropdown Pill (Arrow toggle for profile info & logout) */}
+        <UserProfileDropdown onNavigate={onNavigate} />
       </header>
 
       {/* Main Two-Column Layout (Sidebar + Content) */}

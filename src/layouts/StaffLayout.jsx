@@ -3,9 +3,10 @@ import { useApp } from '../context/AppContext';
 import Dashboard from '../pages/staff/Dashboard';
 import Orders from '../pages/staff/Orders';
 import Inventory from '../pages/staff/Inventory';
+import UserProfileDropdown from '../components/UserProfileDropdown';
 
 export default function StaffLayout({ onNavigate }) {
-  const { currentUser, logout, orders } = useApp();
+  const { orders } = useApp();
   const [currentTab, setCurrentTab] = useState('orders');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -33,20 +34,8 @@ export default function StaffLayout({ onNavigate }) {
           <span className="portal-tag">STAFF</span>
         </div>
 
-        <div className="portal-user-meta">
-          <span className="user-name">{currentUser?.name || 'Staff Member'}</span>
-          <span className="status-dot-active">●</span>
-          <button
-            type="button"
-            className="btn-portal-logout"
-            onClick={() => {
-              logout();
-              if (onNavigate) onNavigate('/');
-            }}
-          >
-            Sign Out
-          </button>
-        </div>
+        {/* User Profile Dropdown Pill (Arrow toggle for profile info & logout) */}
+        <UserProfileDropdown onNavigate={onNavigate} />
       </header>
 
       {/* Main Two-Column Layout (Sidebar + Content) */}
