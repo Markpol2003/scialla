@@ -35,7 +35,14 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html, body {
+html {
+  width: 100%;
+  min-height: 100%;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+body {
   width: 100%;
   min-height: 100%;
 }
@@ -290,9 +297,11 @@ body {
 /* 3D Cards Grid */
 .cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 16px;
   perspective: 1000px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* 3D Card */
@@ -452,7 +461,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.4);
   border-bottom: 3px solid #d4c3af;
   border-radius: 10px;
-  padding: 7px 16px;
+  padding: 7px 14px;
   font-size: 0.82rem;
   font-weight: 800;
   cursor: pointer;
@@ -461,14 +470,31 @@ body {
   justify-content: center;
   gap: 4px;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
   min-height: 34px;
+  min-width: 84px;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  flex-shrink: 0;
 }
 
 .btn-3d-add:hover {
   background: var(--accent-caramel);
   color: var(--bg-main);
   border-bottom-color: #9c6644;
+}
+
+.btn-3d-add.in-cart {
+  background: var(--accent-caramel);
+  color: var(--bg-main);
+  border-color: var(--accent-hover);
+  border-bottom-color: #9c6644;
+  box-shadow: 0 3px 10px rgba(201, 139, 91, 0.4);
+}
+
+.btn-3d-add.in-cart:hover {
+  background: var(--accent-hover);
 }
 
 .btn-3d-add:active {
@@ -1182,7 +1208,16 @@ body {
   }
 }
 
-@media (max-width: 600px) {
+/* Tablet & Mobile Landscape (521px to 860px) - Fixed 2 columns so layout never shifts width */
+@media (min-width: 521px) and (max-width: 860px) {
+  .cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+}
+
+/* Mobile Portrait (<= 520px) - Fixed 1 column */
+@media (max-width: 520px) {
   .scialla-container {
     padding-bottom: 140px;
   }

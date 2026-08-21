@@ -205,35 +205,40 @@ export default function App() {
               </div>
 
               <div className="cards-grid">
-                {section.items.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`coffee-card-3d ${item.featured ? 'featured-signature' : ''}`}
-                  >
-                    <div className="card-top">
-                      <div>
-                        <h3 className="card-name">{item.name}</h3>
-                        <p className="card-desc">{item.description}</p>
+                {section.items.map((item) => {
+                  const cartItem = cart.find((c) => c.id === item.id);
+                  const qty = cartItem ? cartItem.qty : 0;
+                  return (
+                    <div
+                      key={item.id}
+                      className={`coffee-card-3d ${item.featured ? 'featured-signature' : ''}`}
+                    >
+                      <div className="card-top">
+                        <div>
+                          <h3 className="card-name">{item.name}</h3>
+                          <p className="card-desc">{item.description}</p>
+                        </div>
+                        <span className="tag-badge">
+                          ● {item.tag}
+                        </span>
                       </div>
-                      <span className="tag-badge">
-                        ● {item.tag}
-                      </span>
-                    </div>
 
-                    <div className="card-bottom">
-                      <div className="card-price">
-                        <span className="currency-sym">₱</span>
-                        <span>{item.price.toFixed(2)}</span>
+                      <div className="card-bottom">
+                        <div className="card-price">
+                          <span className="currency-sym">₱</span>
+                          <span>{item.price.toFixed(2)}</span>
+                        </div>
+                        <button
+                          className={`btn-3d-add ${qty > 0 ? 'in-cart' : ''}`}
+                          onClick={() => handleAddToCart(item)}
+                          aria-label={`Add ${item.name} to order`}
+                        >
+                          {qty > 0 ? `+ Add (${qty})` : '+ Add'}
+                        </button>
                       </div>
-                      <button
-                        className="btn-3d-add"
-                        onClick={() => handleAddToCart(item)}
-                      >
-                        + Add
-                      </button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
           ))}
