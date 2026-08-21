@@ -334,23 +334,21 @@ export default function App() {
       </div>
 
       {/* Mobile Floating Checkout Bar */}
-      {cart.length > 0 && (
-        <div className="mobile-checkout-bar">
-          <div className="mobile-bar-info">
-            <span className="mobile-bar-count">
-              {totalItemCount} {totalItemCount === 1 ? 'item' : 'items'} • {tableDisplayLabel}
-            </span>
-            <span className="mobile-bar-total">₱{totalAmount.toFixed(2)}</span>
-          </div>
-          <button
-            type="button"
-            className="mobile-bar-btn"
-            onClick={handleOpenCheckout}
-          >
-            Checkout →
-          </button>
+      <div className={`mobile-checkout-bar ${cart.length > 0 ? 'active' : ''}`}>
+        <div className="mobile-bar-info">
+          <span className="mobile-bar-count">
+            {totalItemCount} {totalItemCount === 1 ? 'item' : 'items'} • {tableDisplayLabel}
+          </span>
+          <span className="mobile-bar-total">₱{totalAmount.toFixed(2)}</span>
         </div>
-      )}
+        <button
+          type="button"
+          className="mobile-bar-btn"
+          onClick={handleOpenCheckout}
+        >
+          Checkout →
+        </button>
+      </div>
 
       {/* 3D RECEIPT MODAL */}
       {isReceiptOpen && (

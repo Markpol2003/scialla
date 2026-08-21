@@ -315,10 +315,11 @@ body {
   justify-content: space-between;
   gap: 14px;
   box-shadow: var(--shadow-3d);
-  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-  transform-style: preserve-3d;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   position: relative;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .coffee-card-3d::before {
@@ -364,6 +365,14 @@ body {
   border-bottom: 3px solid #000;
 }
 
+.coffee-card-3d.featured-signature .btn-3d-add.in-cart {
+  background: #11100E;
+  color: var(--accent-caramel);
+  border-color: var(--accent-caramel);
+  border-bottom-color: var(--accent-caramel);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6);
+}
+
 .coffee-card-3d.featured-signature .btn-3d-add:hover {
   background: #1B1815;
   color: var(--accent-caramel);
@@ -377,7 +386,6 @@ body {
 
 @media (hover: hover) {
   .coffee-card-3d:hover {
-    transform: translateY(-5px) rotateX(2deg) rotateY(-1deg);
     border-color: var(--accent-caramel);
     box-shadow: var(--shadow-3d-hover);
     background: var(--bg-card-hover);
@@ -385,7 +393,6 @@ body {
   
   .coffee-card-3d.featured-signature:hover {
     background: var(--accent-hover);
-    transform: translateY(-5px) scale(1.02);
   }
 }
 
@@ -461,7 +468,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.4);
   border-bottom: 3px solid #d4c3af;
   border-radius: 10px;
-  padding: 7px 14px;
+  padding: 7px 8px;
   font-size: 0.82rem;
   font-weight: 800;
   cursor: pointer;
@@ -471,8 +478,9 @@ body {
   gap: 4px;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
-  min-height: 34px;
-  min-width: 84px;
+  min-height: 36px;
+  width: 96px;
+  min-width: 96px;
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
@@ -780,12 +788,16 @@ body {
   -webkit-backdrop-filter: blur(16px);
   align-items: center;
   justify-content: space-between;
-  animation: slideUpMobile 0.3s ease-out;
+  transform: translateY(140%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
 }
 
-@keyframes slideUpMobile {
-  from { transform: translateY(100%); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+.mobile-checkout-bar.active {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .mobile-bar-info {
@@ -1199,8 +1211,7 @@ body {
   }
   
   .scialla-cart-sidebar {
-    position: static;
-    margin-top: 8px;
+    display: none;
   }
 
   .mobile-checkout-bar {
