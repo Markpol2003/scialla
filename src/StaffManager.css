@@ -1321,6 +1321,35 @@
   gap: 14px;
 }
 
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  width: 100%;
+  padding-right: 42px;
+}
+
+.btn-toggle-password {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.btn-toggle-password:hover {
+  color: var(--color-gold);
+}
+
 .btn-login-submit {
   background: var(--color-gold);
   color: #120d0a;
@@ -1833,6 +1862,13 @@
   color: var(--color-text-main);
 }
 
+.dropdown-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
 .dropdown-user-role {
   font-size: 0.75rem;
   color: var(--color-gold);
@@ -1848,25 +1884,232 @@
 .dropdown-divider {
   height: 1px;
   background: rgba(255, 255, 255, 0.1);
-  margin: 2px 0;
+  margin: 4px 0;
 }
 
-.dropdown-logout-btn {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid #ef4444;
-  color: #ef4444;
-  padding: 8px;
+.dropdown-menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dropdown-action-btn {
+  width: 100%;
+  padding: 9px 12px;
   border-radius: 8px;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: bold;
   cursor: pointer;
+  text-align: left;
   transition: all 0.2s ease;
-  text-align: center;
+  border: 1px solid transparent;
 }
 
-.dropdown-logout-btn:hover {
+.dropdown-action-btn.btn-profile {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text-main);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dropdown-action-btn.btn-profile:hover {
+  background: rgba(201, 139, 91, 0.2);
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+}
+
+.dropdown-action-btn.btn-logout {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.dropdown-action-btn.btn-logout:hover {
   background: #ef4444;
   color: white;
+}
+
+/* Large Avatar & Profile Info Modal Details */
+.dropdown-avatar-circle.large {
+  width: 56px;
+  height: 56px;
+  font-size: 1.6rem;
+  margin: 0 auto;
+  box-shadow: 0 0 20px rgba(201, 139, 91, 0.4);
+}
+
+.profile-details-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* PROFILE DROPDOWN COMPONENT - HIGH DESIGN POLISH */
+.profile-dropdown-wrapper {
+  position: relative;
+  display: inline-block;
+  z-index: 100000;
+}
+
+.profile-trigger-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 20px;
+  padding: 5px 14px 5px 6px;
+  background: rgba(201, 139, 91, 0.14);
+  border: 1px solid rgba(201, 139, 91, 0.35);
+  color: var(--color-text-main);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.profile-trigger-btn:hover {
+  background: rgba(201, 139, 91, 0.25);
+  border-color: var(--color-gold);
+  box-shadow: 0 6px 16px rgba(201, 139, 91, 0.2);
+}
+
+.avatar-circle {
+  display: flex;
+  height: 34px;
+  width: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(201, 139, 91, 0.35), rgba(125, 135, 111, 0.25));
+  color: var(--color-gold);
+  border: 1px solid var(--color-gold);
+  box-shadow: 0 0 10px rgba(201, 139, 91, 0.3);
+}
+
+.user-text-info {
+  text-align: left;
+}
+
+.user-name-str {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--color-text-main);
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: 0.2px;
+}
+
+.user-role-str {
+  font-size: 0.7rem;
+  color: var(--color-gold);
+  margin: 0;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.chevron-icon {
+  font-size: 0.8rem;
+  color: var(--color-gold);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-left: 4px;
+}
+
+.chevron-icon.rotate-180 {
+  transform: rotate(180deg);
+}
+
+.profile-dropdown-card {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 999999;
+  width: 210px;
+  border-radius: 16px;
+  border: 1px solid var(--color-gold);
+  background: rgba(22, 16, 12, 0.98);
+  padding: 8px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95), 0 0 25px rgba(201, 139, 91, 0.25);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transform-origin: top right;
+  animation: fadeInScale 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.dropdown-item-btn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text-main);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.dropdown-item-btn svg {
+  transition: transform 0.15s ease;
+}
+
+.dropdown-item-btn:hover {
+  background: rgba(201, 139, 91, 0.18);
+  color: var(--color-gold);
+  border-color: rgba(201, 139, 91, 0.3);
+}
+
+.dropdown-item-btn:hover svg {
+  transform: scale(1.1);
+}
+
+.dropdown-item-btn.btn-danger {
+  color: #ef4444;
+}
+
+.dropdown-item-btn.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.16);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.profile-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.btn-danger-action {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #ef4444 !important;
+  border: 1px solid #ef4444 !important;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3) !important;
+}
+
+.btn-danger-action:hover {
+  background: #ef4444 !important;
+  color: white !important;
 }
 
 

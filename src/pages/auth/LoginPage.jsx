@@ -7,8 +7,9 @@ export default function LoginPage({ targetRole = 'staff', onNavigate, onClose })
   const [mode, setMode] = useState('login');
   const [selectedRole, setSelectedRole] = useState(targetRole);
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Body Scroll Lock while Login Modal is active
   useEffect(() => {
@@ -29,10 +30,13 @@ export default function LoginPage({ targetRole = 'staff', onNavigate, onClose })
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const displayName = name || username || (selectedRole === 'staff' ? 'Marco Santos' : 'Sofia Mendoza');
+    const userEmail = `${username || selectedRole}@scialla.com`;
+
     if (mode === 'login') {
-      login(email || `${selectedRole}@scialla.com`, password || 'password123', selectedRole);
+      login(userEmail, password || 'password123', selectedRole);
     } else {
-      signup(name || 'Scialla User', email || `${selectedRole}@scialla.com`, password || 'password123', selectedRole);
+      signup(displayName, userEmail, password || 'password123', selectedRole);
     }
     if (onNavigate) {
       onNavigate(selectedRole === 'manager' ? '/manager' : selectedRole === 'staff' ? '/staff' : '/');
@@ -126,25 +130,45 @@ export default function LoginPage({ targetRole = 'staff', onNavigate, onClose })
           )}
 
           <div className="form-group">
-            <label>Email Address</label>
+            <label>Username</label>
             <input
-              type="email"
-              placeholder={`e.g. ${selectedRole}@scialla.com`}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              placeholder={`e.g. ${selectedRole}_user`}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
             />
           </div>
 
           <div className="form-group">
             <label>Password</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="password-input-wrapper">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                className="btn-toggle-password"
+                onClick={() => setShowPassword(!showPassword)}
+                title={showPassword ? 'Hide Password' : 'Show Password'}
+              >
+                {showPassword ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
           <button type="submit" className="btn-login-submit">

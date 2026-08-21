@@ -129,9 +129,9 @@ export function AppProvider({ children }) {
   const login = (email, password, targetRole) => {
     const role = targetRole || (email.includes('manager') ? 'manager' : email.includes('staff') ? 'staff' : 'customer');
     const nameMap = {
-      staff: 'Marco Santos (Barista)',
-      manager: 'Sofia Mendoza (Manager)',
-      customer: 'Coffee Lover (Customer)'
+      staff: 'Marco Santos',
+      manager: 'Sofia Mendoza',
+      customer: 'Coffee Lover'
     };
 
     const user = {

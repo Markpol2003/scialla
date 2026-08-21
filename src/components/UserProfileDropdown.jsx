@@ -1,68 +1,128 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 
-export default function UserProfileDropdown({ onNavigate }) {
+export default function ProfileDropdown({ onNavigate }) {
   const { currentUser, logout } = useApp();
   const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   if (!currentUser) return null;
 
-  const roleTitle = currentUser.role === 'staff'
+  const rawName = currentUser.name || 'User';
+  const cleanName = rawName.replace(/\s*\(.*?\)\s*/g, '').trim();
+
+  const roleTag = currentUser.role === 'staff'
     ? 'Barista'
+    : currentUser.role === 'manager'
+    ? 'Manager'
+    : 'Customer';
+
+  const roleTitle = currentUser.role === 'staff'
+    ? 'Barista (Staff)'
     : currentUser.role === 'manager'
     ? 'Store Manager'
     : 'Customer';
 
+  const handleSignOut = () => {
+    logout();
+    setIsOpen(false);
+    if (onNavigate) {
+      onNavigate('/');
+    } else {
+      window.location.href = '/';
+    }
+  };
+
   return (
-    <div className="user-profile-menu-container" ref={dropdownRef}>
-      {/* Profile Button with Dropdown Arrow */}
+    <div className="profile-dropdown-wrapper">
+      {/* Profile Trigger Pill Button (Single line clean name + role tag) */}
       <button
         type="button"
-        className="user-profile-pill-btn"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setIsOpen(true)}
+        className="profile-trigger-btn"
       >
-        <span className="user-avatar-badge">{currentUser.name.charAt(0).toUpperCase()}</span>
-        <span className="user-name-label">{currentUser.name}</span>
-        <span className="dropdown-arrow-icon">{isOpen ? '▴' : '▾'}</span>
+        <div className="avatar-circle">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </div>
+
+        <span className="user-name-str">
+          {cleanName} ({roleTag})
+        </span>
+
+        <span className="chevron-icon">▾</span>
       </button>
 
-      {/* Floating Dropdown Card */}
+      {/* PROFILE & SIGN OUT MODAL OVERLAY */}
       {isOpen && (
-        <div className="user-profile-dropdown-card">
-          <div className="dropdown-user-header">
-            <div className="dropdown-avatar-circle">{currentUser.name.charAt(0).toUpperCase()}</div>
-            <div className="dropdown-user-details">
-              <strong className="dropdown-user-name">{currentUser.name}</strong>
-              <span className="dropdown-user-role">({roleTitle})</span>
-              <span className="dropdown-status-dot">● Active</span>
+        <div
+          className="login-page-container"
+          onClick={() => setIsOpen(false)}
+        >
+          <div
+            className="login-card-3d profile-modal-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close "X" Button */}
+            <button
+              type="button"
+              className="login-close-btn"
+              onClick={() => setIsOpen(false)}
+              title="Close modal"
+            >
+              ✕
+            </button>
+
+            {/* Profile Header */}
+            <div className="login-brand">
+              <div className="avatar-circle large">
+                {cleanName.charAt(0).toUpperCase()}
+              </div>
+              <h2 className="brand-title" style={{ marginTop: '14px' }}>{cleanName}</h2>
+              <p className="brand-subtitle">{roleTitle} • Verified Account</p>
+            </div>
+
+            {/* Account Details List */}
+            <div className="profile-details-list">
+              <div className="detail-row">
+                <span className="detail-label">Email Address</span>
+                <span className="detail-val">{currentUser.email || `${currentUser.role}@scialla.com`}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Role Privilege</span>
+                <span className="detail-val">{roleTitle}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Status</span>
+                <span className="detail-val" style={{ color: '#10b981' }}>● Active</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Branch</span>
+                <span className="detail-val">Scialla Main Cafe</span>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="profile-modal-actions">
+              <button
+                type="button"
+                className="btn-login-submit btn-danger-action"
+                onClick={handleSignOut}
+              >
+                Sign Out of Account
+              </button>
+
+              <button
+                type="button"
+                className="btn-demo demo-customer-btn"
+                onClick={() => setIsOpen(false)}
+                style={{ textAlign: 'center' }}
+              >
+                Back to Dashboard
+              </button>
             </div>
           </div>
-
-          <div className="dropdown-divider"></div>
-
-          <button
-            type="button"
-            className="dropdown-logout-btn"
-            onClick={() => {
-              logout();
-              setIsOpen(false);
-              if (onNavigate) onNavigate('/');
-            }}
-          >
-            Sign Out
-          </button>
         </div>
       )}
     </div>
