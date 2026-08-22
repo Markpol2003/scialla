@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 
 export default function Checkout({
@@ -44,8 +45,8 @@ export default function Checkout({
     onClose();
   };
 
-  return (
-    <div className="receipt-modal-backdrop" onClick={() => !isPaid && onClose()}>
+  return createPortal(
+    <div className="receipt-modal-backdrop" onClick={() => !isPaid && onClose()} style={{ zIndex: 999999 }}>
       <div className="receipt-3d-card" onClick={(e) => e.stopPropagation()}>
         {!isPaid && (
           <button className="receipt-close-btn" onClick={onClose}>
@@ -98,7 +99,7 @@ export default function Checkout({
             <div className="payment-section">
               <label className="payment-label">Select Payment Method</label>
               <div className="payment-options-grid">
-                {['GCash', 'Maya', 'Card', 'Cash'].map((method) => (
+                {['GCash', 'Maya', 'Cash'].map((method) => (
                   <button
                     key={method}
                     type="button"
@@ -129,6 +130,7 @@ export default function Checkout({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

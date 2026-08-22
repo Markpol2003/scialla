@@ -1,42 +1,180 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 
 export default function Products() {
   const { menuCategories, toggleItemStock } = useApp();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCat, setSelectedCat] = useState('all');
+
+  const totalItemsCount = menuCategories.reduce((sum, cat) => sum + cat.items.length, 0);
+  const totalInStockCount = menuCategories.reduce(
+    (sum, cat) => sum + cat.items.filter((i) => i.inStock).length,
+    0
+  );
+  const totalOutOfStock = totalItemsCount - totalInStockCount;
+
+  // Flatten items with category meta for table rendering
+  const allProducts = menuCategories.flatMap((cat) =>
+    cat.items.map((item) => ({
+      ...item,
+      categoryId: cat.id,
+      categoryName: cat.category,
+    }))
+  );
+
+  const filteredProducts = allProducts.filter((item) => {
+    if (selectedCat !== 'all' && item.categoryId !== selectedCat) return false;
+    const q = searchQuery.toLowerCase();
+    return (
+      item.name.toLowerCase().includes(q) ||
+      item.description.toLowerCase().includes(q) ||
+      (item.tag && item.tag.toLowerCase().includes(q)) ||
+      item.categoryName.toLowerCase().includes(q)
+    );
+  });
 
   return (
-    <div className="manager-products-manager">
-      <div className="box-header">
-        <h2>Beverage & Bakery Catalog</h2>
-        <span className="box-tag">{menuCategories.reduce((s, c) => s + c.items.length, 0)} Active Items</span>
+    <div className="catalog-modern">
+      {/* Hero Header */}
+      <header className="catalog-hero">
+        <div className="catalog-hero-text">
+          <h2 className="catalog-title">Beverage & Bakery Catalog</h2>
+          <p className="catalog-subtitle">
+            Manage your menu inventory, pricing, and live availability status
+          </p>
+        </div>
+        <div className="catalog-hero-stats">
+          <div className="hero-stat">
+            <span className="hero-stat-value">{totalItemsCount}</span>
+            <span className="hero-stat-label">Total SKUs</span>
+          </div>
+          <div className="hero-stat success">
+            <span className="hero-stat-value">{totalInStockCount}</span>
+            <span className="hero-stat-label">In Stock</span>
+          </div>
+          <div className="hero-stat danger">
+            <span className="hero-stat-value">{totalOutOfStock}</span>
+            <span className="hero-stat-label">Out of Stock</span>
+          </div>
+        </div>
+      </header>
+
+      {/* Toolbar: Search + Filter Chips */}
+      <div className="catalog-toolbar">
+        <div className="catalog-search">
+          <input
+            type="text"
+            placeholder="Search by name, description or tag..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              className="search-clear"
+              onClick={() => setSearchQuery('')}
+              title="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        <div className="catalog-filter-chips">
+          <button
+            type="button"
+            className={`filter-chip ${selectedCat === 'all' ? 'active' : ''}`}
+            onClick={() => setSelectedCat('all')}
+          >
+            All ({totalItemsCount})
+          </button>
+          {menuCategories.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              className={`filter-chip ${selectedCat === cat.id ? 'active' : ''}`}
+              onClick={() => setSelectedCat(cat.id)}
+            >
+              {cat.category} ({cat.items.length})
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="manager-products-grid">
-        {menuCategories.map((cat) => (
-          <div key={cat.id} className="cat-management-card">
-            <h3 className="cat-header-title">{cat.category}</h3>
-            <div className="cat-items-rows">
-              {cat.items.map((item) => (
-                <div key={item.id} className="p-mgmt-row">
-                  <div className="p-mgmt-left">
-                    <strong>{item.name}</strong>
-                    <p>{item.description}</p>
-                  </div>
-                  <div className="p-mgmt-right">
-                    <span className="price-badge">₱{item.price.toFixed(2)}</span>
+      {/* Product Catalog Data Table */}
+      <div className="catalog-table-container">
+        {filteredProducts.length === 0 ? (
+          <div className="catalog-empty">
+            <p>No catalog items match "{searchQuery}".</p>
+            {searchQuery && (
+              <button
+                type="button"
+                className="clear-search-btn"
+                onClick={() => setSearchQuery('')}
+              >
+                Clear search
+              </button>
+            )}
+          </div>
+        ) : (
+          <table className="catalog-data-table">
+            <thead>
+              <tr>
+                <th style={{ width: '42%' }}>Item & Description</th>
+                <th style={{ width: '22%' }}>Category</th>
+                <th style={{ width: '16%' }}>Price</th>
+                <th style={{ width: '20%', textAlign: 'right' }}>Availability</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProducts.map((item) => (
+                <tr key={item.id} className={!item.inStock ? 'row-out-of-stock' : ''}>
+                  <td>
+                    <div className="tbl-item-cell">
+                      <div className="tbl-name-row">
+                        <strong className="tbl-item-name">{item.name}</strong>
+                        {item.tag && <span className="product-tag">{item.tag}</span>}
+                      </div>
+                      <p className="tbl-item-desc">{item.description}</p>
+                    </div>
+                  </td>
+                  <td>
+                    <span className="tbl-cat-badge">{item.categoryName}</span>
+                  </td>
+                  <td>
+                    <div className="tbl-price-cell">
+                      {item.sizes ? (
+                        <div>
+                          <strong className="tbl-price-val">
+                            ₱{item.sizes[0].price} – ₱{item.sizes[item.sizes.length - 1].price}
+                          </strong>
+                          <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                            {item.sizes.map((s) => `${s.size}: ₱${s.price}`).join(' | ')}
+                          </span>
+                        </div>
+                      ) : (
+                        <strong className="tbl-price-val">₱{item.price.toFixed(2)}</strong>
+                      )}
+                    </div>
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
                     <button
                       type="button"
-                      className={`toggle-stock-btn ${item.inStock ? 'in-stock' : 'out-of-stock'}`}
+                      className={`stock-switch ${item.inStock ? 'is-stock' : 'is-out'}`}
                       onClick={() => toggleItemStock(item.id)}
+                      title={item.inStock ? 'Mark as sold out' : 'Mark as in stock'}
                     >
-                      {item.inStock ? 'In Stock' : 'Sold Out'}
+                      <span className="switch-knob" />
+                      <span className="switch-label">
+                        {item.inStock ? 'In Stock' : 'Sold Out'}
+                      </span>
                     </button>
-                  </div>
-                </div>
+                  </td>
+                </tr>
               ))}
-            </div>
-          </div>
-        ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

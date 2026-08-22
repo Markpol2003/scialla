@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import Products from './Products';
 
 export default function ManagerDashboardPage() {
   const {
     todayRevenue,
     todayOrderCount,
     avgOrderValue,
+    thisMonthRevenue,
+    monthlyTargetRevenue,
+    monthlyProgressPercent,
+    monthlyOrderCount,
+    monthlySalesData,
     topProducts,
     inventory,
     restockInventory,
@@ -17,16 +23,6 @@ export default function ManagerDashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
 
   const lowStockItems = inventory.filter((item) => item.stock <= item.minThreshold);
-
-  const weeklySalesData = [
-    { day: 'Mon', sales: 18400, percent: 65 },
-    { day: 'Tue', sales: 21200, percent: 78 },
-    { day: 'Wed', sales: 19800, percent: 72 },
-    { day: 'Thu', sales: 23500, percent: 85 },
-    { day: 'Fri', sales: 28900, percent: 98 },
-    { day: 'Sat', sales: 31400, percent: 100 },
-    { day: 'Sun', sales: 26800, percent: 90 },
-  ];
 
   return (
     <div className="manager-container">
@@ -41,31 +37,31 @@ export default function ManagerDashboardPage() {
             className={`manager-tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
             onClick={() => setActiveTab('overview')}
           >
-            📊 Analytics Dashboard
+            Analytics Dashboard
           </button>
           <button
             className={`manager-tab-btn ${activeTab === 'inventory' ? 'active' : ''}`}
             onClick={() => setActiveTab('inventory')}
           >
-            📦 Inventory Control ({lowStockItems.length})
+            Inventory Control ({lowStockItems.length})
           </button>
           <button
             className={`manager-tab-btn ${activeTab === 'products' ? 'active' : ''}`}
             onClick={() => setActiveTab('products')}
           >
-            ☕ Product Catalog
+            Product Catalog
           </button>
           <button
             className={`manager-tab-btn ${activeTab === 'staff' ? 'active' : ''}`}
             onClick={() => setActiveTab('staff')}
           >
-            👥 Staff Roster
+            Staff Roster
           </button>
           <button
             className={`manager-tab-btn ${activeTab === 'api' ? 'active' : ''}`}
             onClick={() => setActiveTab('api')}
           >
-            ⚡ Laravel API Payload Inspector
+            API Inspector
           </button>
         </div>
       </header>
@@ -81,16 +77,21 @@ export default function ManagerDashboardPage() {
               </div>
             </div>
 
-            <div className="kpi-card">
-              <span className="kpi-title">TOTAL ORDERS</span>
-              <div className="kpi-main-val">{todayOrderCount}</div>
-              <span className="kpi-sub-tag">96 Unique Customers</span>
+            <div className="kpi-card highlight-revenue-monthly">
+              <span className="kpi-title">THIS MONTH'S REVENUE</span>
+              <div className="kpi-main-val">
+                ₱{thisMonthRevenue.toLocaleString()}
+                <span className="kpi-growth-tag">+18.6% vs last month</span>
+              </div>
+              <span className="kpi-sub-tag">
+                Target: ₱{monthlyTargetRevenue.toLocaleString()} ({monthlyProgressPercent}% achieved)
+              </span>
             </div>
 
             <div className="kpi-card">
-              <span className="kpi-title">AVERAGE TICKET</span>
-              <div className="kpi-main-val">₱{avgOrderValue}</div>
-              <span className="kpi-sub-tag">Per customer order</span>
+              <span className="kpi-title">MONTHLY ORDERS</span>
+              <div className="kpi-main-val">{monthlyOrderCount.toLocaleString()}</div>
+              <span className="kpi-sub-tag">Avg ₱{avgOrderValue} per order</span>
             </div>
 
             <div className="kpi-card">
@@ -232,38 +233,7 @@ export default function ManagerDashboardPage() {
         </div>
       )}
 
-      {activeTab === 'products' && (
-        <div className="manager-products-manager">
-          <div className="box-header">
-            <h2>Beverage & Bakery Catalog</h2>
-            <span className="box-tag">{menuCategories.reduce((s, c) => s + c.items.length, 0)} Active Items</span>
-          </div>
-
-          <div className="manager-products-grid">
-            {menuCategories.map((cat) => (
-              <div key={cat.id} className="cat-management-card">
-                <h3 className="cat-header-title">{cat.category}</h3>
-                <div className="cat-items-rows">
-                  {cat.items.map((item) => (
-                    <div key={item.id} className="p-mgmt-row">
-                      <div className="p-mgmt-left">
-                        <strong>{item.name}</strong>
-                        <p>{item.description}</p>
-                      </div>
-                      <div className="p-mgmt-right">
-                        <span className="price-badge">₱{item.price.toFixed(2)}</span>
-                        <span className={`stock-status ${item.inStock ? 'ok' : 'soldout'}`}>
-                          {item.inStock ? 'In Stock' : 'Sold Out'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {activeTab === 'products' && <Products />}
 
       {activeTab === 'staff' && (
         <div className="manager-staff-manager">

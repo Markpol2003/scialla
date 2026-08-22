@@ -225,6 +225,53 @@ body {
   box-shadow: 0 2px 10px rgba(245, 235, 221, 0.25);
 }
 
+.table-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.dot-free {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+}
+
+.dot-occupied {
+  background: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.9);
+}
+
+.table-chip-btn.occupied-table {
+  border: 1px solid rgba(245, 158, 11, 0.6) !important;
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: #fbbf24 !important;
+  font-weight: 700;
+}
+
+.table-chip-btn.occupied-table.active {
+  background: #f59e0b !important;
+  color: #120d0a !important;
+  border-color: #f59e0b !important;
+}
+
+.table-occ-tag {
+  font-size: 0.64rem;
+  font-weight: 800;
+  background: rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 3px;
+  letter-spacing: 0.3px;
+}
+
+.table-chip-btn.occupied-table.active .table-occ-tag {
+  background: rgba(18, 13, 10, 0.3);
+  color: #120d0a;
+}
+
 .table-input-custom-wrapper {
   display: flex;
   align-items: center;
@@ -1285,4 +1332,16 @@ body {
     grid-template-columns: repeat(2, 1fr);
     gap: 6px;
   }
+}
+
+/* STICKY / FROZEN TOP CONTAINER FOR HEADER & LIVE TRACKER */
+.scialla-sticky-top {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: rgba(18, 13, 10, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(201, 139, 91, 0.25);
+  padding: 12px 24px;
 }

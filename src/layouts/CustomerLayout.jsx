@@ -9,7 +9,15 @@ import UserProfileDropdown from '../components/UserProfileDropdown';
 import '../CoffeeMenu.css';
 
 export default function CustomerLayout({ onNavigate }) {
-  const { lastCustomerOrder, currentUser } = useApp();
+  const { lastCustomerOrder, setLastCustomerOrder, currentUser, orders } = useApp();
+
+  const occupiedTables = (orders || [])
+    .filter((o) => ['new', 'preparing', 'ready'].includes(o.status))
+    .filter((o) => o.table && !o.table.toLowerCase().includes('takeout'))
+    .map((o) => {
+      const match = String(o.table).match(/\d+/);
+      return match ? String(parseInt(match[0], 10)) : String(o.table).trim();
+    });
 
   const [cart, setCart] = useState([]);
   const [tableNumber, setTableNumber] = useState('4');
@@ -63,7 +71,19 @@ export default function CustomerLayout({ onNavigate }) {
 
           <div className="nav-portal-links">
             {currentUser ? (
-              <UserProfileDropdown onNavigate={onNavigate} />
+              <div className="nav-portal-user-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {(currentUser.role === 'staff' || currentUser.role === 'manager') && (
+                  <button
+                    type="button"
+                    className={`btn-return-portal ${currentUser.role === 'manager' ? 'return-manager' : 'return-staff'}`}
+                    onClick={() => onNavigate(currentUser.role === 'manager' ? '/manager' : '/staff')}
+                    title={`Return to ${currentUser.role === 'manager' ? 'Manager' : 'Staff'} Portal`}
+                  >
+                    ⚡ {currentUser.role === 'manager' ? 'Manager' : 'Staff'} Dashboard
+                  </button>
+                )}
+                <UserProfileDropdown onNavigate={onNavigate} />
+              </div>
             ) : (
               <button
                 type="button"
@@ -89,16 +109,23 @@ export default function CustomerLayout({ onNavigate }) {
           <div className="table-bar-card">
             <span className="table-bar-label">Your Table:</span>
             <div className="table-chips-group">
-              {['1', '2', '3', '4', '5', 'Takeout'].map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  className={`table-chip-btn ${tableNumber === t ? 'active' : ''}`}
-                  onClick={() => setTableNumber(t)}
-                >
-                  {t === 'Takeout' ? 'Takeout' : `Table ${t}`}
-                </button>
-              ))}
+              {['1', '2', '3', '4', '5', 'Takeout'].map((t) => {
+                const tableNumStr = String(t).trim();
+                const isOccupied = t !== 'Takeout' && occupiedTables.includes(tableNumStr);
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`table-chip-btn ${tableNumber === t ? 'active' : ''} ${isOccupied ? 'occupied-table' : ''}`}
+                    onClick={() => setTableNumber(t)}
+                    title={isOccupied ? `Table ${t} has an active order (Occupied)` : `Table ${t} is available`}
+                  >
+                    <span className={`table-status-dot ${isOccupied ? 'dot-occupied' : 'dot-free'}`} />
+                    {t === 'Takeout' ? 'Takeout' : `Table ${t}`}
+                    {isOccupied && <span className="table-occ-tag">Occupied</span>}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="table-input-custom-wrapper">
@@ -120,21 +147,61 @@ export default function CustomerLayout({ onNavigate }) {
       {lastCustomerOrder && (
         <div className="live-order-tracker-banner">
           <div className="tracker-header">
-            <span className="pulse-dot"></span>
-            <strong>Order Status: #{lastCustomerOrder.id} ({lastCustomerOrder.table})</strong>
+            <span className="pulse-indicator" />
+            <div className="tracker-meta">
+              <strong className="tracker-title">Live Order Tracker #{lastCustomerOrder.id}</strong>
+              <span className="tracker-table-badge">{lastCustomerOrder.table}</span>
+            </div>
+
+            <button
+              type="button"
+              className="btn-dismiss-tracker"
+              onClick={() => setLastCustomerOrder(null)}
+              title="Dismiss notification"
+            >
+              ✕
+            </button>
           </div>
+
+          {/* Unique 4-Step Laser Progress Stepper */}
+          <div className="tracker-progress-stepper">
+            <div className={`stepper-node ${['new', 'preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
+              <span className="node-dot">1</span>
+              <span className="node-label">Received</span>
+            </div>
+            <div className={`stepper-line ${['preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
+            <div className={`stepper-node ${['preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
+              <span className="node-dot">2</span>
+              <span className="node-label">Preparing</span>
+            </div>
+            <div className={`stepper-line ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
+            <div className={`stepper-node ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
+              <span className="node-dot">3</span>
+              <span className="node-label">{lastCustomerOrder.table.toLowerCase().includes('takeout') ? 'Counter Pickup' : 'Ready to Serve'}</span>
+            </div>
+            <div className={`stepper-line ${lastCustomerOrder.status === 'completed' ? 'active-line' : ''}`} />
+            <div className={`stepper-node ${lastCustomerOrder.status === 'completed' ? 'active' : ''}`}>
+              <span className="node-dot">4</span>
+              <span className="node-label">Delivered</span>
+            </div>
+          </div>
+
           <div className="tracker-status-step">
             {lastCustomerOrder.status === 'new' && (
-              <span className="status-pill status-new">Order Received (Pending Barista)</span>
+              <span className="status-pill status-new">Received by Barista • Preparing to accept...</span>
             )}
             {lastCustomerOrder.status === 'preparing' && (
-              <span className="status-pill status-prep">Preparing in Kitchen</span>
+              <span className="status-pill status-prep">Barista is handcrafting your order now!</span>
             )}
             {lastCustomerOrder.status === 'ready' && (
-              <span className="status-pill status-ready">Ready for Table / Pickup</span>
+              <span className="status-pill status-ready">
+                {lastCustomerOrder.table.toLowerCase().includes('takeout')
+                  ? 'Ready for Counter Pickup! Present Order #' + lastCustomerOrder.id
+                  : `Ready! Serving to ${lastCustomerOrder.table}`}
+              </span>
             )}
             {lastCustomerOrder.status === 'completed' && (
-              <span className="status-pill status-complete">Completed</span>
+              <span className="status-pill status-complete">Completed & Delivered. Thank you for visiting Scialla!</span>
             )}
           </div>
         </div>

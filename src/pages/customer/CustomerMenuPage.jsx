@@ -4,7 +4,15 @@ import { useApp } from '../../context/AppContext';
 import '../../CoffeeMenu.css';
 
 export default function CustomerMenuPage() {
-  const { menuCategories, placeOrder, lastCustomerOrder } = useApp();
+  const { menuCategories, placeOrder, lastCustomerOrder, setLastCustomerOrder, orders } = useApp();
+
+  const occupiedTables = (orders || [])
+    .filter((o) => ['new', 'preparing', 'ready'].includes(o.status))
+    .filter((o) => o.table && !o.table.toLowerCase().includes('takeout'))
+    .map((o) => {
+      const match = String(o.table).match(/\d+/);
+      return match ? String(parseInt(match[0], 10)) : String(o.table).trim();
+    });
 
   const [cart, setCart] = useState([]);
   const [toastMessage, setToastMessage] = useState('');
@@ -23,13 +31,25 @@ export default function CustomerMenuPage() {
     }, 2200);
   };
 
+  const [selectedSizes, setSelectedSizes] = useState({});
+
+  const handleSizeSelect = (itemId, sizeObj) => {
+    setSelectedSizes((prev) => ({ ...prev, [itemId]: sizeObj }));
+  };
+
   const handleAddToCart = (item) => {
     if (!item.inStock) {
       triggerToast(`Sorry, ${item.name} is currently out of stock`);
       return;
     }
+
+    const activeSize = item.sizes ? (selectedSizes[item.id] || item.sizes[0]) : null;
+    const cartItemId = activeSize ? `${item.id}-${activeSize.size}` : item.id;
+    const cartItemName = activeSize ? `${item.name} (${activeSize.size})` : item.name;
+    const itemPrice = activeSize ? activeSize.price : item.price;
+
     setCart((prevCart) => {
-      const existingIndex = prevCart.findIndex((cartItem) => cartItem.id === item.id);
+      const existingIndex = prevCart.findIndex((cartItem) => cartItem.id === cartItemId);
       if (existingIndex > -1) {
         const updated = [...prevCart];
         updated[existingIndex] = {
@@ -38,9 +58,9 @@ export default function CustomerMenuPage() {
         };
         return updated;
       }
-      return [...prevCart, { ...item, qty: 1 }];
+      return [...prevCart, { id: cartItemId, name: cartItemName, price: itemPrice, qty: 1, originalId: item.id }];
     });
-    triggerToast(`Added ${item.name} to order`);
+    triggerToast(`Added ${cartItemName} to order`);
   };
 
   const handleUpdateQty = (id, delta) => {
@@ -117,32 +137,71 @@ export default function CustomerMenuPage() {
         </div>
       )}
 
-      {/* Live Customer Order Tracking Banner */}
-      {lastCustomerOrder && (
-        <div className="live-order-tracker-banner">
-          <div className="tracker-header">
-            <span className="pulse-indicator"></span>
-            <strong>Active Order Tracker: {lastCustomerOrder.id} ({lastCustomerOrder.table})</strong>
-          </div>
-          <div className="tracker-status-step">
-            {lastCustomerOrder.status === 'new' && (
-              <span className="status-pill status-new">⏳ Received by Staff (Pending Barista Acceptance)</span>
-            )}
-            {lastCustomerOrder.status === 'preparing' && (
-              <span className="status-pill status-prep">☕ Barista is handcrafting your order now!</span>
-            )}
-            {lastCustomerOrder.status === 'ready' && (
-              <span className="status-pill status-ready">✨ Ready! Serving to {lastCustomerOrder.table}</span>
-            )}
-            {lastCustomerOrder.status === 'completed' && (
-              <span className="status-pill status-complete">✓ Delivered. Thank you for visiting Scialla!</span>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Sticky / Frozen Top Section */}
       <div className="scialla-sticky-top">
+        {/* Live Customer Order Tracking Banner */}
+        {lastCustomerOrder && (
+          <div className="live-order-tracker-banner">
+            <div className="tracker-header">
+              <span className="pulse-indicator" />
+              <div className="tracker-meta">
+                <strong className="tracker-title">Live Order Tracker #{lastCustomerOrder.id}</strong>
+                <span className="tracker-table-badge">{lastCustomerOrder.table}</span>
+              </div>
+
+              <button
+                type="button"
+                className="btn-dismiss-tracker"
+                onClick={() => setLastCustomerOrder(null)}
+                title="Dismiss notification"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Unique 4-Step Laser Progress Stepper */}
+            <div className="tracker-progress-stepper">
+              <div className={`stepper-node ${['new', 'preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
+                <span className="node-dot">1</span>
+                <span className="node-label">Received</span>
+              </div>
+              <div className={`stepper-line ${['preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
+              <div className={`stepper-node ${['preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
+                <span className="node-dot">2</span>
+                <span className="node-label">Preparing</span>
+              </div>
+              <div className={`stepper-line ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
+              <div className={`stepper-node ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
+                <span className="node-dot">3</span>
+                <span className="node-label">{lastCustomerOrder.table.toLowerCase().includes('takeout') ? 'Counter Pickup' : 'Ready to Serve'}</span>
+              </div>
+              <div className={`stepper-line ${lastCustomerOrder.status === 'completed' ? 'active-line' : ''}`} />
+              <div className={`stepper-node ${lastCustomerOrder.status === 'completed' ? 'active' : ''}`}>
+                <span className="node-dot">4</span>
+                <span className="node-label">Delivered</span>
+              </div>
+            </div>
+
+            <div className="tracker-status-step">
+              {lastCustomerOrder.status === 'new' && (
+                <span className="status-pill status-new">Received by Barista • Preparing to accept...</span>
+              )}
+              {lastCustomerOrder.status === 'preparing' && (
+                <span className="status-pill status-prep">Barista is handcrafting your order now!</span>
+              )}
+              {lastCustomerOrder.status === 'ready' && (
+                <span className="status-pill status-ready">
+                  {lastCustomerOrder.table.toLowerCase().includes('takeout')
+                    ? 'Ready for Counter Pickup! Present Order #' + lastCustomerOrder.id
+                    : `Ready! Serving to ${lastCustomerOrder.table}`}
+                </span>
+              )}
+              {lastCustomerOrder.status === 'completed' && (
+                <span className="status-pill status-complete">Completed & Delivered. Thank you for visiting Scialla!</span>
+              )}
+            </div>
+          </div>
+        )}
         <header className="scialla-header">
           <h1 className="scialla-title">
             Scialla <span className="scialla-title-accent"></span> Cafe
@@ -155,16 +214,23 @@ export default function CustomerMenuPage() {
           <div className="table-bar-card">
             <span className="table-bar-label">Your Table:</span>
             <div className="table-chips-group">
-              {['1', '2', '3', '4', '5', 'Takeout'].map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  className={`table-chip-btn ${tableNumber === t ? 'active' : ''}`}
-                  onClick={() => setTableNumber(t)}
-                >
-                  {t === 'Takeout' ? 'Takeout' : `Table ${t}`}
-                </button>
-              ))}
+              {['1', '2', '3', '4', '5', 'Takeout'].map((t) => {
+                const tableNumStr = String(t).trim();
+                const isOccupied = t !== 'Takeout' && occupiedTables.includes(tableNumStr);
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`table-chip-btn ${tableNumber === t ? 'active' : ''} ${isOccupied ? 'occupied-table' : ''}`}
+                    onClick={() => setTableNumber(t)}
+                    title={isOccupied ? `Table ${t} currently has an active order (Occupied)` : `Table ${t} is available`}
+                  >
+                    <span className={`table-status-dot ${isOccupied ? 'dot-occupied' : 'dot-free'}`} />
+                    {t === 'Takeout' ? 'Takeout' : `Table ${t}`}
+                    {isOccupied && <span className="table-occ-tag">Occupied</span>}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="table-input-custom-wrapper">
@@ -197,7 +263,10 @@ export default function CustomerMenuPage() {
 
               <div className="cards-grid">
                 {section.items.map((item) => {
-                  const cartItem = cart.find((c) => c.id === item.id);
+                  const activeSize = item.sizes ? (selectedSizes[item.id] || item.sizes[0]) : null;
+                  const activePrice = activeSize ? activeSize.price : item.price;
+                  const cartItemId = activeSize ? `${item.id}-${activeSize.size}` : item.id;
+                  const cartItem = cart.find((c) => c.id === cartItemId);
                   const qty = cartItem ? cartItem.qty : 0;
                   const isOutOfStock = !item.inStock;
 
@@ -216,10 +285,36 @@ export default function CustomerMenuPage() {
                         </span>
                       </div>
 
+                      {item.sizes && (
+                        <div className="drink-size-selector-row" style={{ display: 'flex', gap: '6px', margin: '8px 0' }}>
+                          {item.sizes.map((s) => (
+                            <button
+                              key={s.size}
+                              type="button"
+                              className={`size-pill-btn ${(activeSize?.size === s.size) ? 'active' : ''}`}
+                              onClick={() => handleSizeSelect(item.id, s)}
+                              style={{
+                                flex: 1,
+                                padding: '4px 6px',
+                                borderRadius: '8px',
+                                border: (activeSize?.size === s.size) ? '1px solid var(--color-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
+                                background: (activeSize?.size === s.size) ? 'rgba(201, 139, 91, 0.25)' : 'rgba(0, 0, 0, 0.3)',
+                                color: (activeSize?.size === s.size) ? 'var(--color-gold)' : 'var(--color-text-muted)',
+                                fontSize: '0.74rem',
+                                fontWeight: 'bold',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {s.size} (₱{s.price})
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
                       <div className="card-bottom">
                         <div className="card-price">
                           <span className="currency-sym">₱</span>
-                          <span>{item.price.toFixed(2)}</span>
+                          <span>{activePrice.toFixed(2)}</span>
                         </div>
                         <button
                           className={`btn-3d-add ${qty > 0 ? 'in-cart' : ''}`}
@@ -404,7 +499,7 @@ export default function CustomerMenuPage() {
                 <div className="payment-section">
                   <label className="payment-label">Select Payment Method</label>
                   <div className="payment-options-grid">
-                    {['GCash', 'Maya', 'Card', 'Cash'].map((method) => (
+                    {['GCash', 'Maya', 'Cash'].map((method) => (
                       <button
                         key={method}
                         type="button"

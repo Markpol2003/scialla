@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 
 export default function AuthModal() {
@@ -31,10 +32,11 @@ export default function AuthModal() {
     login(`${role}@scialla.com`, 'demo123', role);
   };
 
-  return (
+  return createPortal(
     <div
       className="auth-modal-backdrop"
       onClick={() => setIsAuthModalOpen(false)}
+      style={{ zIndex: 999999 }}
     >
       <div
         className="auth-modal-card"
@@ -165,6 +167,7 @@ export default function AuthModal() {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

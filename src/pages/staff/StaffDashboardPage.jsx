@@ -21,6 +21,21 @@ export default function StaffDashboardPage() {
 
   const lowStockItems = inventory.filter((item) => item.stock <= item.minThreshold);
 
+  const consolidateItems = (items = []) => {
+    const map = new Map();
+    items.forEach((item) => {
+      const cleanName = item.name ? item.name.replace(/^\d+x\s*/i, '').trim() : 'Item';
+      const key = `${item.id || cleanName}-${item.price}`;
+      if (map.has(key)) {
+        const existing = map.get(key);
+        map.set(key, { ...existing, qty: existing.qty + (item.qty || 1) });
+      } else {
+        map.set(key, { ...item, name: cleanName, qty: item.qty || 1 });
+      }
+    });
+    return Array.from(map.values());
+  };
+
   return (
     <div className="staff-container">
       <header className="staff-header">
@@ -98,7 +113,7 @@ export default function StaffDashboardPage() {
                     </div>
 
                     <div className="card-items-list">
-                      {ord.items.map((item, idx) => (
+                      {consolidateItems(ord.items).map((item, idx) => (
                         <div key={idx} className="staff-item-row">
                           <span className="item-qty-badge">{item.qty}×</span>
                           <span className="item-name">{item.name}</span>
@@ -156,7 +171,7 @@ export default function StaffDashboardPage() {
                     </div>
 
                     <div className="card-items-list">
-                      {ord.items.map((item, idx) => (
+                      {consolidateItems(ord.items).map((item, idx) => (
                         <div key={idx} className="staff-item-row">
                           <span className="item-qty-badge">{item.qty}×</span>
                           <span className="item-name">{item.name}</span>
@@ -201,7 +216,7 @@ export default function StaffDashboardPage() {
                     </div>
 
                     <div className="card-items-list">
-                      {ord.items.map((item, idx) => (
+                      {consolidateItems(ord.items).map((item, idx) => (
                         <div key={idx} className="staff-item-row">
                           <span className="item-qty-badge">{item.qty}×</span>
                           <span className="item-name">{item.name}</span>

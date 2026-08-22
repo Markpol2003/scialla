@@ -1,14 +1,29 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 
 export default function Dashboard() {
-  const { todayRevenue, todayOrderCount, avgOrderValue, inventory, orders } = useApp();
+  const {
+    todayRevenue,
+    todayOrderCount,
+    avgOrderValue,
+    thisMonthRevenue,
+    monthlyTargetRevenue,
+    monthlyProgressPercent,
+    monthlyOrderCount,
+    monthlySalesData,
+    inventory,
+    orders
+  } = useApp();
+
+  const [timeframe, setTimeframe] = useState('monthly'); // 'monthly' | 'weekly'
   const lowStockItems = inventory.filter((i) => i.stock <= i.minThreshold);
   const recentOrders = orders.slice(0, 5);
 
+  const maxMonthlyRevenue = Math.max(...monthlySalesData.map((d) => d.revenue));
+
   return (
     <div className="manager-dashboard-overview">
-      {/* Executive KPI Stats Row */}
+      {/* KPI Cards Row */}
       <div className="kpi-cards-row">
         <div className="kpi-card highlight-revenue">
           <span className="kpi-title">TODAY'S REVENUE</span>
@@ -16,18 +31,24 @@ export default function Dashboard() {
             ₱{todayRevenue.toLocaleString()}
             <span className="kpi-growth-tag">+14.2% vs yesterday</span>
           </div>
+          <span className="kpi-sub-tag">{todayOrderCount} Orders Today</span>
+        </div>
+
+        <div className="kpi-card highlight-revenue-monthly">
+          <span className="kpi-title">THIS MONTH'S REVENUE</span>
+          <div className="kpi-main-val">
+            ₱{thisMonthRevenue.toLocaleString()}
+            <span className="kpi-growth-tag">+18.6% vs last month</span>
+          </div>
+          <span className="kpi-sub-tag">
+            Target: ₱{monthlyTargetRevenue.toLocaleString()} ({monthlyProgressPercent}% reached)
+          </span>
         </div>
 
         <div className="kpi-card">
-          <span className="kpi-title">TOTAL ORDERS</span>
-          <div className="kpi-main-val">{todayOrderCount}</div>
-          <span className="kpi-sub-tag">96 Unique Customers</span>
-        </div>
-
-        <div className="kpi-card">
-          <span className="kpi-title">AVERAGE TICKET</span>
-          <div className="kpi-main-val">₱{avgOrderValue}</div>
-          <span className="kpi-sub-tag">Per customer transaction</span>
+          <span className="kpi-title">MONTHLY ORDERS</span>
+          <div className="kpi-main-val">{monthlyOrderCount.toLocaleString()}</div>
+          <span className="kpi-sub-tag">Avg ₱{avgOrderValue} per order</span>
         </div>
 
         <div className="kpi-card">
@@ -35,16 +56,122 @@ export default function Dashboard() {
           <div className="kpi-main-val" style={{ color: lowStockItems.length > 0 ? '#ef4444' : '#10b981' }}>
             {lowStockItems.length}
           </div>
-          <span className="kpi-sub-tag">Ingredients below threshold</span>
+          <span className="kpi-sub-tag">Items need restock</span>
         </div>
       </div>
 
-      {/* Recent Activity Log & Low Stock Table */}
+      {/* MONTHLY REVENUE CHART */}
+      <div className="manager-box monthly-sales-overview-box" style={{ marginBottom: '24px' }}>
+        <div className="box-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold' }}>Monthly Revenue</h2>
+          </div>
+          <div className="timeframe-toggle-pills">
+            <button
+              type="button"
+              className={`toggle-pill-btn ${timeframe === 'monthly' ? 'active' : ''}`}
+              onClick={() => setTimeframe('monthly')}
+            >
+              Monthly
+            </button>
+            <span className="pill-divider">|</span>
+            <button
+              type="button"
+              className={`toggle-pill-btn ${timeframe === 'weekly' ? 'active' : ''}`}
+              onClick={() => setTimeframe('weekly')}
+            >
+              Weekly
+            </button>
+          </div>
+        </div>
+
+        {/* Monthly Target Progress Meter */}
+        <div className="monthly-target-meter-card" style={{ background: 'rgba(0, 0, 0, 0.35)', border: '1px solid rgba(201, 139, 91, 0.25)', borderRadius: '12px', padding: '14px 18px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="meter-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', fontSize: '0.86rem' }}>
+            <span>August Goal</span>
+            <strong style={{ color: 'var(--color-gold)' }}>₱{thisMonthRevenue.toLocaleString()} / ₱{monthlyTargetRevenue.toLocaleString()}</strong>
+          </div>
+          <div className="meter-progress-track" style={{ width: '100%', height: '10px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '6px', overflow: 'hidden' }}>
+            <div
+              className="meter-progress-fill"
+              style={{ width: `${monthlyProgressPercent}%`, height: '100%', background: 'linear-gradient(90deg, #3b82f6, var(--color-gold), #10b981)', borderRadius: '6px', transition: 'width 0.6s ease' }}
+            ></div>
+          </div>
+          <div className="meter-footer-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+            <span>{monthlyProgressPercent}% reached</span>
+            <span>₱{(monthlyTargetRevenue - thisMonthRevenue).toLocaleString()} remaining</span>
+          </div>
+        </div>
+
+        {/* Monthly Bar Chart Visualizer */}
+        <div className="chart-bars-container monthly-chart-bars">
+          {monthlySalesData.map((d) => {
+            const heightPercent = Math.round((d.revenue / maxMonthlyRevenue) * 100);
+            return (
+              <div key={d.month} className={`chart-bar-group ${d.isCurrent ? 'current-month-bar' : ''}`}>
+                <span className="chart-val-label">₱{(d.revenue / 1000).toFixed(0)}k</span>
+                <div className="chart-bar-outer">
+                  <div
+                    className="chart-bar-inner"
+                    style={{ height: `${heightPercent}%` }}
+                  ></div>
+                </div>
+                <span className="chart-day-label">{d.month}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* REVENUE BREAKDOWN & RECENT ORDERS */}
       <div className="manager-two-columns">
+        {/* Monthly Revenue Breakdown Table */}
+        <div className="manager-box">
+          <div className="box-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <h2>Monthly Breakdown</h2>
+            <span className="box-tag">2026</span>
+          </div>
+
+          <table className="manager-table">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>Orders</th>
+                <th>Revenue</th>
+                <th>Avg Order</th>
+                <th>Growth</th>
+              </tr>
+            </thead>
+            <tbody>
+              {monthlySalesData.slice().reverse().map((m) => (
+                <tr key={m.month} className={m.isCurrent ? 'row-current-month' : ''}>
+                  <td>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <strong>{m.month}</strong>
+                      {m.isCurrent && (
+                        <span className="current-badge" style={{ marginLeft: '6px', padding: '2px 8px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 'bold', background: 'rgba(59, 130, 246, 0.25)', color: '#60a5fa' }}>
+                          Current
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td>{m.orders.toLocaleString()}</td>
+                  <td><strong style={{ color: 'var(--color-gold)' }}>₱{m.revenue.toLocaleString()}</strong></td>
+                  <td>₱{m.avgTicket.toFixed(2)}</td>
+                  <td>
+                    <span className="growth-pill-ok">{m.growth}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Recent Store Orders */}
         <div className="manager-box">
           <div className="box-header">
-            <h2>Recent Store Orders</h2>
-            <span className="box-tag">Live Stream</span>
+            <h2>Recent Orders</h2>
+            <span className="box-tag">Live</span>
           </div>
 
           <table className="manager-table">
@@ -71,30 +198,6 @@ export default function Dashboard() {
               ))}
             </tbody>
           </table>
-        </div>
-
-        <div className="manager-box">
-          <div className="box-header">
-            <h2>Inventory Stock Warnings</h2>
-            <span className="box-tag">{lowStockItems.length} Alerts</span>
-          </div>
-
-          {lowStockItems.length === 0 ? (
-            <div className="alert-ok-message">
-              All inventory ingredients are comfortably above minimum reorder thresholds.
-            </div>
-          ) : (
-            <div className="alerts-grid">
-              {lowStockItems.map((inv) => (
-                <div key={inv.id} className="alert-card-item">
-                  <div className="alert-info">
-                    <strong>{inv.name}</strong>
-                    <p>Only {inv.stock} {inv.unit} remaining (Min: {inv.minThreshold} {inv.unit})</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>
