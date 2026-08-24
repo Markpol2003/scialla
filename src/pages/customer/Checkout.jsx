@@ -110,6 +110,24 @@ export default function Checkout({
                   </button>
                 ))}
               </div>
+
+              {/* Minimal QR Code Display for GCash and Maya */}
+              {(paymentMethod === 'GCash' || paymentMethod === 'Maya') && (
+                <div className="qr-payment-preview-box">
+                  <div className="qr-box-header">
+                    <span className="qr-brand-tag">{paymentMethod}</span>
+                    <span className="qr-amount-tag">₱{totalAmount.toFixed(2)}</span>
+                  </div>
+
+                  <div className="qr-img-wrapper">
+                    <img
+                      src={paymentMethod === 'GCash' ? '/images/gcash-qr.svg' : '/images/maya-qr.svg'}
+                      alt={`${paymentMethod} QR Code`}
+                      className="payment-qr-code-img"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <button className="btn-3d-pay" onClick={handlePay}>

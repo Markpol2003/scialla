@@ -55,10 +55,7 @@ export default function ProfileDropdown({ onNavigate }) {
 
         {/* Profile Header */}
         <div className="login-brand">
-          <div className="avatar-circle large">
-            {cleanName.charAt(0).toUpperCase()}
-          </div>
-          <h2 className="brand-title" style={{ marginTop: '14px' }}>{cleanName}</h2>
+          <h2 className="brand-title" style={{ marginTop: '10px' }}>{cleanName}</h2>
           <p className="brand-subtitle">{roleTitle} • Verified Account</p>
         </div>
 
@@ -94,7 +91,7 @@ export default function ProfileDropdown({ onNavigate }) {
               }}
               style={{ marginBottom: '10px' }}
             >
-              ⚡ Return to {currentUser.role === 'manager' ? 'Manager' : 'Staff'} Dashboard
+              Return to {currentUser.role === 'manager' ? 'Manager' : 'Staff'} Dashboard
             </button>
           )}
 
@@ -121,19 +118,12 @@ export default function ProfileDropdown({ onNavigate }) {
 
   return (
     <div className="profile-dropdown-wrapper">
-      {/* Profile Trigger Pill Button (Single line clean name + role tag) */}
+      {/* Profile Trigger Pill Button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="profile-trigger-btn"
       >
-        <div className="avatar-circle">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
-        </div>
-
         <span className="user-name-str">
           {cleanName} ({roleTag})
         </span>

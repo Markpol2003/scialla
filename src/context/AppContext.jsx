@@ -4,19 +4,6 @@ const AppContext = createContext();
 
 const initialCategories = [
   {
-    id: 'ricemeals',
-    category: 'Rice Meals',
-    items: [
-      { id: 'rm1', name: 'Flavored Chicken (Original, Buffalo, Garlic Parmesan)', description: 'Crispy fried chicken choice of Original, Buffalo or Garlic Parmesan with steamed rice', price: 89, tag: 'Popular', inStock: true },
-      { id: 'rm2', name: 'Chicken Parmigiana', description: 'Breaded chicken breast baked with rich marinara sauce and melted cheese over rice', price: 139, tag: 'Signature', inStock: true },
-      { id: 'rm3', name: 'Chicken Katsu', description: 'Japanese style crispy breaded chicken cutlet with savoury katsu sauce and rice', price: 89, tag: 'Best Seller', inStock: true },
-      { id: 'rm4', name: 'Pork Sisig', description: 'Sizzling minced pork seasoned with calamansi, chillies, onions, and topped with rice', price: 89, tag: 'Classic', inStock: true },
-      { id: 'rm5', name: 'Pork Steak', description: 'Tender pork chops seared in soy-citrus sauce and caramelized onions with rice', price: 89, tag: 'Savoury', inStock: true },
-      { id: 'rm6', name: 'Crispy Belly', description: 'Golden deep-fried pork belly served with soy vinegar sauce and garlic rice', price: 89, tag: 'Crispy', inStock: true },
-      { id: 'rm7', name: 'Hungarian w/ Egg', description: 'Grilled smoky Hungarian sausage served with sunny-side up egg and garlic rice', price: 135, tag: 'Hearty', inStock: true },
-    ]
-  },
-  {
     id: 'coffee',
     category: 'Coffee Drinks',
     items: [
@@ -31,7 +18,8 @@ const initialCategories = [
           { size: '22oz', price: 89 }
         ],
         tag: 'Popular',
-        inStock: true
+        inStock: true,
+        image: '/images/products/caramelmacc.png'
       },
       {
         id: 'cf2',
@@ -44,7 +32,8 @@ const initialCategories = [
           { size: '22oz', price: 105 }
         ],
         tag: 'Indulgent',
-        inStock: true
+        inStock: true,
+        image: '/images/products/icemocha.png'
       },
       {
         id: 'cf3',
@@ -57,7 +46,8 @@ const initialCategories = [
           { size: '22oz', price: 89 }
         ],
         tag: 'Best Seller',
-        inStock: true
+        inStock: true,
+        image: '/images/products/spanish.png'
       },
       {
         id: 'cf4',
@@ -70,7 +60,8 @@ const initialCategories = [
           { size: '22oz', price: 95 }
         ],
         tag: 'Signature',
-        inStock: true
+        inStock: true,
+        image: '/images/products/oreodalgona.png'
       }
     ]
   },
@@ -89,7 +80,8 @@ const initialCategories = [
           { size: '22oz', price: 95 }
         ],
         tag: 'Decadent',
-        inStock: true
+        inStock: true,
+        image: '/images/products/cocoadream.png'
       },
       {
         id: 'nc2',
@@ -102,7 +94,8 @@ const initialCategories = [
           { size: '22oz', price: 89 }
         ],
         tag: 'Fruity',
-        inStock: true
+        inStock: true,
+        image: '/images/products/blueberrysoda.png'
       },
       {
         id: 'nc3',
@@ -115,7 +108,8 @@ const initialCategories = [
           { size: '22oz', price: 89 }
         ],
         tag: 'Popular',
-        inStock: true
+        inStock: true,
+        image: '/images/products/strawberry.png'
       },
       {
         id: 'nc4',
@@ -128,7 +122,8 @@ const initialCategories = [
           { size: '22oz', price: 95 }
         ],
         tag: 'Rich',
-        inStock: true
+        inStock: true,
+        image: '/images/products/garlicparmesan.png'
       },
       {
         id: 'nc5',
@@ -141,7 +136,8 @@ const initialCategories = [
           { size: '22oz', price: 89 }
         ],
         tag: 'Smooth',
-        inStock: true
+        inStock: true,
+        image: '/images/products/tarocream.png'
       },
       {
         id: 'nc6',
@@ -154,7 +150,8 @@ const initialCategories = [
           { size: '22oz', price: 95 }
         ],
         tag: 'Special',
-        inStock: true
+        inStock: true,
+        image: '/images/products/strawberrymilk.png'
       },
       {
         id: 'nc7',
@@ -167,7 +164,8 @@ const initialCategories = [
           { size: '22oz', price: 105 }
         ],
         tag: 'Authentic',
-        inStock: true
+        inStock: true,
+        image: '/images/products/matcha.png'
       },
       {
         id: 'nc8',
@@ -180,7 +178,8 @@ const initialCategories = [
           { size: '22oz', price: 115 }
         ],
         tag: 'Best Seller',
-        inStock: true
+        inStock: true,
+        image: '/images/products/sourcream.png'
       }
     ]
   },
@@ -199,7 +198,8 @@ const initialCategories = [
           { size: '22oz', price: 89 }
         ],
         tag: 'Fizzy',
-        inStock: true
+        inStock: true,
+        image: '/images/products/whitecheddar.png'
       },
       {
         id: 'sd2',
@@ -212,7 +212,8 @@ const initialCategories = [
           { size: '22oz', price: 89 }
         ],
         tag: 'Cooling',
-        inStock: true
+        inStock: true,
+        image: '/images/products/strawberrysoda.png'
       },
       {
         id: 'sd3',
@@ -225,99 +226,113 @@ const initialCategories = [
           { size: '22oz', price: 89 }
         ],
         tag: 'Crisp',
-        inStock: true
+        inStock: true,
+        image: '/images/products/salt.png'
       }
+    ]
+  },
+  {
+    id: 'ricemeals',
+    category: 'Rice Meals',
+    items: [
+      { id: 'rm1', name: 'Flavored Chicken (Original, Buffalo, Garlic Parmesan)', description: 'Crispy fried chicken choice of Original, Buffalo or Garlic Parmesan with steamed rice', price: 89, tag: 'Popular', inStock: true, image: '/images/products/buffalo.png' },
+      { id: 'rm2', name: 'Chicken Parmigiana', description: 'Breaded chicken breast baked with rich marinara sauce and melted cheese over rice', price: 139, tag: 'Signature', inStock: true, image: '/images/products/shredded.png' },
+      { id: 'rm3', name: 'Chicken Katsu', description: 'Japanese style crispy breaded chicken cutlet with savoury katsu sauce and rice', price: 89, tag: 'Best Seller', inStock: true, image: '/images/products/chickenkatsu.png' },
+      { id: 'rm4', name: 'Pork Sisig', description: 'Sizzling minced pork seasoned with calamansi, chillies, onions, and topped with rice', price: 89, tag: 'Classic', inStock: true, image: '/images/products/porksisig.png' },
+      { id: 'rm5', name: 'Pork Steak', description: 'Tender pork chops seared in soy-citrus sauce and caramelized onions with rice', price: 89, tag: 'Savoury', inStock: true, image: '/images/products/porksteak.png' },
+      { id: 'rm6', name: 'Crispy Belly', description: 'Golden deep-fried pork belly served with soy vinegar sauce and garlic rice', price: 89, tag: 'Crispy', inStock: true, image: '/images/products/crispybelly.png' },
+      { id: 'rm7', name: 'Hungarian w/ Egg', description: 'Grilled smoky Hungarian sausage served with sunny-side up egg and garlic rice', price: 135, tag: 'Hearty', inStock: true, image: '/images/products/hungarian.png' },
     ]
   },
   {
     id: 'waffles',
     category: 'Waffles',
     items: [
-      { id: 'wf1', name: 'Strawberry & Cream Waffle', description: 'Freshly baked Belgian waffle topped with strawberry puree and whipped cream', price: 75, tag: 'Sweet', inStock: true },
-      { id: 'wf2', name: 'Blueberry & Cream Waffle', description: 'Golden crisp waffle loaded with blueberry topping and whipped cream', price: 75, tag: 'Fruity', inStock: true },
-      { id: 'wf3', name: 'Almond Caramel Waffle', description: 'Warm waffle topped with toasted sliced almonds and butter caramel sauce', price: 75, tag: 'Popular', inStock: true },
-      { id: 'wf4', name: 'Chocolate Cookie Waffle', description: 'Decadent chocolate drizzle waffle topped with crushed cookie pieces', price: 75, tag: 'Indulgent', inStock: true },
-      { id: 'wf5', name: 'Cheesy Cheese Waffle', description: 'Warm savoury cheese waffle topped with melted cheddar cheese', price: 75, tag: 'Savoury', inStock: true }
+      { id: 'wf1', name: 'Strawberry & Cream Waffle', description: 'Freshly baked Belgian waffle topped with strawberry puree and whipped cream', price: 75, tag: 'Sweet', inStock: true, image: '/images/products/strawberrywaffle.png' },
+      { id: 'wf2', name: 'Blueberry & Cream Waffle', description: 'Golden crisp waffle loaded with blueberry topping and whipped cream', price: 75, tag: 'Fruity', inStock: true, image: '/images/products/chococookieewaffles.png' },
+      { id: 'wf3', name: 'Almond Caramel Waffle', description: 'Warm waffle topped with toasted sliced almonds and butter caramel sauce', price: 75, tag: 'Popular', inStock: true, image: '/images/products/almondcaramelwaffle.png' },
+      { id: 'wf4', name: 'Chocolate Cookie Waffle', description: 'Decadent chocolate drizzle waffle topped with crushed cookie pieces', price: 75, tag: 'Indulgent', inStock: true, image: '/images/products/cheesestick.png' },
+      { id: 'wf5', name: 'Cheesy Cheese Waffle', description: 'Warm savoury cheese waffle topped with melted cheddar cheese', price: 75, tag: 'Savoury', inStock: true, image: '/images/products/cheesequesa.png' }
     ]
   },
   {
     id: 'pasta',
     category: 'Pasta',
     items: [
-      { id: 'ps1', name: 'Lasagna', description: 'Layered pasta sheets with rich beef ragu, creamy bechamel & melted mozzarella', price: 69, tag: 'Signature', inStock: true },
-      { id: 'ps2', name: 'Spaghetti', description: 'Classic Filipino style sweet savoury spaghetti sauce with sliced hotdog & cheese', price: 99, tag: 'Classic', inStock: true },
-      { id: 'ps3', name: 'Carbonara', description: 'Rich cream sauce pasta tossed with crispy bacon bits & parmesan cheese', price: 129, tag: 'Creamy', inStock: true }
+      { id: 'ps1', name: 'Lasagna', description: 'Layered pasta sheets with rich beef ragu, creamy bechamel & melted mozzarella', price: 69, tag: 'Signature', inStock: true, image: '/images/products/lasagna.png' },
+      { id: 'ps2', name: 'Spaghetti', description: 'Classic Filipino style sweet savoury spaghetti sauce with sliced hotdog & cheese', price: 99, tag: 'Classic', inStock: true, image: '/images/products/beefspag.png' },
+      { id: 'ps3', name: 'Carbonara', description: 'Rich cream sauce pasta tossed with crispy bacon bits & parmesan cheese', price: 129, tag: 'Creamy', inStock: true, image: '/images/products/carbonara.png' }
     ]
   },
   {
     id: 'pikapika',
     category: 'Pika-Pika (Snacks)',
     items: [
-      { id: 'pk1', name: 'Kropek', description: 'Crispy deep-fried prawn crackers served with spicy vinegar dip', price: 45, tag: 'Crunchy', inStock: true },
-      { id: 'pk2', name: 'Fries in Basket', description: 'Crispy potato fries available in Cheese, BBQ, Sour Cream, White Cheddar, or Salt', price: 55, tag: 'Popular', inStock: true },
-      { id: 'pk3', name: 'Cheese Sticks', description: 'Golden fried spring roll wrappers filled with gooey cheddar cheese sticks', price: 99, tag: 'Cheesy', inStock: true },
-      { id: 'pk4', name: 'Overload Fries', description: 'Crispy French fries smothered in melted cheese sauce, bacon bits & jalapeños', price: 99, tag: 'Overloaded', inStock: true },
-      { id: 'pk5', name: 'Overload Nachos', description: 'Crispy corn tortilla chips topped with ground beef, cheese sauce, salsa & jalapeños', price: 120, tag: 'Best Seller', inStock: true },
-      { id: 'pk6', name: 'Chicken Tenders', description: 'Crispy golden fried chicken breast tenders served with dip choice', price: 120, tag: 'Crispy', inStock: true }
+      { id: 'pk1', name: 'Kropek', description: 'Crispy deep-fried prawn crackers served with spicy vinegar dip', price: 45, tag: 'Crunchy', inStock: true, image: '/images/products/kropek.png' },
+      { id: 'pk2', name: 'Fries in Basket', description: 'Crispy potato fries available in Cheese, BBQ, Sour Cream, White Cheddar, or Salt', price: 55, tag: 'Popular', inStock: true, image: '/images/products/fries.png' },
+      { id: 'pk3', name: 'Cheese Sticks', description: 'Golden fried spring roll wrappers filled with gooey cheddar cheese sticks', price: 99, tag: 'Cheesy', inStock: true, image: '/images/products/bbqfries.png' },
+      { id: 'pk4', name: 'Overload Fries', description: 'Crispy French fries smothered in melted cheese sauce, bacon bits & jalapeños', price: 99, tag: 'Overloaded', inStock: true, image: '/images/products/cheesefries.png' },
+      { id: 'pk5', name: 'Overload Nachos', description: 'Crispy corn tortilla chips topped with ground beef, cheese sauce, salsa & jalapeños', price: 120, tag: 'Best Seller', inStock: true, image: '/images/products/nachos.png' },
+      { id: 'pk6', name: 'Chicken Tenders', description: 'Crispy golden fried chicken breast tenders served with dip choice', price: 120, tag: 'Crispy', inStock: true, image: '/images/products/chickenskin.png' }
     ]
   },
   {
     id: 'quesadilla',
     category: 'Quesadilla',
     items: [
-      { id: 'qd1', name: 'Cheesy Quesa', description: 'Toasted flour tortilla stuffed with melted cheddar & mozzarella blend', price: 89, tag: 'Cheesy', inStock: true },
-      { id: 'qd2', name: 'Ham & Cheese Quesa', description: 'Grilled tortilla loaded with savory ham slices and melted cheese', price: 89, tag: 'Classic', inStock: true },
-      { id: 'qd3', name: 'Beef Quesa', description: 'Toasted tortilla filled with seasoned ground beef and melted cheese', price: 99, tag: 'Popular', inStock: true },
-      { id: 'qd4', name: 'Quesa Supreme', description: 'Loaded tortilla with beef, ham, bell peppers, onions, and double melted cheese', price: 109, tag: 'Supreme', inStock: true }
+      { id: 'qd1', name: 'Cheesy Quesa', description: 'Toasted flour tortilla stuffed with melted cheddar & mozzarella blend', price: 89, tag: 'Cheesy', inStock: true, image: '/images/products/hamcheesequesa.png' },
+      { id: 'qd2', name: 'Ham & Cheese Quesa', description: 'Grilled tortilla loaded with savory ham slices and melted cheese', price: 89, tag: 'Classic', inStock: true, image: '/images/products/beefquesa.png' },
+      { id: 'qd3', name: 'Beef Quesa', description: 'Toasted tortilla filled with seasoned ground beef and melted cheese', price: 99, tag: 'Popular', inStock: true, image: '/images/products/kikiamsquid.png' },
+      { id: 'qd4', name: 'Quesa Supreme', description: 'Loaded tortilla with beef, ham, bell peppers, onions, and double melted cheese', price: 109, tag: 'Supreme', inStock: true, image: '/images/products/hotdog.png' }
     ]
   },
   {
     id: 'sandwiches',
     category: 'Sandwiches & Burgers',
     items: [
-      { id: 'sw1', name: 'Hotdog Overload', description: 'Jumbo grilled hotdog in toasted bun with cheese sauce, mayo & bacon bits', price: 89, tag: 'Loaded', inStock: true },
-      { id: 'sw2', name: 'Crispy Chicken Sandwich', description: 'Crispy fried chicken thigh filet with lettuce, mayo & pickles on toasted brioche', price: 99, tag: 'Crispy', inStock: true },
-      { id: 'sw3', name: 'Scialla\'s Clubhouse', description: 'Triple decker toasted sandwich with ham, chicken, bacon, egg, cheese & lettuce', price: 120, tag: 'Signature', inStock: true },
-      { id: 'sw4', name: 'Scialla\'s Beef Burger', description: 'Juicy 100% pure beef patty with melted cheddar, caramelized onions & house sauce', price: 139, tag: 'Gourmet', inStock: true }
+      { id: 'sw1', name: 'Hotdog Overload', description: 'Jumbo grilled hotdog in toasted bun with cheese sauce, mayo & bacon bits', price: 89, tag: 'Loaded', inStock: true, image: '/images/products/chickensandwich.png' },
+      { id: 'sw2', name: 'Crispy Chicken Sandwich', description: 'Crispy fried chicken thigh filet with lettuce, mayo & pickles on toasted brioche', price: 99, tag: 'Crispy', inStock: true, image: '/images/products/clubhouse.png' },
+      { id: 'sw3', name: 'Scialla\'s Clubhouse', description: 'Triple decker toasted sandwich with ham, chicken, bacon, egg, cheese & lettuce', price: 120, tag: 'Signature', inStock: true, image: '/images/products/beefburger.png' },
+      { id: 'sw4', name: 'Scialla\'s Beef Burger', description: 'Juicy 100% pure beef patty with melted cheddar, caramelized onions & house sauce', price: 139, tag: 'Gourmet', inStock: true, image: '/images/products/4cheese.png' }
     ]
   },
   {
     id: 'pizza',
     category: 'Pizza',
     items: [
-      { id: 'pz1', name: 'Ham & Cheese Pizza', description: 'Hand-tossed pizza crust with rich tomato sauce, savory ham & melted cheese', price: 175, tag: 'Classic', inStock: true },
-      { id: 'pz2', name: 'Bacon & Cheese Pizza', description: 'Loaded with smoky bacon strips and melted mozzarella cheese blend', price: 175, tag: 'Smoky', inStock: true },
-      { id: 'pz3', name: 'Four Cheese Pizza', description: 'Decadent mix of Mozzarella, Cheddar, Parmesan & Blue Cheese on thin crust', price: 175, tag: 'Cheesy', inStock: true },
-      { id: 'pz4', name: 'Garlic White Pizza', description: 'Creamy garlic white sauce pizza topped with mozzarella and herbs', price: 175, tag: 'Garlicky', inStock: true },
-      { id: 'pz5', name: 'Shawarma Pizza', description: 'Topped with tender shawarma beef, onions, tomatoes & garlic sauce drizzle', price: 180, tag: 'Special', inStock: true },
-      { id: 'pz6', name: 'Meat Lovers Pizza', description: 'Overloaded with pepperoni, bacon, ham, ground beef & sausage', price: 199, tag: 'Overloaded', inStock: true }
+      { id: 'pz1', name: 'Ham & Cheese Pizza', description: 'Hand-tossed pizza crust with rich tomato sauce, savory ham & melted cheese', price: 175, tag: 'Classic', inStock: true, image: '/images/products/hamcheesepizza.png' },
+      { id: 'pz2', name: 'Bacon & Cheese Pizza', description: 'Loaded with smoky bacon strips and melted mozzarella cheese blend', price: 175, tag: 'Smoky', inStock: true, image: '/images/products/pepperoni.png' },
+      { id: 'pz3', name: 'Four Cheese Pizza', description: 'Decadent mix of Mozzarella, Cheddar, Parmesan & Blue Cheese on thin crust', price: 175, tag: 'Cheesy', inStock: true, image: '/images/products/4cheese.png' },
+      { id: 'pz4', name: 'Garlic White Pizza', description: 'Creamy garlic white sauce pizza topped with mozzarella and herbs', price: 175, tag: 'Garlicky', inStock: true, image: '/images/products/hamcheesepizza.png' },
+      { id: 'pz5', name: 'Shawarma Pizza', description: 'Topped with tender shawarma beef, onions, tomatoes & garlic sauce drizzle', price: 180, tag: 'Special', inStock: true, image: '/images/products/pepperoni.png' },
+      { id: 'pz6', name: 'Meat Lovers Pizza', description: 'Overloaded with pepperoni, bacon, ham, ground beef & sausage', price: 199, tag: 'Overloaded', inStock: true, image: '/images/products/pepperoni.png' }
     ]
   },
   {
     id: 'drinkaddons',
     category: 'Drink Add-ons',
     items: [
-      { id: 'da1', name: 'Sweetener Syrup', description: 'Extra liquid cane sugar or vanilla sweetener', price: 10, tag: 'Add-on', inStock: true },
-      { id: 'da2', name: '1 Shot Espresso', description: 'Extra shot of rich single-origin espresso', price: 10, tag: 'Coffee', inStock: true },
-      { id: 'da3', name: 'Strawberry Flavor', description: 'Extra organic strawberry syrup shot', price: 10, tag: 'Fruity', inStock: true },
-      { id: 'da4', name: 'Blueberry Flavor', description: 'Extra organic blueberry syrup shot', price: 10, tag: 'Fruity', inStock: true },
-      { id: 'da5', name: 'Almond Syrup', description: 'Nutty almond syrup shot', price: 10, tag: 'Nutty', inStock: true },
-      { id: 'da6', name: 'Oreo Crumbles', description: 'Extra crunchy crushed Oreo cookies', price: 10, tag: 'Topping', inStock: true },
-      { id: 'da7', name: 'Caramel Drizzle', description: 'Rich caramel sauce swirl', price: 10, tag: 'Topping', inStock: true },
-      { id: 'da8', name: 'Chocolate Drizzle', description: 'Rich Dutch cocoa chocolate sauce drizzle', price: 15, tag: 'Topping', inStock: true },
-      { id: 'da9', name: 'Bobba Pearls', description: 'Chewy tapioca boba pearls', price: 20, tag: 'Chewy', inStock: true },
-      { id: 'da10', name: 'Nata de Coco', description: 'Sweet chewy coconut nata cubes', price: 20, tag: 'Chewy', inStock: true },
-      { id: 'da11', name: 'Coffee Jelly', description: 'Handcrafted espresso coffee jelly cubes', price: 20, tag: 'Jelly', inStock: true }
+      { id: 'da1', name: 'Sweetener Syrup', description: 'Extra liquid cane sugar or vanilla sweetener', price: 10, tag: 'Add-on', inStock: true, image: '/images/products/caramelmacc.png' },
+      { id: 'da2', name: '1 Shot Espresso', description: 'Extra shot of rich single-origin espresso', price: 10, tag: 'Coffee', inStock: true, image: '/images/products/spanish.png' },
+      { id: 'da3', name: 'Strawberry Flavor', description: 'Extra organic strawberry syrup shot', price: 10, tag: 'Fruity', inStock: true, image: '/images/products/strawberry.png' },
+      { id: 'da4', name: 'Blueberry Flavor', description: 'Extra organic blueberry syrup shot', price: 10, tag: 'Fruity', inStock: true, image: '/images/products/blueberrysoda.png' },
+      { id: 'da5', name: 'Almond Syrup', description: 'Nutty almond syrup shot', price: 10, tag: 'Nutty', inStock: true, image: '/images/products/almondcaramelwaffle.png' },
+      { id: 'da6', name: 'Oreo Crumbles', description: 'Extra crunchy crushed Oreo cookies', price: 10, tag: 'Topping', inStock: true, image: '/images/products/oreodalgona.png' },
+      { id: 'da7', name: 'Caramel Drizzle', description: 'Rich caramel sauce swirl', price: 10, tag: 'Topping', inStock: true, image: '/images/products/icemocha.png' },
+      { id: 'da8', name: 'Chocolate Drizzle', description: 'Rich Dutch cocoa chocolate sauce drizzle', price: 15, tag: 'Topping', inStock: true, image: '/images/products/cocoadream.png' },
+      { id: 'da9', name: 'Bobba Pearls', description: 'Chewy tapioca boba pearls', price: 20, tag: 'Chewy', inStock: true, image: '/images/products/tarocream.png' },
+      { id: 'da10', name: 'Nata de Coco', description: 'Sweet chewy coconut nata cubes', price: 20, tag: 'Chewy', inStock: true, image: '/images/products/strawberrysoda.png' },
+      { id: 'da11', name: 'Coffee Jelly', description: 'Handcrafted espresso coffee jelly cubes', price: 20, tag: 'Jelly', inStock: true, image: '/images/products/matcha.png' }
     ]
   },
   {
     id: 'foodaddons',
     category: 'Food Add-ons',
     items: [
-      { id: 'fa1', name: 'Extra Egg', description: 'Fried sunny-side up or poached egg', price: 20, tag: 'Side', inStock: true },
-      { id: 'fa2', name: 'Extra Lettuce', description: 'Fresh green leaf lettuce portion', price: 20, tag: 'Fresh', inStock: true },
-      { id: 'fa3', name: 'Extra Cheese', description: 'Melted cheddar or mozzarella cheese slice', price: 20, tag: 'Cheesy', inStock: true },
-      { id: 'fa4', name: 'Extra Mayonnaise', description: 'Creamy garlic mayo dip portion', price: 25, tag: 'Sauce', inStock: true }
+      { id: 'fa1', name: 'Extra Egg', description: 'Fried sunny-side up or poached egg', price: 20, tag: 'Side', inStock: true, image: '/images/products/hungarian.png' },
+      { id: 'fa2', name: 'Extra Lettuce', description: 'Fresh green leaf lettuce portion', price: 20, tag: 'Fresh', inStock: true, image: '/images/products/crispybelly.png' },
+      { id: 'fa3', name: 'Extra Cheese', description: 'Melted cheddar or mozzarella cheese slice', price: 20, tag: 'Cheesy', inStock: true, image: '/images/products/cheesefries.png' },
+      { id: 'fa4', name: 'Extra Mayonnaise', description: 'Creamy garlic mayo dip portion', price: 25, tag: 'Sauce', inStock: true, image: '/images/products/garlicparmesan.png' }
     ]
   }
 ];
@@ -448,6 +463,14 @@ export function AppProvider({ children }) {
                     item.id === data.itemId ? { ...item, inStock: data.inStock } : item
                   )
                 }))
+              );
+            } else if (type === 'inventory:adjust') {
+              setInventory((prev) =>
+                prev.map((item) =>
+                  item.id === data.invId
+                    ? { ...item, stock: Math.max(0, Number((item.stock + data.delta).toFixed(1))) }
+                    : item
+                )
               );
             }
           } catch (err) {
@@ -625,6 +648,10 @@ export function AppProvider({ children }) {
           : item
       )
     );
+
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'inventory:adjust', data: { invId, delta } }));
+    }
   };
 
   // Restock inventory item (Manager)

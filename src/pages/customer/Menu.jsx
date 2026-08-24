@@ -4,6 +4,12 @@ import { useApp } from '../../context/AppContext';
 export default function Menu({ onAddToCart, cart }) {
   const { menuCategories } = useApp();
   const [toastMsg, setToastMsg] = useState('');
+  const [selectedCat, setSelectedCat] = useState('all');
+
+  const totalAllItemsCount = menuCategories.reduce((sum, cat) => sum + cat.items.length, 0);
+  const filteredCategories = selectedCat === 'all'
+    ? menuCategories
+    : menuCategories.filter((sec) => sec.id === selectedCat);
 
   const triggerToast = (msg) => {
     setToastMsg(msg);
@@ -28,7 +34,30 @@ export default function Menu({ onAddToCart, cart }) {
         </div>
       )}
 
-      {menuCategories.map((section) => (
+      {/* Customer Category Sorting Bar */}
+      <div className="customer-category-bar-container" style={{ margin: '0 0 16px' }}>
+        <div className="customer-category-chips">
+          <button
+            type="button"
+            className={`customer-cat-chip ${selectedCat === 'all' ? 'active' : ''}`}
+            onClick={() => setSelectedCat('all')}
+          >
+            All ({totalAllItemsCount})
+          </button>
+          {menuCategories.map((sec) => (
+            <button
+              key={sec.id}
+              type="button"
+              className={`customer-cat-chip ${selectedCat === sec.id ? 'active' : ''}`}
+              onClick={() => setSelectedCat(sec.id)}
+            >
+              {sec.category} ({sec.items.length})
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {filteredCategories.map((section) => (
         <section key={section.id} className="category-block">
           <div className="category-title-bar">
             <div className="category-heading">
@@ -42,12 +71,26 @@ export default function Menu({ onAddToCart, cart }) {
               const cartItem = cart.find((c) => c.id === item.id);
               const qty = cartItem ? cartItem.qty : 0;
               const isOutOfStock = !item.inStock;
+              const cardImg = item.image || '/images/products/caramelmacc.png';
 
               return (
                 <div
                   key={item.id}
                   className={`coffee-card-3d ${item.featured ? 'featured-signature' : ''} ${isOutOfStock ? 'card-out-of-stock' : ''}`}
                 >
+                  <div className="card-bg-image-wrapper">
+                    <img
+                      src={cardImg}
+                      alt={item.name}
+                      className="card-bg-image"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = '/images/products/caramelmacc.png';
+                      }}
+                    />
+                    <div className="card-bg-overlay" />
+                  </div>
+
                   <div className="card-top">
                     <div>
                       <h3 className="card-name">{item.name}</h3>

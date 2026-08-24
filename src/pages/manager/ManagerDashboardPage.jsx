@@ -71,33 +71,22 @@ export default function ManagerDashboardPage() {
           <div className="kpi-cards-row">
             <div className="kpi-card highlight-revenue">
               <span className="kpi-title">TODAY'S REVENUE</span>
-              <div className="kpi-main-val">
-                ₱{todayRevenue.toLocaleString()}
-                <span className="kpi-growth-tag">+14.2% vs yesterday</span>
-              </div>
+              <div className="kpi-main-val">₱{todayRevenue.toLocaleString()}</div>
             </div>
 
             <div className="kpi-card highlight-revenue-monthly">
               <span className="kpi-title">THIS MONTH'S REVENUE</span>
-              <div className="kpi-main-val">
-                ₱{thisMonthRevenue.toLocaleString()}
-                <span className="kpi-growth-tag">+18.6% vs last month</span>
-              </div>
-              <span className="kpi-sub-tag">
-                Target: ₱{monthlyTargetRevenue.toLocaleString()} ({monthlyProgressPercent}% achieved)
-              </span>
+              <div className="kpi-main-val">₱{thisMonthRevenue.toLocaleString()}</div>
             </div>
 
             <div className="kpi-card">
               <span className="kpi-title">MONTHLY ORDERS</span>
               <div className="kpi-main-val">{monthlyOrderCount.toLocaleString()}</div>
-              <span className="kpi-sub-tag">Avg ₱{avgOrderValue} per order</span>
             </div>
 
             <div className="kpi-card">
               <span className="kpi-title">ACTIVE MENU ITEMS</span>
               <div className="kpi-main-val">18</div>
-              <span className="kpi-sub-tag">4 Categories</span>
             </div>
           </div>
 

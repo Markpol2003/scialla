@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
+import logoImg from '../logo.png';
 
 export default function AuthModal() {
   const {
@@ -50,7 +51,7 @@ export default function AuthModal() {
         </button>
 
         <div className="auth-brand-header">
-          <span className="auth-logo-icon">☕</span>
+          <img src={logoImg} alt="Scialla Logo" style={{ height: '48px', width: 'auto', objectFit: 'contain', margin: '0 auto 8px' }} />
           <h2>Scialla</h2>
           <p>Portal Sign In & Role Authentication</p>
         </div>

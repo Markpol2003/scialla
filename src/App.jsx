@@ -4,6 +4,7 @@ import LoginPage from './pages/auth/LoginPage';
 import CustomerLayout from './layouts/CustomerLayout';
 import StaffLayout from './layouts/StaffLayout';
 import ManagerLayout from './layouts/ManagerLayout';
+import CursorGlow from './components/CursorGlow';
 import './StaffManager.css';
 
 function MainAppView() {
@@ -51,6 +52,9 @@ function MainAppView() {
 
   return (
     <div className="app-root-container">
+      {/* Gold Theme Mouse Cursor Follower Glow */}
+      <CursorGlow />
+
       {/* Active Layout View (Customer, Staff, or Manager) */}
       {activeLayout}
 

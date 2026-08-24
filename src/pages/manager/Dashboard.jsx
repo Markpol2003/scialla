@@ -27,28 +27,17 @@ export default function Dashboard() {
       <div className="kpi-cards-row">
         <div className="kpi-card highlight-revenue">
           <span className="kpi-title">TODAY'S REVENUE</span>
-          <div className="kpi-main-val">
-            ₱{todayRevenue.toLocaleString()}
-            <span className="kpi-growth-tag">+14.2% vs yesterday</span>
-          </div>
-          <span className="kpi-sub-tag">{todayOrderCount} Orders Today</span>
+          <div className="kpi-main-val">₱{todayRevenue.toLocaleString()}</div>
         </div>
 
         <div className="kpi-card highlight-revenue-monthly">
           <span className="kpi-title">THIS MONTH'S REVENUE</span>
-          <div className="kpi-main-val">
-            ₱{thisMonthRevenue.toLocaleString()}
-            <span className="kpi-growth-tag">+18.6% vs last month</span>
-          </div>
-          <span className="kpi-sub-tag">
-            Target: ₱{monthlyTargetRevenue.toLocaleString()} ({monthlyProgressPercent}% reached)
-          </span>
+          <div className="kpi-main-val">₱{thisMonthRevenue.toLocaleString()}</div>
         </div>
 
         <div className="kpi-card">
           <span className="kpi-title">MONTHLY ORDERS</span>
           <div className="kpi-main-val">{monthlyOrderCount.toLocaleString()}</div>
-          <span className="kpi-sub-tag">Avg ₱{avgOrderValue} per order</span>
         </div>
 
         <div className="kpi-card">
@@ -56,7 +45,6 @@ export default function Dashboard() {
           <div className="kpi-main-val" style={{ color: lowStockItems.length > 0 ? '#ef4444' : '#10b981' }}>
             {lowStockItems.length}
           </div>
-          <span className="kpi-sub-tag">Items need restock</span>
         </div>
       </div>
 

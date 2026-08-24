@@ -1,10 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Live3DBackground from '../../Live3DBackground';
 import { useApp } from '../../context/AppContext';
 import '../../CoffeeMenu.css';
+import logoImg from '../../logo.png';
 
 export default function CustomerMenuPage() {
   const { menuCategories, placeOrder, lastCustomerOrder, setLastCustomerOrder, orders } = useApp();
+  const categoryChipsRef = useRef(null);
+
+  const handleScrollCategories = (direction) => {
+    if (categoryChipsRef.current) {
+      const scrollAmount = direction === 'left' ? -200 : 200;
+      categoryChipsRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   const occupiedTables = (orders || [])
     .filter((o) => ['new', 'preparing', 'ready'].includes(o.status))
@@ -17,12 +26,20 @@ export default function CustomerMenuPage() {
   const [cart, setCart] = useState([]);
   const [toastMessage, setToastMessage] = useState('');
   const [tableNumber, setTableNumber] = useState('4');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+
+  const totalAllItemsCount = menuCategories.reduce((sum, cat) => sum + cat.items.length, 0);
+  const filteredCategories = selectedCategory === 'all'
+    ? menuCategories
+    : menuCategories.filter((sec) => sec.id === selectedCategory);
 
   // Checkout & Receipt Modal State
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('GCash');
   const [orderMeta, setOrderMeta] = useState({ orderNum: '', dateStr: '' });
+  const [selectedSizes, setSelectedSizes] = useState({});
+  const [isMobileBarDismissed, setIsMobileBarDismissed] = useState(false);
 
   const triggerToast = (msg) => {
     setToastMessage(msg);
@@ -31,13 +48,12 @@ export default function CustomerMenuPage() {
     }, 2200);
   };
 
-  const [selectedSizes, setSelectedSizes] = useState({});
-
   const handleSizeSelect = (itemId, sizeObj) => {
     setSelectedSizes((prev) => ({ ...prev, [itemId]: sizeObj }));
   };
 
   const handleAddToCart = (item) => {
+    setIsMobileBarDismissed(false);
     if (!item.inStock) {
       triggerToast(`Sorry, ${item.name} is currently out of stock`);
       return;
@@ -203,6 +219,9 @@ export default function CustomerMenuPage() {
           </div>
         )}
         <header className="scialla-header">
+          <div className="scialla-logo-wrapper">
+            <img src={logoImg} alt="Scialla Cafe Logo" className="scialla-header-logo" />
+          </div>
           <h1 className="scialla-title">
             Scialla <span className="scialla-title-accent"></span> Cafe
           </h1>
@@ -252,7 +271,48 @@ export default function CustomerMenuPage() {
       <div className="scialla-layout">
         {/* Menu Sections */}
         <main className="scialla-content">
-          {menuCategories.map((section) => (
+          {/* Customer Category Sorting Bar */}
+          <div className="customer-category-bar-container">
+            <button
+              type="button"
+              className="cat-scroll-arrow left-arrow"
+              onClick={() => handleScrollCategories('left')}
+              title="Scroll Left"
+            >
+              ‹
+            </button>
+
+            <div className="customer-category-chips" ref={categoryChipsRef}>
+              <button
+                type="button"
+                className={`customer-cat-chip ${selectedCategory === 'all' ? 'active' : ''}`}
+                onClick={() => setSelectedCategory('all')}
+              >
+                All ({totalAllItemsCount})
+              </button>
+              {menuCategories.map((sec) => (
+                <button
+                  key={sec.id}
+                  type="button"
+                  className={`customer-cat-chip ${selectedCategory === sec.id ? 'active' : ''}`}
+                  onClick={() => setSelectedCategory(sec.id)}
+                >
+                  {sec.category} ({sec.items.length})
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              className="cat-scroll-arrow right-arrow"
+              onClick={() => handleScrollCategories('right')}
+              title="Scroll Right"
+            >
+              ›
+            </button>
+          </div>
+
+          {filteredCategories.map((section) => (
             <section key={section.id} className="category-block">
               <div className="category-title-bar">
                 <div className="category-heading">
@@ -269,12 +329,26 @@ export default function CustomerMenuPage() {
                   const cartItem = cart.find((c) => c.id === cartItemId);
                   const qty = cartItem ? cartItem.qty : 0;
                   const isOutOfStock = !item.inStock;
+                  const cardImg = item.image || '/images/products/caramelmacc.png';
 
                   return (
                     <div
                       key={item.id}
                       className={`coffee-card-3d ${item.featured ? 'featured-signature' : ''} ${isOutOfStock ? 'card-out-of-stock' : ''}`}
                     >
+                      <div className="card-bg-image-wrapper">
+                        <img
+                          src={cardImg}
+                          alt={item.name}
+                          className="card-bg-image"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = '/images/products/caramelmacc.png';
+                          }}
+                        />
+                        <div className="card-bg-overlay" />
+                      </div>
+
                       <div className="card-top">
                         <div>
                           <h3 className="card-name">{item.name}</h3>
@@ -425,13 +499,24 @@ export default function CustomerMenuPage() {
           </span>
           <span className="mobile-bar-total">₱{totalAmount.toFixed(2)}</span>
         </div>
-        <button
-          type="button"
-          className="mobile-bar-btn"
-          onClick={handleOpenCheckout}
-        >
-          Checkout →
-        </button>
+
+        <div className="mobile-bar-actions">
+          <button
+            type="button"
+            className="mobile-bar-btn"
+            onClick={handleOpenCheckout}
+          >
+            Checkout →
+          </button>
+          <button
+            type="button"
+            className="mobile-bar-cancel-btn"
+            onClick={() => setCart([])}
+            title="Cancel / Clear cart"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       {/* RECEIPT MODAL */}
@@ -510,6 +595,24 @@ export default function CustomerMenuPage() {
                       </button>
                     ))}
                   </div>
+
+                  {/* Minimal QR Code Display for GCash and Maya */}
+                  {(paymentMethod === 'GCash' || paymentMethod === 'Maya') && (
+                    <div className="qr-payment-preview-box">
+                      <div className="qr-box-header">
+                        <span className="qr-brand-tag">{paymentMethod}</span>
+                        <span className="qr-amount-tag">₱{totalAmount.toFixed(2)}</span>
+                      </div>
+
+                      <div className="qr-img-wrapper">
+                        <img
+                          src={paymentMethod === 'GCash' ? '/images/gcash-qr.svg' : '/images/maya-qr.svg'}
+                          alt={`${paymentMethod} QR Code`}
+                          className="payment-qr-code-img"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <button className="btn-3d-pay" onClick={handlePay}>
