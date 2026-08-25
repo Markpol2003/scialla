@@ -40,7 +40,7 @@ export default function Products() {
         <div className="catalog-hero-text">
           <h2 className="catalog-title">Beverage & Bakery Catalog</h2>
           <p className="catalog-subtitle">
-            Manage your menu inventory, pricing, and live availability status
+            Manage your menu pricing and live item availability status
           </p>
         </div>
         <div className="catalog-hero-stats">

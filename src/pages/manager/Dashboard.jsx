@@ -11,12 +11,10 @@ export default function Dashboard() {
     monthlyProgressPercent,
     monthlyOrderCount,
     monthlySalesData,
-    inventory,
     orders
   } = useApp();
 
   const [timeframe, setTimeframe] = useState('monthly'); // 'monthly' | 'weekly'
-  const lowStockItems = inventory.filter((i) => i.stock <= i.minThreshold);
   const recentOrders = orders.slice(0, 5);
 
   const maxMonthlyRevenue = Math.max(...monthlySalesData.map((d) => d.revenue));
@@ -41,10 +39,8 @@ export default function Dashboard() {
         </div>
 
         <div className="kpi-card">
-          <span className="kpi-title">LOW STOCK ALERTS</span>
-          <div className="kpi-main-val" style={{ color: lowStockItems.length > 0 ? '#ef4444' : '#10b981' }}>
-            {lowStockItems.length}
-          </div>
+          <span className="kpi-title">AVERAGE ORDER VALUE</span>
+          <div className="kpi-main-val">₱{avgOrderValue}</div>
         </div>
       </div>
 

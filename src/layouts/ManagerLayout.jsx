@@ -1,18 +1,13 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
 import Dashboard from '../pages/manager/Dashboard';
 import Sales from '../pages/manager/Sales';
 import Products from '../pages/manager/Products';
-import Inventory from '../pages/manager/Inventory';
 import Staff from '../pages/manager/Staff';
 import UserProfileDropdown from '../components/UserProfileDropdown';
 
 export default function ManagerLayout({ onNavigate }) {
-  const { inventory } = useApp();
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  const lowStockCount = inventory.filter((i) => i.stock <= i.minThreshold).length;
 
   const handleTabChange = (tab) => {
     setCurrentTab(tab);
@@ -75,13 +70,6 @@ export default function ManagerLayout({ onNavigate }) {
           </button>
           <button
             type="button"
-            className={`sidebar-nav-item ${currentTab === 'inventory' ? 'active' : ''}`}
-            onClick={() => handleTabChange('inventory')}
-          >
-            Inventory {lowStockCount > 0 && <span className="sidebar-count">{lowStockCount}</span>}
-          </button>
-          <button
-            type="button"
             className={`sidebar-nav-item ${currentTab === 'staff' ? 'active' : ''}`}
             onClick={() => handleTabChange('staff')}
           >
@@ -104,7 +92,6 @@ export default function ManagerLayout({ onNavigate }) {
           {currentTab === 'dashboard' && <Dashboard />}
           {currentTab === 'sales' && <Sales />}
           {currentTab === 'products' && <Products />}
-          {currentTab === 'inventory' && <Inventory />}
           {currentTab === 'staff' && <Staff />}
         </main>
       </div>

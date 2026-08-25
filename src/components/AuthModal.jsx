@@ -7,30 +7,27 @@ export default function AuthModal() {
   const {
     isAuthModalOpen,
     setIsAuthModalOpen,
-    authMode,
-    setAuthMode,
-    login,
-    signup
+    login
   } = useApp();
 
   const [selectedRole, setSelectedRole] = useState('staff');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const [loading, setLoading] = useState(false);
 
   if (!isAuthModalOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (authMode === 'login') {
-      login(email || `${selectedRole}@scialla.com`, password || 'password123', selectedRole);
-    } else {
-      signup(name || 'New Staff Member', email || `${selectedRole}@scialla.com`, password || 'password123', selectedRole);
+    setErrorMsg('');
+    setLoading(true);
+    const res = await login(email, password, selectedRole);
+    setLoading(false);
+    if (!res || !res.success) {
+      setErrorMsg(res?.message || 'Invalid credentials or inactive account.');
     }
-  };
-
-  const handleDemoLogin = (role) => {
-    login(`${role}@scialla.com`, 'demo123', role);
   };
 
   return createPortal(
@@ -56,33 +53,9 @@ export default function AuthModal() {
           <p>Portal Sign In & Role Authentication</p>
         </div>
 
-        <div className="auth-mode-tabs">
-          <button
-            type="button"
-            className={`auth-mode-btn ${authMode === 'login' ? 'active' : ''}`}
-            onClick={() => setAuthMode('login')}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            className={`auth-mode-btn ${authMode === 'signup' ? 'active' : ''}`}
-            onClick={() => setAuthMode('signup')}
-          >
-            Create Account
-          </button>
-        </div>
-
         <div className="auth-role-picker">
           <label className="auth-label">Select Account Type:</label>
           <div className="auth-role-options">
-            <button
-              type="button"
-              className={`auth-role-chip ${selectedRole === 'customer' ? 'active' : ''}`}
-              onClick={() => setSelectedRole('customer')}
-            >
-              ☕ Customer
-            </button>
             <button
               type="button"
               className={`auth-role-chip ${selectedRole === 'staff' ? 'active' : ''}`}
@@ -100,25 +73,18 @@ export default function AuthModal() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          {authMode === 'signup' && (
-            <div className="form-group">
-              <label>Full Name</label>
-              <input
-                type="text"
-                placeholder="e.g. Marco Santos"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-          )}
+        {errorMsg && (
+          <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', padding: '8px 12px', borderRadius: '6px', color: '#f87171', fontSize: '0.8rem', margin: '10px 0', textAlign: 'center' }}>
+            ⚠ {errorMsg}
+          </div>
+        )}
 
+        <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label>Email Address</label>
+            <label>{selectedRole === 'manager' ? 'Email Address' : 'Username or Email'}</label>
             <input
-              type="email"
-              placeholder={`e.g. ${selectedRole}@scialla.com`}
+              type="text"
+              placeholder={selectedRole === 'manager' ? 'Enter email address' : 'Enter username or email'}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -136,37 +102,10 @@ export default function AuthModal() {
             />
           </div>
 
-          <button type="submit" className="btn-auth-submit">
-            {authMode === 'login' ? `Sign In as ${selectedRole.toUpperCase()}` : `Create ${selectedRole.toUpperCase()} Account`}
+          <button type="submit" className="btn-auth-submit" disabled={loading}>
+            {loading ? 'Signing in...' : `Sign In as ${selectedRole.toUpperCase()}`}
           </button>
         </form>
-
-        <div className="demo-logins-container">
-          <span className="demo-divider">OR 1-CLICK DEMO LOGIN</span>
-          <div className="demo-buttons-grid">
-            <button
-              type="button"
-              className="btn-demo-login demo-staff"
-              onClick={() => handleDemoLogin('staff')}
-            >
-              📋 Demo Staff (Barista Queue)
-            </button>
-            <button
-              type="button"
-              className="btn-demo-login demo-manager"
-              onClick={() => handleDemoLogin('manager')}
-            >
-              📊 Demo Manager (Sales & Analytics)
-            </button>
-            <button
-              type="button"
-              className="btn-demo-login demo-customer"
-              onClick={() => handleDemoLogin('customer')}
-            >
-              ☕ Demo Customer Menu
-            </button>
-          </div>
-        </div>
       </div>
     </div>,
     document.body

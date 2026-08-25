@@ -105,9 +105,9 @@ export default function ProfileDropdown({ onNavigate }) {
 
           <button
             type="button"
-            className="btn-demo demo-customer-btn"
+            className="btn-forgot-link"
             onClick={() => setIsOpen(false)}
-            style={{ textAlign: 'center', marginTop: '8px' }}
+            style={{ textAlign: 'center', marginTop: '8px', width: '100%' }}
           >
             Close Profile
           </button>

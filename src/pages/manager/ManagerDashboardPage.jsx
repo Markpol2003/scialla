@@ -13,16 +13,12 @@ export default function ManagerDashboardPage() {
     monthlyOrderCount,
     monthlySalesData,
     topProducts,
-    inventory,
-    restockInventory,
     staffList,
     orders,
     menuCategories
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('overview');
-
-  const lowStockItems = inventory.filter((item) => item.stock <= item.minThreshold);
 
   return (
     <div className="manager-container">
@@ -40,12 +36,6 @@ export default function ManagerDashboardPage() {
             Analytics Dashboard
           </button>
           <button
-            className={`manager-tab-btn ${activeTab === 'inventory' ? 'active' : ''}`}
-            onClick={() => setActiveTab('inventory')}
-          >
-            Inventory Control ({lowStockItems.length})
-          </button>
-          <button
             className={`manager-tab-btn ${activeTab === 'products' ? 'active' : ''}`}
             onClick={() => setActiveTab('products')}
           >
@@ -56,12 +46,6 @@ export default function ManagerDashboardPage() {
             onClick={() => setActiveTab('staff')}
           >
             Staff Roster
-          </button>
-          <button
-            className={`manager-tab-btn ${activeTab === 'api' ? 'active' : ''}`}
-            onClick={() => setActiveTab('api')}
-          >
-            API Inspector
           </button>
         </div>
       </header>
@@ -98,16 +82,16 @@ export default function ManagerDashboardPage() {
               </div>
 
               <div className="chart-bars-container">
-                {weeklySalesData.map((d) => (
-                  <div key={d.day} className="chart-bar-group">
-                    <span className="chart-val-label">₱{(d.sales / 1000).toFixed(1)}k</span>
+                {monthlySalesData.slice(0, 7).map((d) => (
+                  <div key={d.month} className="chart-bar-group">
+                    <span className="chart-val-label">₱{(d.revenue / 1000).toFixed(1)}k</span>
                     <div className="chart-bar-outer">
                       <div
                         className="chart-bar-inner"
                         style={{ height: `${d.percent}%` }}
                       ></div>
                     </div>
-                    <span className="chart-day-label">{d.day}</span>
+                    <span className="chart-day-label">{d.month}</span>
                   </div>
                 ))}
               </div>
@@ -136,89 +120,6 @@ export default function ManagerDashboardPage() {
               </div>
             </div>
           </div>
-
-          <div className="manager-box alerts-box">
-            <div className="box-header">
-              <h2 className="alert-box-title">⚠ Inventory Warning & Action Required</h2>
-              <span className="alert-count-pill">{lowStockItems.length} Low Stock Alert(s)</span>
-            </div>
-
-            {lowStockItems.length === 0 ? (
-              <div className="alert-ok-message">
-                ✓ All inventory items are comfortably above minimum reorder thresholds.
-              </div>
-            ) : (
-              <div className="alerts-grid">
-                {lowStockItems.map((inv) => (
-                  <div key={inv.id} className="alert-card-item">
-                    <div className="alert-info">
-                      <strong>⚠ {inv.name}</strong>
-                      <p>Only {inv.stock} {inv.unit} remaining (Min: {inv.minThreshold} {inv.unit})</p>
-                    </div>
-
-                    <button
-                      className="btn-restock-quick"
-                      onClick={() => restockInventory(inv.id, inv.unit === 'kg' ? 5.0 : 10)}
-                    >
-                      + Quick Restock ({inv.unit === 'kg' ? '+5.0 kg' : '+10 units'})
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'inventory' && (
-        <div className="manager-inventory-manager">
-          <div className="box-header">
-            <h2>Complete Warehouse & Bar Inventory</h2>
-            <span className="box-tag">Real-time Stock Monitor</span>
-          </div>
-
-          <table className="manager-table">
-            <thead>
-              <tr>
-                <th>Ingredient Name</th>
-                <th>Category</th>
-                <th>Current Stock</th>
-                <th>Minimum Threshold</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inventory.map((inv) => {
-                const isLow = inv.stock <= inv.minThreshold;
-                return (
-                  <tr key={inv.id} className={isLow ? 'row-low-stock' : ''}>
-                    <td><strong>{inv.name}</strong></td>
-                    <td>{inv.category}</td>
-                    <td>
-                      <span className="stock-pill">{inv.stock} {inv.unit}</span>
-                    </td>
-                    <td>{inv.minThreshold} {inv.unit}</td>
-                    <td>
-                      {isLow ? (
-                        <span className="status-badge badge-warning">⚠ LOW STOCK</span>
-                      ) : (
-                        <span className="status-badge badge-ok">✓ OK</span>
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        className="btn-table-action"
-                        onClick={() => restockInventory(inv.id, inv.unit === 'kg' ? 5 : 10)}
-                      >
-                        Restock +{inv.unit === 'kg' ? '5 kg' : '10'}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         </div>
       )}
 

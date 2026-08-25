@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import Dashboard from '../pages/staff/Dashboard';
 import Orders from '../pages/staff/Orders';
-import Inventory from '../pages/staff/Inventory';
 import UserProfileDropdown from '../components/UserProfileDropdown';
 
 export default function StaffLayout({ onNavigate }) {
@@ -64,13 +63,6 @@ export default function StaffLayout({ onNavigate }) {
           >
             Orders {newOrdersCount > 0 && <span className="sidebar-count">{newOrdersCount}</span>}
           </button>
-          <button
-            type="button"
-            className={`sidebar-nav-item ${currentTab === 'inventory' ? 'active' : ''}`}
-            onClick={() => handleTabChange('inventory')}
-          >
-            Inventory
-          </button>
 
           <div className="sidebar-footer-link">
             <button
@@ -87,7 +79,6 @@ export default function StaffLayout({ onNavigate }) {
         <main className="portal-main-content">
           {currentTab === 'dashboard' && <Dashboard />}
           {currentTab === 'orders' && <Orders />}
-          {currentTab === 'inventory' && <Inventory />}
         </main>
       </div>
     </div>

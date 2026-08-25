@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { api } from '../services/api';
 
 const AppContext = createContext();
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:5050';
 
 const initialCategories = [
   {
@@ -337,108 +341,66 @@ const initialCategories = [
   }
 ];
 
-const initialInventory = [
-  { id: 'inv1', name: 'Espresso Coffee Beans', category: 'Coffee', stock: 8.5, unit: 'kg', minThreshold: 5.0 },
-  { id: 'inv2', name: 'Fresh Whole Milk', category: 'Dairy', stock: 14, unit: 'bottles', minThreshold: 10 },
-  { id: 'inv3', name: 'Barista Oat Milk', category: 'Dairy', stock: 6, unit: 'cartons', minThreshold: 8 },
-  { id: 'inv4', name: 'Organic Vanilla Syrup', category: 'Syrups', stock: 4, unit: 'bottles', minThreshold: 3 },
-  { id: 'inv5', name: 'Salted Caramel Sauce', category: 'Syrups', stock: 2, unit: 'bottles', minThreshold: 4 },
-  { id: 'inv6', name: 'Butter Croissants', category: 'Bakery', stock: 18, unit: 'pcs', minThreshold: 10 },
-];
-
-const initialOrders = [
-  {
-    id: 'SC-1040',
-    table: 'Table #2',
-    timestamp: new Date(Date.now() - 8 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    items: [
-      { id: 'c8', name: 'Spanish Latte', qty: 2, price: 175 },
-      { id: 'p1', name: 'Butter Croissant', qty: 1, price: 120 }
-    ],
-    total: 470,
-    paymentMethod: 'GCash',
-    status: 'new' // 'new', 'preparing', 'ready', 'completed', 'cancelled'
-  },
-  {
-    id: 'SC-1041',
-    table: 'Table #5',
-    timestamp: new Date(Date.now() - 15 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    items: [
-      { id: 'c4', name: 'Cappuccino', qty: 1, price: 160 },
-      { id: 'c12', name: 'Scialla Cold Brew', qty: 1, price: 150 }
-    ],
-    total: 310,
-    paymentMethod: 'Maya',
-    status: 'preparing'
-  },
-  {
-    id: 'SC-1039',
-    table: 'Takeout',
-    timestamp: new Date(Date.now() - 35 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    items: [
-      { id: 'c6', name: 'Iced Vanilla Latte', qty: 1, price: 180 },
-      { id: 'p2', name: 'Almond Croissant', qty: 1, price: 145 }
-    ],
-    total: 325,
-    paymentMethod: 'Cash',
-    status: 'ready'
-  },
-  {
-    id: 'SC-1038',
-    table: 'Table #1',
-    timestamp: new Date(Date.now() - 50 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    items: [
-      { id: 'c2', name: 'Americano', qty: 2, price: 130 }
-    ],
-    total: 260,
-    paymentMethod: 'Cash',
-    status: 'completed'
-  }
-];
-
-const initialStaff = [
-  { id: 's1', name: 'Marco Santos', role: 'Head Barista', status: 'On Shift', avatarText: 'MS' },
-  { id: 's2', name: 'Elena Reyes', role: 'Barista', status: 'On Shift', avatarText: 'ER' },
-  { id: 's3', name: 'Carlos Dizon', role: 'Cashier / Staff', status: 'On Break', avatarText: 'CD' },
-  { id: 's4', name: 'Sofia Mendoza', role: 'Manager', status: 'Active', avatarText: 'SM' },
-];
-
 export function AppProvider({ children }) {
   const [activeRole, setActiveRole] = useState('customer'); // 'customer' | 'staff' | 'manager'
-  const [currentUser, setCurrentUser] = useState(null); // null or { name, email, role }
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('scialla_user');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
 
   const [menuCategories, setMenuCategories] = useState(initialCategories);
-  const [orders, setOrders] = useState(initialOrders);
-  const [inventory, setInventory] = useState(initialInventory);
-  const [staffList] = useState(initialStaff);
+  const [orders, setOrders] = useState([]);
+  const [staffList, setStaffList] = useState([]);
   const [lastCustomerOrder, setLastCustomerOrder] = useState(null);
 
   // Real-Time WebSocket Connection
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
 
+  // Fetch Staff List from DB if Manager
+  const refreshStaffList = async () => {
+    const data = await api.getStaffList();
+    if (Array.isArray(data)) {
+      const formatted = data.map(s => ({
+        ...s,
+        name: `${s.first_name} ${s.last_name}`
+      }));
+      setStaffList(formatted);
+    }
+  };
+
   useEffect(() => {
-    // Sync latest live order state from real-time server on load/refresh
-    fetch('http://localhost:5050/api/orders')
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setOrders(data);
+    // Validate stored token on load with backend
+    const token = localStorage.getItem('scialla_token');
+    if (token) {
+      api.getCurrentUser().then(user => {
+        if (user) {
+          setCurrentUser(user);
+          setActiveRole(user.role);
+        } else {
+          // Invalidate user if backend rejects token or staff is inactive
+          logout();
         }
-      })
-      .catch(() => {});
+      });
+    }
+
+    // Fetch initial orders
+    api.getOrders().then(data => {
+      if (Array.isArray(data)) {
+        setOrders(data);
+      }
+    });
 
     let ws;
     let reconnectTimeout;
 
     const connectWebSocket = () => {
       try {
-        ws = new WebSocket('ws://localhost:5050');
+        ws = new WebSocket(WS_URL);
 
         ws.onopen = () => {
-          console.log('⚡ Scialla Real-Time WebSocket connected on ws://localhost:5050');
+          console.log(`⚡ Scialla Real-Time WebSocket connected on ${WS_URL}`);
           setIsConnected(true);
         };
 
@@ -463,14 +425,6 @@ export function AppProvider({ children }) {
                     item.id === data.itemId ? { ...item, inStock: data.inStock } : item
                   )
                 }))
-              );
-            } else if (type === 'inventory:adjust') {
-              setInventory((prev) =>
-                prev.map((item) =>
-                  item.id === data.invId
-                    ? { ...item, stock: Math.max(0, Number((item.stock + data.delta).toFixed(1))) }
-                    : item
-                )
               );
             }
           } catch (err) {
@@ -501,40 +455,43 @@ export function AppProvider({ children }) {
     };
   }, []);
 
+  // Fetch staff list when Manager user is active
+  useEffect(() => {
+    if (currentUser && currentUser.role === 'manager') {
+      refreshStaffList();
+    }
+  }, [currentUser]);
+
   // Authentication Handlers
-  const login = (email, password, targetRole) => {
-    const role = targetRole || (email.includes('manager') ? 'manager' : email.includes('staff') ? 'staff' : 'customer');
-    const nameMap = {
-      staff: 'Marco Santos',
-      manager: 'Sofia Mendoza',
-      customer: 'Coffee Lover'
-    };
+  const login = async (identifier, password, targetRole) => {
+    let response;
+    if (targetRole === 'manager') {
+      response = await api.managerLogin(identifier, password);
+    } else {
+      response = await api.staffLogin(identifier, password);
+    }
 
-    const user = {
-      email,
-      name: nameMap[role] || email.split('@')[0],
-      role
-    };
-
-    setCurrentUser(user);
-    setActiveRole(role);
-    setIsAuthModalOpen(false);
-  };
-
-  const signup = (name, email, password, role) => {
-    const user = { name, email, role };
-    setCurrentUser(user);
-    setActiveRole(role);
-    setIsAuthModalOpen(false);
+    if (response && response.success) {
+      localStorage.setItem('scialla_token', response.token);
+      localStorage.setItem('scialla_user', JSON.stringify(response.user));
+      setCurrentUser(response.user);
+      setActiveRole(response.user.role);
+      setIsAuthModalOpen(false);
+      return { success: true, user: response.user };
+    } else {
+      return { success: false, message: response?.message || 'Authentication failed.' };
+    }
   };
 
   const logout = () => {
+    api.logout();
+    localStorage.removeItem('scialla_token');
+    localStorage.removeItem('scialla_user');
     setCurrentUser(null);
     setActiveRole('customer');
   };
 
-  const openAuthModal = (mode = 'login', defaultRole = 'customer') => {
-    setAuthMode(mode);
+  const openAuthModal = () => {
     setIsAuthModalOpen(true);
   };
 
@@ -570,25 +527,12 @@ export function AppProvider({ children }) {
     });
     setLastCustomerOrder(newOrder);
 
-    // Broadcast over Real-Time WebSocket if connected, else fallback to HTTP POST
+    // Broadcast over Real-Time WebSocket if connected, else HTTP POST
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type: 'order:create', data: newOrder }));
     } else {
-      fetch('http://localhost:5050/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newOrder)
-      }).catch(() => {});
+      api.createOrder(newOrder);
     }
-
-    // Auto update mock inventory
-    setInventory((prevInv) =>
-      prevInv.map((item) => {
-        if (item.id === 'inv1') return { ...item, stock: Math.max(0, Number((item.stock - 0.2).toFixed(1))) };
-        if (item.id === 'inv2') return { ...item, stock: Math.max(0, item.stock - 1) };
-        return item;
-      })
-    );
   };
 
   // Update order status (Staff / Manager)
@@ -606,16 +550,11 @@ export function AppProvider({ children }) {
       }
     }
 
-    // Broadcast over Real-Time WebSocket
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type: 'order:update-status', data: { id: orderId, status: newStatus } }));
     }
 
-    fetch(`http://localhost:5050/api/orders/${orderId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus })
-    }).catch(() => {});
+    api.updateOrderStatus(orderId, newStatus);
   };
 
   // Toggle item stock status (Staff / Manager)
@@ -639,30 +578,10 @@ export function AppProvider({ children }) {
     }
   };
 
-  // Adjust inventory stock (+ or -)
-  const adjustInventoryStock = (invId, delta) => {
-    setInventory((prev) =>
-      prev.map((item) =>
-        item.id === invId
-          ? { ...item, stock: Math.max(0, Number((item.stock + delta).toFixed(1))) }
-          : item
-      )
-    );
-
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'inventory:adjust', data: { invId, delta } }));
-    }
-  };
-
-  // Restock inventory item (Manager)
-  const restockInventory = (invId, amount) => {
-    adjustInventoryStock(invId, amount);
-  };
-
   // Calculate dynamic sales metrics for Manager
   const completedOrders = orders.filter((o) => o.status === 'completed' || o.status === 'ready' || o.status === 'preparing');
-  const todayRevenue = completedOrders.reduce((sum, o) => sum + o.total, 0) + 12450; // base sales + live
-  const todayOrderCount = completedOrders.length + 38; // base count + live
+  const todayRevenue = completedOrders.reduce((sum, o) => sum + o.total, 0) + 12450;
+  const todayOrderCount = completedOrders.length + 38;
   const avgOrderValue = todayOrderCount > 0 ? (todayRevenue / todayOrderCount).toFixed(2) : 0;
 
   // Monthly Revenue & Sales Data Analytics
@@ -716,24 +635,19 @@ export function AppProvider({ children }) {
         setActiveRole,
         currentUser,
         login,
-        signup,
         logout,
         isAuthModalOpen,
         setIsAuthModalOpen,
-        authMode,
-        setAuthMode,
         openAuthModal,
         menuCategories,
         orders,
-        inventory,
         staffList,
+        refreshStaffList,
         lastCustomerOrder,
         setLastCustomerOrder,
         placeOrder,
         updateOrderStatus,
         toggleItemStock,
-        restockInventory,
-        adjustInventoryStock,
         todayRevenue,
         todayOrderCount,
         avgOrderValue,

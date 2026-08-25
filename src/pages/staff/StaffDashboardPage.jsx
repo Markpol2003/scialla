@@ -7,7 +7,6 @@ export default function StaffDashboardPage() {
     updateOrderStatus,
     menuCategories,
     toggleItemStock,
-    inventory,
     todayRevenue,
     todayOrderCount
   } = useApp();
@@ -18,8 +17,6 @@ export default function StaffDashboardPage() {
   const preparingOrders = orders.filter((o) => o.status === 'preparing');
   const readyOrders = orders.filter((o) => o.status === 'ready');
   const completedOrders = orders.filter((o) => o.status === 'completed' || o.status === 'cancelled');
-
-  const lowStockItems = inventory.filter((item) => item.stock <= item.minThreshold);
 
   const consolidateItems = (items = []) => {
     const map = new Map();
@@ -72,12 +69,6 @@ export default function StaffDashboardPage() {
           onClick={() => setActiveTab('menu')}
         >
           ☕ Menu Availability
-        </button>
-        <button
-          className={`staff-tab-btn ${activeTab === 'inventory' ? 'active' : ''}`}
-          onClick={() => setActiveTab('inventory')}
-        >
-          📦 Inventory Alerts ({lowStockItems.length})
         </button>
         <button
           className={`staff-tab-btn ${activeTab === 'history' ? 'active' : ''}`}
@@ -270,40 +261,6 @@ export default function StaffDashboardPage() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'inventory' && (
-        <div className="staff-inventory-section">
-          <h2 className="section-heading">Current Ingredients & Stock Levels</h2>
-
-          <div className="inventory-cards-grid">
-            {inventory.map((inv) => {
-              const isLow = inv.stock <= inv.minThreshold;
-              return (
-                <div key={inv.id} className={`inv-status-card ${isLow ? 'card-warning' : ''}`}>
-                  <div className="inv-card-top">
-                    <span className="inv-name">{inv.name}</span>
-                    {isLow && <span className="warning-badge">⚠ LOW STOCK</span>}
-                  </div>
-
-                  <div className="inv-card-stock">
-                    <span className="stock-number">{inv.stock}</span>
-                    <span className="stock-unit">{inv.unit}</span>
-                  </div>
-
-                  <div className="inv-progress-bar">
-                    <div
-                      className={`progress-fill ${isLow ? 'fill-low' : 'fill-good'}`}
-                      style={{ width: `${Math.min(100, (inv.stock / (inv.minThreshold * 2)) * 100)}%` }}
-                    ></div>
-                  </div>
-
-                  <span className="inv-min-info">Min threshold: {inv.minThreshold} {inv.unit}</span>
-                </div>
-              );
-            })}
           </div>
         </div>
       )}

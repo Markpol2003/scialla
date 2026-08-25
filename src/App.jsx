@@ -31,7 +31,7 @@ function MainAppView() {
   let modalTargetRole = 'staff';
 
   if (currentPath.startsWith('/staff')) {
-    if (currentUser && currentUser.role === 'staff') {
+    if (currentUser && currentUser.role === 'staff' && currentUser.status !== 'Inactive' && currentUser.status !== 'Resigned') {
       activeLayout = <StaffLayout onNavigate={navigate} />;
     } else {
       // Unauthenticated access to /staff -> show Coffee Menu + Login Modal Overlay!
