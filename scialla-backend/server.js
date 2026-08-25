@@ -42,6 +42,21 @@ app.use(cors({
 
 app.use(express.json());
 
+// Root & Health Status Endpoints
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Scialla API is running'
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'Scialla API'
+  });
+});
+
 // Middleware: Verify JWT Token
 function verifyToken(req, res, next) {
   const authHeader = req.headers['authorization'];
