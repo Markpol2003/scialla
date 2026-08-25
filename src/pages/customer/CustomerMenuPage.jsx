@@ -449,7 +449,8 @@ export default function CustomerMenuPage() {
                 cart.map((item) => (
                   <div key={item.id} className="cart-item-row">
                     <div className="item-info">
-                      <div className="item-row-name">{item.name}</div>
+                      <div className="item-row-name">{item.rawName || item.name}</div>
+                      {item.size && <div className="item-row-size" style={{ fontSize: '0.76rem', color: 'var(--color-gold)', fontWeight: 'bold' }}>{item.size}</div>}
                     </div>
 
                     <div className="qty-stepper">

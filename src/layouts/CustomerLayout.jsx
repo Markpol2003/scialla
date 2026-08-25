@@ -24,15 +24,21 @@ export default function CustomerLayout({ onNavigate }) {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
 
-  const handleAddToCart = (item) => {
+  const handleAddToCart = (item, customSize = null, customQty = 1) => {
+    const activeSize = item.sizes ? (customSize || item.sizes[0]) : null;
+    const sizeLabel = activeSize ? (activeSize.label || activeSize.size) : '';
+    const cartItemId = activeSize ? `${item.id}-${activeSize.size}` : item.id;
+    const cartItemName = activeSize ? `${item.name} (${activeSize.size})` : item.name;
+    const itemPrice = activeSize ? activeSize.price : item.price;
+
     setCart((prevCart) => {
-      const idx = prevCart.findIndex((c) => c.id === item.id);
+      const idx = prevCart.findIndex((c) => c.id === cartItemId);
       if (idx > -1) {
         const updated = [...prevCart];
-        updated[idx] = { ...updated[idx], qty: updated[idx].qty + 1 };
+        updated[idx] = { ...updated[idx], qty: updated[idx].qty + customQty };
         return updated;
       }
-      return [...prevCart, { ...item, qty: 1 }];
+      return [...prevCart, { id: cartItemId, name: cartItemName, rawName: item.name, size: sizeLabel, price: itemPrice, qty: customQty, originalId: item.id }];
     });
   };
 

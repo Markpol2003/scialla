@@ -197,41 +197,41 @@ const initialCategories = [
         description: 'Refreshing sparkling soda infused with sweet blueberry syrup',
         price: 49,
         sizes: [
-          { size: '12oz', price: 49 },
-          { size: '16oz', price: 69 },
-          { size: '22oz', price: 89 }
+          { label: '12 oz', size: '12 oz', price: 49 },
+          { label: '16 oz', size: '16 oz', price: 69 },
+          { label: '22 oz', size: '22 oz', price: 89 }
         ],
-        tag: 'Fizzy',
+        tag: 'Refresher',
         inStock: true,
-        image: '/images/products/whitecheddar.png'
+        image: '/images/products/blueberrysoda.png'
       },
       {
         id: 'sd2',
-        name: 'Sparkling Berry',
-        description: 'Bubbly mixed berry refresher with crushed mint and ice',
+        name: 'Strawberry Soda',
+        description: 'Fizzy soda blended with real strawberry fruit preserves',
         price: 49,
         sizes: [
-          { size: '12oz', price: 49 },
-          { size: '16oz', price: 69 },
-          { size: '22oz', price: 89 }
+          { label: '12 oz', size: '12 oz', price: 49 },
+          { label: '16 oz', size: '16 oz', price: 69 },
+          { label: '22 oz', size: '22 oz', price: 89 }
         ],
-        tag: 'Cooling',
+        tag: 'Fruity',
         inStock: true,
         image: '/images/products/strawberrysoda.png'
       },
       {
         id: 'sd3',
-        name: 'Apple Fizz',
-        description: 'Crisp green apple sparkling drink over crushed ice',
+        name: 'Green Apple Soda',
+        description: 'Crisp and tangy green apple sparkling refresher',
         price: 49,
         sizes: [
-          { size: '12oz', price: 49 },
-          { size: '16oz', price: 69 },
-          { size: '22oz', price: 89 }
+          { label: '12 oz', size: '12 oz', price: 49 },
+          { label: '16 oz', size: '16 oz', price: 69 },
+          { label: '22 oz', size: '22 oz', price: 89 }
         ],
-        tag: 'Crisp',
+        tag: 'Tangy',
         inStock: true,
-        image: '/images/products/salt.png'
+        image: '/images/products/matcha.png'
       }
     ]
   },

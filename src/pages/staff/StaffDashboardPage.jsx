@@ -21,15 +21,14 @@ export default function StaffDashboardPage() {
   const consolidateItems = (items = []) => {
     const map = new Map();
     items.forEach((item) => {
-      const cleanName = item.name ? item.name.replace(/^\d+x\s*/i, '').trim() : 'Item';
-      const sizeTag = item.size ? ` (${item.size})` : '';
-      const fullName = cleanName.includes('(') ? cleanName : `${cleanName}${sizeTag}`;
-      const key = `${item.id || cleanName}-${item.size || ''}-${item.price}`;
+      const cleanName = item.name ? item.name.replace(/^\d+x\s*/i, '').replace(/\s*\([\d\s\w]+\)\s*/i, '').trim() : 'Item';
+      const sizeVal = item.size || (item.name && item.name.match(/\(([^)]+)\)/) ? item.name.match(/\(([^)]+)\)/)[1] : '');
+      const key = `${item.id || cleanName}-${sizeVal}-${item.price}`;
       if (map.has(key)) {
         const existing = map.get(key);
         map.set(key, { ...existing, qty: existing.qty + (item.qty || 1) });
       } else {
-        map.set(key, { ...item, name: fullName, qty: item.qty || 1 });
+        map.set(key, { ...item, cleanName, size: sizeVal, qty: item.qty || 1 });
       }
     });
     return Array.from(map.values());
@@ -107,10 +106,19 @@ export default function StaffDashboardPage() {
 
                     <div className="card-items-list">
                       {consolidateItems(ord.items).map((item, idx) => (
-                        <div key={idx} className="staff-item-row">
-                          <span className="item-qty-badge">{item.qty}×</span>
-                          <span className="item-name">{item.name}</span>
-                          <span className="item-line-price">₱{(item.price * item.qty).toFixed(2)}</span>
+                        <div key={idx} className="staff-item-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', margin: '4px 0' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span className="item-qty-badge">{item.qty}×</span>
+                              <span className="item-name" style={{ fontWeight: 'bold' }}>{item.cleanName || item.name}</span>
+                            </div>
+                            <span className="item-line-price">₱{(item.price * item.qty).toFixed(2)}</span>
+                          </div>
+                          {item.size && (
+                            <span className="item-size-badge" style={{ fontSize: '0.78rem', color: '#C98B5B', fontWeight: 'bold', marginLeft: '28px', marginTop: '1px' }}>
+                              {item.size}
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -165,10 +173,19 @@ export default function StaffDashboardPage() {
 
                     <div className="card-items-list">
                       {consolidateItems(ord.items).map((item, idx) => (
-                        <div key={idx} className="staff-item-row">
-                          <span className="item-qty-badge">{item.qty}×</span>
-                          <span className="item-name">{item.name}</span>
-                          <span className="item-line-price">₱{(item.price * item.qty).toFixed(2)}</span>
+                        <div key={idx} className="staff-item-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', margin: '4px 0' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span className="item-qty-badge">{item.qty}×</span>
+                              <span className="item-name" style={{ fontWeight: 'bold' }}>{item.cleanName || item.name}</span>
+                            </div>
+                            <span className="item-line-price">₱{(item.price * item.qty).toFixed(2)}</span>
+                          </div>
+                          {item.size && (
+                            <span className="item-size-badge" style={{ fontSize: '0.78rem', color: '#C98B5B', fontWeight: 'bold', marginLeft: '28px', marginTop: '1px' }}>
+                              {item.size}
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -210,9 +227,16 @@ export default function StaffDashboardPage() {
 
                     <div className="card-items-list">
                       {consolidateItems(ord.items).map((item, idx) => (
-                        <div key={idx} className="staff-item-row">
-                          <span className="item-qty-badge">{item.qty}×</span>
-                          <span className="item-name">{item.name}</span>
+                        <div key={idx} className="staff-item-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', margin: '4px 0' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span className="item-qty-badge">{item.qty}×</span>
+                            <span className="item-name" style={{ fontWeight: 'bold' }}>{item.cleanName || item.name}</span>
+                          </div>
+                          {item.size && (
+                            <span className="item-size-badge" style={{ fontSize: '0.78rem', color: '#C98B5B', fontWeight: 'bold', marginLeft: '28px', marginTop: '1px' }}>
+                              {item.size}
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
