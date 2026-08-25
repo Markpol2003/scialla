@@ -17,9 +17,9 @@ const initialCategories = [
         description: 'Rich espresso, velvety steamed milk, and sweet caramel drizzle',
         price: 49,
         sizes: [
-          { size: '12oz', price: 49 },
-          { size: '16oz', price: 69 },
-          { size: '22oz', price: 89 }
+          { label: '12 oz', size: '12 oz', price: 49 },
+          { label: '16 oz', size: '16 oz', price: 69 },
+          { label: '22 oz', size: '22 oz', price: 89 }
         ],
         tag: 'Popular',
         inStock: true,
@@ -31,9 +31,9 @@ const initialCategories = [
         description: 'Dark Dutch cocoa folded into double shot espresso and chilled milk',
         price: 60,
         sizes: [
-          { size: '12oz', price: 60 },
-          { size: '16oz', price: 80 },
-          { size: '22oz', price: 105 }
+          { label: '12 oz', size: '12 oz', price: 60 },
+          { label: '16 oz', size: '16 oz', price: 80 },
+          { label: '22 oz', size: '22 oz', price: 105 }
         ],
         tag: 'Indulgent',
         inStock: true,
@@ -45,9 +45,9 @@ const initialCategories = [
         description: 'Espresso infused with sweet condensed milk and fresh whole milk',
         price: 49,
         sizes: [
-          { size: '12oz', price: 49 },
-          { size: '16oz', price: 69 },
-          { size: '22oz', price: 89 }
+          { label: '12 oz', size: '12 oz', price: 49 },
+          { label: '16 oz', size: '16 oz', price: 69 },
+          { label: '22 oz', size: '22 oz', price: 89 }
         ],
         tag: 'Best Seller',
         inStock: true,
@@ -59,9 +59,9 @@ const initialCategories = [
         description: 'Whipped espresso froth layered over creamy chilled milk & Oreo crumbles',
         price: 55,
         sizes: [
-          { size: '12oz', price: 55 },
-          { size: '16oz', price: 75 },
-          { size: '22oz', price: 95 }
+          { label: '12 oz', size: '12 oz', price: 55 },
+          { label: '16 oz', size: '16 oz', price: 75 },
+          { label: '22 oz', size: '22 oz', price: 95 }
         ],
         tag: 'Signature',
         inStock: true,
@@ -79,9 +79,9 @@ const initialCategories = [
         description: 'Rich chocolate blend with dark cherry syrup and whipped cream',
         price: 55,
         sizes: [
-          { size: '12oz', price: 55 },
-          { size: '16oz', price: 75 },
-          { size: '22oz', price: 95 }
+          { label: '12 oz', size: '12 oz', price: 55 },
+          { label: '16 oz', size: '16 oz', price: 75 },
+          { label: '22 oz', size: '22 oz', price: 95 }
         ],
         tag: 'Decadent',
         inStock: true,
@@ -93,9 +93,9 @@ const initialCategories = [
         description: 'Smooth organic blueberry puree blended with rich fresh milk',
         price: 49,
         sizes: [
-          { size: '12oz', price: 49 },
-          { size: '16oz', price: 69 },
-          { size: '22oz', price: 89 }
+          { label: '12 oz', size: '12 oz', price: 49 },
+          { label: '16 oz', size: '16 oz', price: 69 },
+          { label: '22 oz', size: '22 oz', price: 89 }
         ],
         tag: 'Fruity',
         inStock: true,
@@ -107,9 +107,9 @@ const initialCategories = [
         description: 'Sweet strawberry infusion folded into thick velvety cream',
         price: 49,
         sizes: [
-          { size: '12oz', price: 49 },
-          { size: '16oz', price: 69 },
-          { size: '22oz', price: 89 }
+          { label: '12 oz', size: '12 oz', price: 49 },
+          { label: '16 oz', size: '16 oz', price: 69 },
+          { label: '22 oz', size: '22 oz', price: 89 }
         ],
         tag: 'Popular',
         inStock: true,
@@ -121,9 +121,9 @@ const initialCategories = [
         description: 'Premium Dutch dark chocolate blend topped with chocolate dust',
         price: 55,
         sizes: [
-          { size: '12oz', price: 55 },
-          { size: '16oz', price: 75 },
-          { size: '22oz', price: 95 }
+          { label: '12 oz', size: '12 oz', price: 55 },
+          { label: '16 oz', size: '16 oz', price: 75 },
+          { label: '22 oz', size: '22 oz', price: 95 }
         ],
         tag: 'Rich',
         inStock: true,
@@ -135,9 +135,9 @@ const initialCategories = [
         description: 'Sweet purple taro root blended into silky sweet milk tea',
         price: 49,
         sizes: [
-          { size: '12oz', price: 49 },
-          { size: '16oz', price: 69 },
-          { size: '22oz', price: 89 }
+          { label: '12 oz', size: '12 oz', price: 49 },
+          { label: '16 oz', size: '16 oz', price: 69 },
+          { label: '22 oz', size: '22 oz', price: 89 }
         ],
         tag: 'Smooth',
         inStock: true,
@@ -149,9 +149,9 @@ const initialCategories = [
         description: 'Crushed Oreo cookies paired with fresh strawberry cream',
         price: 55,
         sizes: [
-          { size: '12oz', price: 55 },
-          { size: '16oz', price: 75 },
-          { size: '22oz', price: 95 }
+          { label: '12 oz', size: '12 oz', price: 55 },
+          { label: '16 oz', size: '16 oz', price: 75 },
+          { label: '22 oz', size: '22 oz', price: 95 }
         ],
         tag: 'Special',
         inStock: true,
@@ -163,9 +163,9 @@ const initialCategories = [
         description: 'Authentic Uji Japanese matcha whisked with fresh whole milk',
         price: 65,
         sizes: [
-          { size: '12oz', price: 65 },
-          { size: '16oz', price: 85 },
-          { size: '22oz', price: 105 }
+          { label: '12 oz', size: '12 oz', price: 65 },
+          { label: '16 oz', size: '16 oz', price: 85 },
+          { label: '22 oz', size: '22 oz', price: 105 }
         ],
         tag: 'Authentic',
         inStock: true,
@@ -177,9 +177,9 @@ const initialCategories = [
         description: 'Uji matcha latte layered with crunchy Oreo cookie crumbles',
         price: 75,
         sizes: [
-          { size: '12oz', price: 75 },
-          { size: '16oz', price: 95 },
-          { size: '22oz', price: 115 }
+          { label: '12 oz', size: '12 oz', price: 75 },
+          { label: '16 oz', size: '16 oz', price: 95 },
+          { label: '22 oz', size: '22 oz', price: 115 }
         ],
         tag: 'Best Seller',
         inStock: true,

@@ -41,6 +41,11 @@ export default function CustomerMenuPage() {
   const [selectedSizes, setSelectedSizes] = useState({});
   const [isMobileBarDismissed, setIsMobileBarDismissed] = useState(false);
 
+  // Product Customization Modal State
+  const [modalItem, setModalItem] = useState(null);
+  const [modalSize, setModalSize] = useState(null);
+  const [modalQty, setModalQty] = useState(1);
+
   const triggerToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -52,14 +57,26 @@ export default function CustomerMenuPage() {
     setSelectedSizes((prev) => ({ ...prev, [itemId]: sizeObj }));
   };
 
-  const handleAddToCart = (item) => {
+  const handleOpenProductModal = (item) => {
+    if (!item.inStock) {
+      triggerToast(`Sorry, ${item.name} is currently out of stock`);
+      return;
+    }
+    setModalItem(item);
+    const initialSize = item.sizes ? (selectedSizes[item.id] || item.sizes[0]) : null;
+    setModalSize(initialSize);
+    setModalQty(1);
+  };
+
+  const handleAddToCart = (item, customSize = null, customQty = 1) => {
     setIsMobileBarDismissed(false);
     if (!item.inStock) {
       triggerToast(`Sorry, ${item.name} is currently out of stock`);
       return;
     }
 
-    const activeSize = item.sizes ? (selectedSizes[item.id] || item.sizes[0]) : null;
+    const activeSize = item.sizes ? (customSize || selectedSizes[item.id] || item.sizes[0]) : null;
+    const sizeLabel = activeSize ? (activeSize.label || activeSize.size) : '';
     const cartItemId = activeSize ? `${item.id}-${activeSize.size}` : item.id;
     const cartItemName = activeSize ? `${item.name} (${activeSize.size})` : item.name;
     const itemPrice = activeSize ? activeSize.price : item.price;
@@ -70,13 +87,13 @@ export default function CustomerMenuPage() {
         const updated = [...prevCart];
         updated[existingIndex] = {
           ...updated[existingIndex],
-          qty: updated[existingIndex].qty + 1,
+          qty: updated[existingIndex].qty + customQty,
         };
         return updated;
       }
-      return [...prevCart, { id: cartItemId, name: cartItemName, price: itemPrice, qty: 1, originalId: item.id }];
+      return [...prevCart, { id: cartItemId, name: cartItemName, rawName: item.name, size: sizeLabel, price: itemPrice, qty: customQty, originalId: item.id }];
     });
-    triggerToast(`Added ${cartItemName} to order`);
+    triggerToast(`Added ${cartItemName} (${customQty}) to order`);
   };
 
   const handleUpdateQty = (id, delta) => {
@@ -336,7 +353,7 @@ export default function CustomerMenuPage() {
                       key={item.id}
                       className={`coffee-card-3d ${item.featured ? 'featured-signature' : ''} ${isOutOfStock ? 'card-out-of-stock' : ''}`}
                     >
-                      <div className="card-bg-image-wrapper">
+                      <div className="card-bg-image-wrapper" onClick={() => handleOpenProductModal(item)} style={{ cursor: 'pointer' }}>
                         <img
                           src={cardImg}
                           alt={item.name}
@@ -349,7 +366,7 @@ export default function CustomerMenuPage() {
                         <div className="card-bg-overlay" />
                       </div>
 
-                      <div className="card-top">
+                      <div className="card-top" onClick={() => handleOpenProductModal(item)} style={{ cursor: 'pointer' }}>
                         <div>
                           <h3 className="card-name">{item.name}</h3>
                           <p className="card-desc">{item.description}</p>
@@ -379,14 +396,14 @@ export default function CustomerMenuPage() {
                                 cursor: 'pointer'
                               }}
                             >
-                              {s.size} (₱{s.price})
+                              {s.label || s.size} (₱{s.price})
                             </button>
                           ))}
                         </div>
                       )}
 
                       <div className="card-bottom">
-                        <div className="card-price">
+                        <div className="card-price" onClick={() => handleOpenProductModal(item)} style={{ cursor: 'pointer' }}>
                           <span className="currency-sym">₱</span>
                           <span>{activePrice.toFixed(2)}</span>
                         </div>
@@ -651,6 +668,78 @@ export default function CustomerMenuPage() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* PRODUCT CUSTOMIZATION MODAL */}
+      {modalItem && (
+        <div className="auth-modal-backdrop" onClick={() => setModalItem(null)} style={{ zIndex: 999999 }}>
+          <div className="auth-modal-card product-detail-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <button className="auth-close-btn" onClick={() => setModalItem(null)}>✕</button>
+
+            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+              <img
+                src={modalItem.image || '/images/products/caramelmacc.png'}
+                alt={modalItem.name}
+                style={{ height: '130px', width: 'auto', objectFit: 'contain', margin: '0 auto 10px', borderRadius: '12px' }}
+              />
+              <h2 style={{ color: '#fff', fontSize: '1.35rem', margin: '0 0 6px' }}>{modalItem.name}</h2>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.84rem', margin: 0, lineHeight: '1.4' }}>{modalItem.description}</p>
+            </div>
+
+            {modalItem.sizes && (
+              <div style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--color-gold)', marginBottom: '8px' }}>
+                  Choose Size:
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {modalItem.sizes.map((s) => (
+                    <button
+                      key={s.size}
+                      type="button"
+                      className={`size-pill-btn ${(modalSize?.size === s.size) ? 'active' : ''}`}
+                      onClick={() => setModalSize(s)}
+                      style={{
+                        flex: 1,
+                        padding: '10px 6px',
+                        borderRadius: '10px',
+                        border: (modalSize?.size === s.size) ? '1.5px solid var(--color-gold)' : '1px solid rgba(255, 255, 255, 0.15)',
+                        background: (modalSize?.size === s.size) ? 'rgba(201, 139, 91, 0.3)' : 'rgba(0, 0, 0, 0.4)',
+                        color: (modalSize?.size === s.size) ? 'var(--color-gold)' : '#fff',
+                        fontSize: '0.85rem',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {s.label || s.size}<br />
+                      <span style={{ fontSize: '0.76rem', opacity: 0.85 }}>₱{s.price}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Quantity Stepper & Add Button */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', gap: '12px' }}>
+              <div className="qty-stepper" style={{ height: '42px', padding: '0 10px' }}>
+                <button className="qty-btn" onClick={() => setModalQty(Math.max(1, modalQty - 1))}>-</button>
+                <span className="qty-number" style={{ width: '32px', textAlign: 'center', fontWeight: 'bold' }}>{modalQty}</span>
+                <button className="qty-btn" onClick={() => setModalQty(modalQty + 1)}>+</button>
+              </div>
+
+              <button
+                type="button"
+                className="btn-3d-add"
+                style={{ flex: 1, height: '42px', fontSize: '0.92rem', fontWeight: 'bold' }}
+                onClick={() => {
+                  handleAddToCart(modalItem, modalSize, modalQty);
+                  setModalItem(null);
+                }}
+              >
+                Add to Cart • ₱{((modalSize ? modalSize.price : modalItem.price) * modalQty).toFixed(2)}
+              </button>
+            </div>
           </div>
         </div>
       )}

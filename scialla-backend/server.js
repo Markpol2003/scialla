@@ -397,6 +397,7 @@ app.get('/api/orders', requireDatabase, async (req, res) => {
       itemsByOrderId[item.order_id].push({
         id: item.item_id,
         name: item.name,
+        size: item.size || '',
         qty: item.qty,
         price: parseFloat(item.price)
       });
@@ -441,9 +442,10 @@ app.post('/api/orders', requireDatabase, async (req, res) => {
     );
 
     for (const item of newOrder.items) {
+      const itemSize = item.size || item.selectedSize || '';
       await db.query(
-        'INSERT INTO order_items (order_id, item_id, name, qty, price) VALUES ($1, $2, $3, $4, $5)',
-        [newOrder.id, item.id || null, item.name, item.qty || 1, item.price || 0]
+        'INSERT INTO order_items (order_id, item_id, name, size, qty, price) VALUES ($1, $2, $3, $4, $5, $6)',
+        [newOrder.id, item.id || null, item.name, itemSize, item.qty || 1, item.price || 0]
       );
     }
 
@@ -520,9 +522,10 @@ wss.on('connection', (ws) => {
           );
 
           for (const item of newOrder.items) {
+            const itemSize = item.size || item.selectedSize || '';
             await db.query(
-              'INSERT INTO order_items (order_id, item_id, name, qty, price) VALUES ($1, $2, $3, $4, $5)',
-              [newOrder.id, item.id || null, item.name, item.qty || 1, item.price || 0]
+              'INSERT INTO order_items (order_id, item_id, name, size, qty, price) VALUES ($1, $2, $3, $4, $5, $6)',
+              [newOrder.id, item.id || null, item.name, itemSize, item.qty || 1, item.price || 0]
             );
           }
         }

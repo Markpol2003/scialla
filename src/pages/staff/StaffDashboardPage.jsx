@@ -22,12 +22,14 @@ export default function StaffDashboardPage() {
     const map = new Map();
     items.forEach((item) => {
       const cleanName = item.name ? item.name.replace(/^\d+x\s*/i, '').trim() : 'Item';
-      const key = `${item.id || cleanName}-${item.price}`;
+      const sizeTag = item.size ? ` (${item.size})` : '';
+      const fullName = cleanName.includes('(') ? cleanName : `${cleanName}${sizeTag}`;
+      const key = `${item.id || cleanName}-${item.size || ''}-${item.price}`;
       if (map.has(key)) {
         const existing = map.get(key);
         map.set(key, { ...existing, qty: existing.qty + (item.qty || 1) });
       } else {
-        map.set(key, { ...item, name: cleanName, qty: item.qty || 1 });
+        map.set(key, { ...item, name: fullName, qty: item.qty || 1 });
       }
     });
     return Array.from(map.values());
