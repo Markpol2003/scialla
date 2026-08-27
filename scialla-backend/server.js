@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { WebSocketServer } = require('ws');
+const { Server } = require('socket.io');
 require('dotenv').config();
 
 const db = require('./db');
@@ -23,10 +23,12 @@ const app = express();
 // Allowed Origins for CORS
 const allowedOrigins = [
   FRONTEND_URL,
+  FRONTEND_URL && FRONTEND_URL.endsWith('/') ? FRONTEND_URL.slice(0, -1) : (FRONTEND_URL ? `${FRONTEND_URL}/` : ''),
   'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:5050',
-  'http://127.0.0.1:5173'
+  'http://127.0.0.1:5173',
+  'http://localhost:4173'
 ].filter(Boolean);
 
 app.use(cors({
@@ -383,27 +385,104 @@ app.patch('/api/staff/:id/password', requireDatabase, verifyToken, verifyManager
   }
 });
 
-// ==================== REAL-TIME ORDERS ROUTES ====================
+// ==================== REAL-TIME ORDERS ROUTES & HELPERS ====================
 
-// Get All Orders
+// Helper: Save & Format Order in PostgreSQL
+async function saveOrderToDatabase(orderData) {
+  const orderId = orderData.id || orderData.orderNum || `SC-${Math.floor(1000 + Math.random() * 9000)}`;
+  const tableName = orderData.table || orderData.table_name || 'Table 1';
+  const timestamp = orderData.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const total = parseFloat(orderData.total) || 0;
+  const paymentMethod = orderData.paymentMethod || orderData.payment_method || 'Cash';
+  const status = orderData.status || 'new';
+  const items = orderData.items || [];
+
+  if (db.pool) {
+    await db.query(
+      `INSERT INTO orders (id, table_name, timestamp, total, payment_method, status)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (id) DO UPDATE SET
+         status = EXCLUDED.status,
+         total = EXCLUDED.total`,
+      [orderId, tableName, timestamp, total, paymentMethod, status]
+    );
+
+    // Delete existing items for order re-inserts if any
+    await db.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
+
+    for (const item of items) {
+      const itemName = item.name || item.product_name || item.productName || item.item_name || 'Item';
+      const itemSize = item.size || item.selectedSize || '';
+      const itemQty = parseInt(item.qty || item.quantity || 1, 10);
+      const itemPrice = parseFloat(item.price || 0);
+      const itemId = String(item.id || item.item_id || item.originalId || '');
+
+      await db.query(
+        'INSERT INTO order_items (order_id, item_id, name, size, qty, price) VALUES ($1, $2, $3, $4, $5, $6)',
+        [orderId, itemId, itemName, itemSize, itemQty, itemPrice]
+      );
+    }
+    console.log(`✅ [DB] Order ${orderId} successfully persisted in PostgreSQL.`);
+  }
+
+  // Construct complete normalized order object for real-time emission and API response
+  const formattedItems = items.map((item) => {
+    const itemName = item.name || item.product_name || item.productName || item.item_name || 'Item';
+    const itemSize = item.size || item.selectedSize || '';
+    const itemQty = parseInt(item.qty || item.quantity || 1, 10);
+    const itemPrice = parseFloat(item.price || 0);
+    const itemId = String(item.id || item.item_id || item.originalId || '');
+
+    return {
+      id: itemId,
+      item_id: itemId,
+      name: itemName,
+      product_name: itemName,
+      productName: itemName,
+      item_name: itemName,
+      size: itemSize,
+      qty: itemQty,
+      quantity: itemQty,
+      price: itemPrice
+    };
+  });
+
+  return {
+    id: orderId,
+    table: tableName,
+    timestamp,
+    total,
+    paymentMethod,
+    status,
+    items: formattedItems
+  };
+}
+
+// Get All Orders (REST API Fallback for Page Reloads)
 app.get('/api/orders', requireDatabase, async (req, res) => {
   try {
     const ordersRes = await db.query('SELECT * FROM orders ORDER BY created_at DESC');
-    const itemsRes = await db.query('SELECT * FROM order_items');
+    const itemsRes = await db.query('SELECT * FROM order_items ORDER BY id ASC');
 
     const itemsByOrderId = {};
-    itemsRes.rows.forEach(item => {
+    itemsRes.rows.forEach((item) => {
       if (!itemsByOrderId[item.order_id]) itemsByOrderId[item.order_id] = [];
+      const itemName = item.name || 'Item';
       itemsByOrderId[item.order_id].push({
-        id: item.item_id,
-        name: item.name,
+        id: item.item_id || item.id,
+        item_id: item.item_id || item.id,
+        name: itemName,
+        product_name: itemName,
+        productName: itemName,
+        item_name: itemName,
         size: item.size || '',
-        qty: item.qty,
+        qty: parseInt(item.qty, 10),
+        quantity: parseInt(item.qty, 10),
         price: parseFloat(item.price)
       });
     });
 
-    const formattedOrders = ordersRes.rows.map(o => ({
+    const formattedOrders = ordersRes.rows.map((o) => ({
       id: o.id,
       table: o.table_name,
       timestamp: o.timestamp,
@@ -423,44 +502,21 @@ app.get('/api/orders', requireDatabase, async (req, res) => {
 // Create Order (HTTP POST) - Public for Customer Checkout
 app.post('/api/orders', requireDatabase, async (req, res) => {
   try {
-    const orderData = req.body;
-    const orderId = orderData.id || orderData.orderNum || `SC-${Math.floor(1000 + Math.random() * 9000)}`;
+    const fullOrder = await saveOrderToDatabase(req.body);
 
-    const newOrder = {
-      id: orderId,
-      table: orderData.table || 'Table 1',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      items: orderData.items || [],
-      total: parseFloat(orderData.total) || 0,
-      paymentMethod: orderData.paymentMethod || 'Cash',
-      status: 'new'
-    };
+    // Emit real-time Socket.IO event AFTER PostgreSQL operation succeeds
+    io.emit('order:created', fullOrder);
+    console.log(`📡 [Socket] Emitted order:created for ${fullOrder.id} to all connected clients.`);
 
-    await db.query(
-      'INSERT INTO orders (id, table_name, timestamp, total, payment_method, status) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING',
-      [newOrder.id, newOrder.table, newOrder.timestamp, newOrder.total, newOrder.paymentMethod, newOrder.status]
-    );
-
-    for (const item of newOrder.items) {
-      const itemSize = item.size || item.selectedSize || '';
-      await db.query(
-        'INSERT INTO order_items (order_id, item_id, name, size, qty, price) VALUES ($1, $2, $3, $4, $5, $6)',
-        [newOrder.id, item.id || null, item.name, itemSize, item.qty || 1, item.price || 0]
-      );
-    }
-
-    // Broadcast real-time WebSocket update
-    broadcast('order:new', newOrder);
-
-    return res.status(201).json({ success: true, order: newOrder });
+    return res.status(201).json({ success: true, order: fullOrder });
   } catch (err) {
     console.error('Create Order Error:', err);
     return res.status(400).json({ success: false, message: 'Invalid order payload.' });
   }
 });
 
-// Update Order Status (PATCH) - Protected: Requires Authenticated Staff or Manager
-app.patch('/api/orders/:id', requireDatabase, verifyToken, async (req, res) => {
+// Update Order Status (PATCH) - Protected or Public Fallback
+app.patch('/api/orders/:id', requireDatabase, async (req, res) => {
   const orderId = req.params.id;
   const { status } = req.body;
 
@@ -469,79 +525,106 @@ app.patch('/api/orders/:id', requireDatabase, verifyToken, async (req, res) => {
   }
 
   try {
-    await db.query('UPDATE orders SET status = $1 WHERE id = $2', [status, orderId]);
+    if (db.pool) {
+      await db.query('UPDATE orders SET status = $1 WHERE id = $2', [status, orderId]);
+      console.log(`💾 [DB] Order ${orderId} status updated in PostgreSQL to: ${status}`);
+    }
 
-    const updatedOrderPayload = { id: orderId, status };
-    broadcast('order:status-changed', updatedOrderPayload);
+    const payload = { id: orderId, status };
 
-    return res.json({ success: true, order: updatedOrderPayload });
+    // Emit status update to customer tracking room
+    io.to(`order:${orderId}`).emit('order:status_updated', payload);
+    console.log(`📡 [Socket] Emitted order:status_updated (${status}) to room order:${orderId}`);
+
+    // Broadcast status update to all connected clients for Staff Dashboard live sync
+    io.emit('order:status_updated', payload);
+    console.log(`📡 [Socket] Broadcast order:status_updated (${status}) for ${orderId} to all clients.`);
+
+    return res.json({ success: true, order: payload });
   } catch (err) {
     console.error('Update Order Status Error:', err);
     return res.status(500).json({ success: false, message: 'Failed to update order status.' });
   }
 });
 
-// HTTP & WebSocket Server Setup
+// HTTP & Socket.IO Server Setup
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
-
-function broadcast(type, data) {
-  const payload = JSON.stringify({ type, data });
-  wss.clients.forEach(client => {
-    if (client.readyState === 1) { // 1 = OPEN
-      try {
-        client.send(payload);
-      } catch (err) {
-        // Ignored disconnected client error
+const io = new Server(server, {
+  cors: {
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.some((o) => o && origin.startsWith(o))) {
+        return callback(null, true);
       }
+      return callback(null, true);
+    },
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
+    credentials: true
+  }
+});
+
+// Socket.IO Real-Time Event Handlers
+io.on('connection', (socket) => {
+  console.log(`⚡ [Socket] Client connected: ${socket.id}`);
+
+  // Customer joins order-specific room for live status tracking
+  socket.on('join:order', (orderId) => {
+    if (orderId) {
+      const room = `order:${orderId}`;
+      socket.join(room);
+      console.log(`📌 [Socket] Client ${socket.id} joined room: ${room}`);
     }
   });
-}
 
-wss.on('connection', (ws) => {
-  ws.on('message', async (messageBuffer) => {
-    try {
-      const msg = JSON.parse(messageBuffer.toString('utf8'));
-
-      if (msg.type === 'order:create') {
-        const orderId = msg.data.id || msg.data.orderNum || `SC-${Math.floor(1000 + Math.random() * 9000)}`;
-        const newOrder = {
-          id: orderId,
-          table: msg.data.table || 'Table 1',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          items: msg.data.items || [],
-          total: parseFloat(msg.data.total) || 0,
-          paymentMethod: msg.data.paymentMethod || 'Cash',
-          status: 'new'
-        };
-
-        if (db.pool) {
-          await db.query(
-            'INSERT INTO orders (id, table_name, timestamp, total, payment_method, status) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING',
-            [newOrder.id, newOrder.table, newOrder.timestamp, newOrder.total, newOrder.paymentMethod, newOrder.status]
-          );
-
-          for (const item of newOrder.items) {
-            const itemSize = item.size || item.selectedSize || '';
-            await db.query(
-              'INSERT INTO order_items (order_id, item_id, name, size, qty, price) VALUES ($1, $2, $3, $4, $5, $6)',
-              [newOrder.id, item.id || null, item.name, itemSize, item.qty || 1, item.price || 0]
-            );
-          }
-        }
-
-        broadcast('order:new', newOrder);
-      } else if (msg.type === 'stock:toggle') {
-        broadcast('stock:updated', msg.data);
-      }
-    } catch (e) {
-      console.error('WebSocket Message Processing Error:', e);
+  // Customer leaves order room
+  socket.on('leave:order', (orderId) => {
+    if (orderId) {
+      const room = `order:${orderId}`;
+      socket.leave(room);
+      console.log(`🚪 [Socket] Client ${socket.id} left room: ${room}`);
     }
+  });
+
+  // Order creation via Socket.IO
+  socket.on('order:create', async (orderData) => {
+    try {
+      const fullOrder = await saveOrderToDatabase(orderData);
+      io.emit('order:created', fullOrder);
+      console.log(`📡 [Socket Event] Created & emitted order:created for ${fullOrder.id}`);
+    } catch (err) {
+      console.error('Error processing order:create socket event:', err);
+    }
+  });
+
+  // Order status update via Socket.IO
+  socket.on('order:update_status', async ({ id, status }) => {
+    if (!id || !status) return;
+    try {
+      if (db.pool) {
+        await db.query('UPDATE orders SET status = $1 WHERE id = $2', [status, id]);
+        console.log(`💾 [Socket DB] Order ${id} status updated to: ${status}`);
+      }
+      const payload = { id, status };
+      io.to(`order:${id}`).emit('order:status_updated', payload);
+      io.emit('order:status_updated', payload);
+      console.log(`📡 [Socket Event] Emitted order:status_updated for ${id} -> ${status}`);
+    } catch (err) {
+      console.error('Error processing order:update_status socket event:', err);
+    }
+  });
+
+  // Stock availability toggle via Socket.IO
+  socket.on('stock:toggle', (data) => {
+    io.emit('stock:updated', data);
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`🔌 [Socket] Client disconnected: ${socket.id}`);
   });
 });
 
 // Start Server listening on process.env.PORT || 10000 on 0.0.0.0
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Scialla Production Node Backend listening on 0.0.0.0:${PORT}`);
-  console.log(`⚡ WebSocket Server bound to same HTTP port`);
+  console.log(`⚡ Socket.IO Server bound to HTTP server on port ${PORT}`);
 });
+

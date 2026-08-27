@@ -7,7 +7,8 @@ export default function Cart({
   totalAmount,
   onUpdateQty,
   onRemoveItem,
-  onOpenCheckout
+  onOpenCheckout,
+  onOpenTableModal
 }) {
   return (
     <aside className="scialla-cart-sidebar">
@@ -15,9 +16,15 @@ export default function Cart({
         <div className="cart-header">
           <div className="cart-title-wrapper">
             <h2 className="cart-title">Your Order</h2>
-            <span className="cart-table-indicator">
-              Serving to: <strong>{tableDisplayLabel}</strong>
-            </span>
+            <button
+              type="button"
+              className="cart-table-indicator-btn"
+              onClick={onOpenTableModal}
+              title="Click to change Table / Dining Option"
+            >
+              <span>{tableDisplayLabel}</span>
+              <span style={{ fontSize: '0.68rem', opacity: 0.7 }}>Edit</span>
+            </button>
           </div>
           <span className="cart-badge-count">
             {totalItemCount} {totalItemCount === 1 ? 'item' : 'items'}
@@ -36,7 +43,7 @@ export default function Cart({
                 <div className="item-info">
                   <div className="item-row-name">{item.rawName || item.name}</div>
                   {item.size && (
-                    <div className="item-row-size" style={{ fontSize: '0.78rem', color: 'var(--color-gold)', fontWeight: 'bold' }}>
+                    <div className="item-row-size">
                       {item.size}
                     </div>
                   )}

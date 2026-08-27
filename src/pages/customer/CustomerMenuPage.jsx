@@ -206,7 +206,7 @@ export default function CustomerMenuPage() {
               <div className={`stepper-line ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
               <div className={`stepper-node ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
                 <span className="node-dot">3</span>
-                <span className="node-label">{lastCustomerOrder.table.toLowerCase().includes('takeout') ? 'Counter Pickup' : 'Ready to Serve'}</span>
+                <span className="node-label">{(lastCustomerOrder.table || '').toLowerCase().includes('takeout') ? 'Counter Pickup' : 'Ready to Serve'}</span>
               </div>
               <div className={`stepper-line ${lastCustomerOrder.status === 'completed' ? 'active-line' : ''}`} />
               <div className={`stepper-node ${lastCustomerOrder.status === 'completed' ? 'active' : ''}`}>
@@ -224,9 +224,9 @@ export default function CustomerMenuPage() {
               )}
               {lastCustomerOrder.status === 'ready' && (
                 <span className="status-pill status-ready">
-                  {lastCustomerOrder.table.toLowerCase().includes('takeout')
+                  {(lastCustomerOrder.table || '').toLowerCase().includes('takeout')
                     ? 'Ready for Counter Pickup! Present Order #' + lastCustomerOrder.id
-                    : `Ready! Serving to ${lastCustomerOrder.table}`}
+                    : `Ready! Serving to ${lastCustomerOrder.table || 'Table'}`}
                 </span>
               )}
               {lastCustomerOrder.status === 'completed' && (

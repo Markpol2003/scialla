@@ -21,14 +21,16 @@ export default function StaffDashboardPage() {
   const consolidateItems = (items = []) => {
     const map = new Map();
     items.forEach((item) => {
-      const cleanName = item.name ? item.name.replace(/^\d+x\s*/i, '').replace(/\s*\([\d\s\w]+\)\s*/i, '').trim() : 'Item';
-      const sizeVal = item.size || (item.name && item.name.match(/\(([^)]+)\)/) ? item.name.match(/\(([^)]+)\)/)[1] : '');
-      const key = `${item.id || cleanName}-${sizeVal}-${item.price}`;
+      const rawName = item.name || item.product_name || item.productName || item.item_name || 'Item';
+      const cleanName = rawName.replace(/^\d+x\s*/i, '').replace(/\s*\([\d\s\w]+\)\s*/i, '').trim() || rawName;
+      const sizeVal = item.size || (rawName.match(/\(([^)]+)\)/) ? rawName.match(/\(([^)]+)\)/)[1] : '');
+      const itemQty = item.qty || item.quantity || 1;
+      const key = `${item.id || item.item_id || cleanName}-${sizeVal}-${item.price}`;
       if (map.has(key)) {
         const existing = map.get(key);
-        map.set(key, { ...existing, qty: existing.qty + (item.qty || 1) });
+        map.set(key, { ...existing, qty: existing.qty + itemQty });
       } else {
-        map.set(key, { ...item, cleanName, size: sizeVal, qty: item.qty || 1 });
+        map.set(key, { ...item, name: rawName, cleanName, size: sizeVal, qty: itemQty });
       }
     });
     return Array.from(map.values());
@@ -311,7 +313,7 @@ export default function StaffDashboardPage() {
                   <td><strong>#{ord.id}</strong></td>
                   <td>{ord.table}</td>
                   <td>{ord.timestamp}</td>
-                  <td>{ord.items.map((i) => `${i.qty}x ${i.name}`).join(', ')}</td>
+                  <td>{ord.items.map((i) => `${i.qty || i.quantity || 1}x ${i.name || i.product_name || i.item_name || 'Item'}`).join(', ')}</td>
                   <td>₱{ord.total.toFixed(2)}</td>
                   <td>
                     <span className={`history-status-pill status-${ord.status}`}>

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import Live3DBackground from '../Live3DBackground';
 import { useApp } from '../context/AppContext';
 import Menu from '../pages/customer/Menu';
 import Cart from '../pages/customer/Cart';
@@ -61,31 +60,54 @@ export default function CustomerLayout({ onNavigate }) {
     ? 'Takeout'
     : `Table #${tableNumber || '01'}`;
 
+  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+
   return (
     <div className="scialla-container">
-      {/* Live 3D Background */}
-      <Live3DBackground />
-
-      {/* ONE UNIFIED HEADER BLOCK (No Hole / Gap In Between!) */}
+      {/* COMPACT SINGLE-ROW HEADER */}
       <header className="scialla-unified-header">
-        {/* Top Row: Brand & SIGN IN Button / User Dropdown */}
-        <div className="unified-top-row">
-          <div className="nav-brand">
-            <span className="brand-name">Scialla</span>
-            <span className="brand-role-tag">• Coffee Menu</span>
+        <div className="header-compact-row">
+          {/* Left: Brand with Waving Animation */}
+          <div className="scialla-customer-brand" title="Scialla Cafe">
+            <span className="customer-brand-title brand-wave">
+              {'Scialla Cafe'.split('').map((char, index) => (
+                <span
+                  key={index}
+                  className={`wave-char ${char === ' ' ? 'wave-space' : ''}`}
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  {char === ' ' ? '\u00A0' : char}
+                </span>
+              ))}
+            </span>
           </div>
 
+          {/* Center: Clean Interactive Table Badge */}
+          <div className="header-table-center">
+            <button
+              type="button"
+              className="header-table-badge-btn"
+              onClick={() => setIsTableModalOpen(true)}
+              title="Click to change your table number or order type"
+            >
+              <span className="table-badge-label">
+                {tableNumber.toLowerCase() === 'takeout' ? 'Takeout' : `Table #${tableNumber || '1'}`}
+              </span>
+              <span className="table-badge-change">Change ▾</span>
+            </button>
+          </div>
+
+          {/* Right: Auth / Portal */}
           <div className="nav-portal-links">
             {currentUser ? (
-              <div className="nav-portal-user-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {(currentUser.role === 'staff' || currentUser.role === 'manager') && (
                   <button
                     type="button"
-                    className={`btn-return-portal ${currentUser.role === 'manager' ? 'return-manager' : 'return-staff'}`}
+                    className="btn-return-portal"
                     onClick={() => onNavigate(currentUser.role === 'manager' ? '/manager' : '/staff')}
-                    title={`Return to ${currentUser.role === 'manager' ? 'Manager' : 'Staff'} Portal`}
                   >
-                    ⚡ {currentUser.role === 'manager' ? 'Manager' : 'Staff'} Dashboard
+                    {currentUser.role === 'manager' ? 'Manager' : 'Staff'}
                   </button>
                 )}
                 <UserProfileDropdown onNavigate={onNavigate} />
@@ -96,58 +118,103 @@ export default function CustomerLayout({ onNavigate }) {
                 className="btn-single-signin"
                 onClick={() => setIsAuthOpen(true)}
               >
-                SIGN IN
+                Sign In
               </button>
             )}
           </div>
         </div>
+      </header>
 
-        {/* Title Row */}
-        <div className="scialla-header">
-          <h1 className="scialla-title">
-            Scialla <span className="scialla-title-accent"></span> Cafe
-          </h1>
-          <p className="scialla-subtitle">Artisanal Coffee & Handcrafted Brews</p>
-        </div>
+      {/* TABLE SELECTOR MODAL */}
+      {isTableModalOpen && (
+        <div className="receipt-modal-backdrop" onClick={() => setIsTableModalOpen(false)} style={{ zIndex: 999999 }}>
+          <div className="auth-modal-card table-select-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="receipt-close-btn" onClick={() => setIsTableModalOpen(false)}>✕</button>
 
-        {/* Table Selector Row */}
-        <div className="table-bar-container">
-          <div className="table-bar-card">
-            <span className="table-bar-label">Your Table:</span>
-            <div className="table-chips-group">
-              {['1', '2', '3', '4', '5', 'Takeout'].map((t) => {
-                const tableNumStr = String(t).trim();
-                const isOccupied = t !== 'Takeout' && occupiedTables.includes(tableNumStr);
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    className={`table-chip-btn ${tableNumber === t ? 'active' : ''} ${isOccupied ? 'occupied-table' : ''}`}
-                    onClick={() => setTableNumber(t)}
-                    title={isOccupied ? `Table ${t} has an active order (Occupied)` : `Table ${t} is available`}
-                  >
-                    <span className={`table-status-dot ${isOccupied ? 'dot-occupied' : 'dot-free'}`} />
-                    {t === 'Takeout' ? 'Takeout' : `Table ${t}`}
-                    {isOccupied && <span className="table-occ-tag">Occupied</span>}
-                  </button>
-                );
-              })}
+            <div className="table-modal-header">
+              <h2 className="table-modal-title">Where are you dining?</h2>
+              <p className="table-modal-sub">Select your table number or choose takeout</p>
             </div>
 
-            <div className="table-input-custom-wrapper">
-              <span className="table-input-prefix">Custom #</span>
-              <input
-                type="text"
-                placeholder="e.g. 7"
-                value={tableNumber}
-                onChange={(e) => setTableNumber(e.target.value)}
-                className="table-custom-input"
-                maxLength={10}
-              />
+            {/* Dine In vs Takeout Selection */}
+            <div className="order-type-switch-row">
+              <button
+                type="button"
+                className={`order-type-btn ${tableNumber.toLowerCase() !== 'takeout' ? 'active' : ''}`}
+                onClick={() => setTableNumber(tableNumber.toLowerCase() === 'takeout' ? '1' : tableNumber)}
+              >
+                Dine In
+              </button>
+              <button
+                type="button"
+                className={`order-type-btn ${tableNumber.toLowerCase() === 'takeout' ? 'active' : ''}`}
+                onClick={() => {
+                  setTableNumber('Takeout');
+                  setIsTableModalOpen(false);
+                }}
+              >
+                Take Out
+              </button>
             </div>
+
+            {tableNumber.toLowerCase() !== 'takeout' && (
+              <>
+                <div className="table-quick-label">Quick Select Table</div>
+                <div className="table-quick-grid">
+                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'].map((num) => {
+                    const isOccupied = occupiedTables.includes(num);
+                    const isSelected = tableNumber === num;
+                    return (
+                      <button
+                        key={num}
+                        type="button"
+                        className={`table-quick-num-btn ${isSelected ? 'active' : ''} ${isOccupied ? 'occupied' : ''}`}
+                        onClick={() => {
+                          setTableNumber(num);
+                          setIsTableModalOpen(false);
+                        }}
+                      >
+                        <span className="table-num-val">#{num}</span>
+                        {isOccupied && <span className="table-num-active-tag">Active</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="table-custom-box">
+                  <label className="table-custom-label">
+                    Or enter custom table / booth:
+                  </label>
+                  <div className="table-custom-input-row">
+                    <input
+                      type="text"
+                      placeholder="e.g. 12, Balcony 2, VIP"
+                      value={tableNumber.toLowerCase() === 'takeout' ? '' : tableNumber}
+                      onChange={(e) => setTableNumber(e.target.value)}
+                      className="table-custom-input-field"
+                    />
+                    <button
+                      type="button"
+                      className="btn-table-custom-save"
+                      onClick={() => setIsTableModalOpen(false)}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            <button
+              type="button"
+              className="btn-confirm-table"
+              onClick={() => setIsTableModalOpen(false)}
+            >
+              Confirm Selection ({tableDisplayLabel})
+            </button>
           </div>
         </div>
-      </header>
+      )}
 
       {/* Live Order Tracking Banner */}
       {lastCustomerOrder && (
@@ -169,7 +236,7 @@ export default function CustomerLayout({ onNavigate }) {
             </button>
           </div>
 
-          {/* Unique 4-Step Laser Progress Stepper */}
+          {/* 4-Step Progress Stepper */}
           <div className="tracker-progress-stepper">
             <div className={`stepper-node ${['new', 'preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
               <span className="node-dot">1</span>
@@ -183,7 +250,7 @@ export default function CustomerLayout({ onNavigate }) {
             <div className={`stepper-line ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
             <div className={`stepper-node ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
               <span className="node-dot">3</span>
-              <span className="node-label">{lastCustomerOrder.table.toLowerCase().includes('takeout') ? 'Counter Pickup' : 'Ready to Serve'}</span>
+              <span className="node-label">{(lastCustomerOrder.table || '').toLowerCase().includes('takeout') ? 'Counter Pickup' : 'Ready to Serve'}</span>
             </div>
             <div className={`stepper-line ${lastCustomerOrder.status === 'completed' ? 'active-line' : ''}`} />
             <div className={`stepper-node ${lastCustomerOrder.status === 'completed' ? 'active' : ''}`}>
@@ -201,9 +268,9 @@ export default function CustomerLayout({ onNavigate }) {
             )}
             {lastCustomerOrder.status === 'ready' && (
               <span className="status-pill status-ready">
-                {lastCustomerOrder.table.toLowerCase().includes('takeout')
+                {(lastCustomerOrder.table || '').toLowerCase().includes('takeout')
                   ? 'Ready for Counter Pickup! Present Order #' + lastCustomerOrder.id
-                  : `Ready! Serving to ${lastCustomerOrder.table}`}
+                  : `Ready! Serving to ${lastCustomerOrder.table || 'Table'}`}
               </span>
             )}
             {lastCustomerOrder.status === 'completed' && (
@@ -213,7 +280,7 @@ export default function CustomerLayout({ onNavigate }) {
         </div>
       )}
 
-      {/* Main Content & Cart Sidebar */}
+      {/* Main Content + Cart Sidebar (2-column grid) */}
       <div className="scialla-layout">
         <Menu onAddToCart={handleAddToCart} cart={cart} />
 
@@ -225,6 +292,7 @@ export default function CustomerLayout({ onNavigate }) {
           onUpdateQty={handleUpdateQty}
           onRemoveItem={handleRemoveItem}
           onOpenCheckout={() => setIsCheckoutOpen(true)}
+          onOpenTableModal={() => setIsTableModalOpen(true)}
         />
       </div>
 

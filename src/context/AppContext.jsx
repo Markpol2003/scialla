@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { io } from 'socket.io-client';
 import { api } from '../services/api';
 
 const AppContext = createContext();
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:5050';
+const WS_URL = import.meta.env.VITE_WS_URL || API_BASE_URL;
 
 const initialCategories = [
   {
@@ -374,86 +375,98 @@ export function AppProvider({ children }) {
     // Validate stored token on load with backend
     const token = localStorage.getItem('scialla_token');
     if (token) {
-      api.getCurrentUser().then(user => {
+      api.getCurrentUser().then((user) => {
         if (user) {
           setCurrentUser(user);
           setActiveRole(user.role);
         } else {
-          // Invalidate user if backend rejects token or staff is inactive
           logout();
         }
       });
     }
 
-    // Fetch initial orders
-    api.getOrders().then(data => {
+    // Fetch initial orders via REST API fallback
+    api.getOrders().then((data) => {
       if (Array.isArray(data)) {
         setOrders(data);
       }
     });
 
-    let ws;
-    let reconnectTimeout;
+    // Initialize Socket.IO connection
+    const socketInstance = io(WS_URL, {
+      transports: ['websocket', 'polling'],
+      autoConnect: true
+    });
 
-    const connectWebSocket = () => {
-      try {
-        ws = new WebSocket(WS_URL);
+    socketInstance.on('connect', () => {
+      console.log(`⚡ Scialla Real-Time Socket.IO connected (${socketInstance.id}) on ${WS_URL}`);
+      setIsConnected(true);
+    });
 
-        ws.onopen = () => {
-          console.log(`⚡ Scialla Real-Time WebSocket connected on ${WS_URL}`);
-          setIsConnected(true);
-        };
+    socketInstance.on('disconnect', () => {
+      console.log('🔌 Socket disconnected');
+      setIsConnected(false);
+    });
 
-        ws.onmessage = (event) => {
-          try {
-            const { type, data } = JSON.parse(event.data);
-            if (type === 'order:new') {
-              setOrders((prev) => {
-                if (prev.some((o) => o.id === data.id)) return prev;
-                return [data, ...prev];
-              });
-            } else if (type === 'order:status-changed') {
-              setOrders((prev) =>
-                prev.map((ord) => (ord.id === data.id ? { ...ord, status: data.status } : ord))
-              );
-              setLastCustomerOrder((prev) => (prev && prev.id === data.id ? { ...prev, status: data.status } : prev));
-            } else if (type === 'stock:updated') {
-              setMenuCategories((prevCats) =>
-                prevCats.map((cat) => ({
-                  ...cat,
-                  items: cat.items.map((item) =>
-                    item.id === data.itemId ? { ...item, inStock: data.inStock } : item
-                  )
-                }))
-              );
-            }
-          } catch (err) {
-            console.error('WebSocket message parsing error:', err);
-          }
-        };
+    socketInstance.on('order:created', (newOrder) => {
+      console.log('📡 Received real-time order:created:', newOrder);
+      setOrders((prev) => {
+        if (prev.some((o) => o.id === newOrder.id)) return prev;
+        return [newOrder, ...prev];
+      });
+    });
 
-        ws.onclose = () => {
-          setIsConnected(false);
-          reconnectTimeout = setTimeout(connectWebSocket, 4000);
-        };
+    socketInstance.on('order:status_updated', (data) => {
+      console.log('📡 Received real-time order:status_updated:', data);
+      setOrders((prev) =>
+        prev.map((ord) => (ord.id === data.id ? { ...ord, status: data.status } : ord))
+      );
+      setLastCustomerOrder((prev) =>
+        prev && prev.id === data.id ? { ...prev, status: data.status } : prev
+      );
+    });
 
-        ws.onerror = () => {
-          setIsConnected(false);
-        };
+    socketInstance.on('stock:updated', (data) => {
+      setMenuCategories((prevCats) =>
+        prevCats.map((cat) => ({
+          ...cat,
+          items: cat.items.map((item) =>
+            item.id === data.itemId ? { ...item, inStock: data.inStock } : item
+          )
+        }))
+      );
+    });
 
-        setSocket(ws);
-      } catch (err) {
-        setIsConnected(false);
+    setSocket(socketInstance);
+
+    return () => {
+      socketInstance.disconnect();
+    };
+  }, []);
+
+  // Socket.IO Room Joining for Customer Live Order Tracking
+  useEffect(() => {
+    if (!socket || !lastCustomerOrder?.id) return;
+
+    socket.emit('join:order', lastCustomerOrder.id);
+    console.log(`📌 Emitted join:order for order:${lastCustomerOrder.id}`);
+
+    const handleStatusUpdate = (data) => {
+      if (data.id === lastCustomerOrder.id) {
+        console.log(`📡 Customer tracking room update received for #${data.id}: ${data.status}`);
+        setLastCustomerOrder((prev) => (prev ? { ...prev, status: data.status } : null));
       }
     };
 
-    connectWebSocket();
+    socket.on('order:status_updated', handleStatusUpdate);
 
     return () => {
-      if (ws) ws.close();
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      socket.off('order:status_updated', handleStatusUpdate);
+      if (lastCustomerOrder?.id) {
+        socket.emit('leave:order', lastCustomerOrder.id);
+      }
     };
-  }, []);
+  }, [socket, lastCustomerOrder?.id]);
 
   // Fetch staff list when Manager user is active
   useEffect(() => {
@@ -496,23 +509,31 @@ export function AppProvider({ children }) {
   };
 
   // Place order from Customer UI
-  const placeOrder = (orderData) => {
+  const placeOrder = async (orderData) => {
     const rawItems = orderData.items || [];
     const itemMap = new Map();
     rawItems.forEach((item) => {
-      const cleanName = item.name ? item.name.replace(/^\d+x\s*/i, '').trim() : 'Item';
-      const key = `${item.id || cleanName}-${item.price}`;
+      const rawItemName = item.name || item.product_name || item.productName || item.item_name || 'Item';
+      const cleanName = rawItemName.replace(/^\d+x\s*/i, '').trim();
+      const key = `${item.id || item.item_id || cleanName}-${item.price}`;
       if (itemMap.has(key)) {
         const existing = itemMap.get(key);
-        itemMap.set(key, { ...existing, qty: existing.qty + (item.qty || 1) });
+        itemMap.set(key, { ...existing, qty: existing.qty + (item.qty || item.quantity || 1) });
       } else {
-        itemMap.set(key, { ...item, name: cleanName, qty: item.qty || 1 });
+        itemMap.set(key, {
+          ...item,
+          name: cleanName,
+          product_name: cleanName,
+          productName: cleanName,
+          item_name: cleanName,
+          qty: item.qty || item.quantity || 1
+        });
       }
     });
     const consolidatedItems = Array.from(itemMap.values());
 
     const newOrder = {
-      id: orderData.orderNum || `SC-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: orderData.orderNum || orderData.id || `SC-${Math.floor(1000 + Math.random() * 9000)}`,
       table: orderData.table,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       items: consolidatedItems,
@@ -527,16 +548,22 @@ export function AppProvider({ children }) {
     });
     setLastCustomerOrder(newOrder);
 
-    // Broadcast over Real-Time WebSocket if connected, else HTTP POST
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'order:create', data: newOrder }));
-    } else {
-      api.createOrder(newOrder);
+    // Save to PostgreSQL via REST API (which emits order:created Socket.IO event to all clients)
+    const response = await api.createOrder(newOrder);
+    if (response && response.order) {
+      setOrders((prev) =>
+        prev.map((o) => (o.id === newOrder.id ? response.order : o))
+      );
+    }
+
+    // Direct Socket.IO emission fallback if connected
+    if (socket && socket.connected) {
+      socket.emit('order:create', newOrder);
     }
   };
 
   // Update order status (Staff / Manager)
-  const updateOrderStatus = (orderId, newStatus) => {
+  const updateOrderStatus = async (orderId, newStatus) => {
     setOrders((prev) =>
       prev.map((ord) => (ord.id === orderId ? { ...ord, status: newStatus } : ord))
     );
@@ -550,11 +577,13 @@ export function AppProvider({ children }) {
       }
     }
 
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'order:update-status', data: { id: orderId, status: newStatus } }));
-    }
+    // Persist status change in PostgreSQL via REST API (emits room update + broadcast)
+    await api.updateOrderStatus(orderId, newStatus);
 
-    api.updateOrderStatus(orderId, newStatus);
+    // Direct Socket.IO emission fallback if connected
+    if (socket && socket.connected) {
+      socket.emit('order:update_status', { id: orderId, status: newStatus });
+    }
   };
 
   // Toggle item stock status (Staff / Manager)
@@ -573,8 +602,8 @@ export function AppProvider({ children }) {
       }))
     );
 
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'stock:toggle', data: { itemId, inStock: nextStockState } }));
+    if (socket && socket.connected) {
+      socket.emit('stock:toggle', { itemId, inStock: nextStockState });
     }
   };
 

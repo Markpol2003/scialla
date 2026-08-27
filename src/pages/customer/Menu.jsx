@@ -1,21 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 
 export default function Menu({ onAddToCart, cart }) {
   const { menuCategories } = useApp();
   const [toastMsg, setToastMsg] = useState('');
-  const [selectedCat, setSelectedCat] = useState('all');
   const [selectedSizes, setSelectedSizes] = useState({});
+  const scrollRefs = useRef({});
 
   // Product Customization Modal State
   const [modalItem, setModalItem] = useState(null);
   const [modalSize, setModalSize] = useState(null);
   const [modalQty, setModalQty] = useState(1);
-
-  const totalAllItemsCount = menuCategories.reduce((sum, cat) => sum + cat.items.length, 0);
-  const filteredCategories = selectedCat === 'all'
-    ? menuCategories
-    : menuCategories.filter((sec) => sec.id === selectedCat);
 
   const triggerToast = (msg) => {
     setToastMsg(msg);
@@ -50,6 +45,14 @@ export default function Menu({ onAddToCart, cart }) {
     triggerToast(`Added ${cartItemName} (${customQty}) to order`);
   };
 
+  const scrollRow = (catId, direction) => {
+    const el = scrollRefs.current[catId];
+    if (el) {
+      const scrollAmount = direction === 'left' ? -280 : 280;
+      el.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="scialla-content">
       {toastMsg && (
@@ -59,39 +62,41 @@ export default function Menu({ onAddToCart, cart }) {
         </div>
       )}
 
-      {/* Customer Category Sorting Bar */}
-      <div className="customer-category-bar-container" style={{ margin: '0 0 16px' }}>
-        <div className="customer-category-chips">
-          <button
-            type="button"
-            className={`customer-cat-chip ${selectedCat === 'all' ? 'active' : ''}`}
-            onClick={() => setSelectedCat('all')}
-          >
-            All ({totalAllItemsCount})
-          </button>
-          {menuCategories.map((sec) => (
-            <button
-              key={sec.id}
-              type="button"
-              className={`customer-cat-chip ${selectedCat === sec.id ? 'active' : ''}`}
-              onClick={() => setSelectedCat(sec.id)}
-            >
-              {sec.category} ({sec.items.length})
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {filteredCategories.map((section) => (
+      {/* Every category renders as a horizontal scroll section */}
+      {menuCategories.map((section) => (
         <section key={section.id} className="category-block">
           <div className="category-title-bar">
             <div className="category-heading">
               <h2>{section.category}</h2>
             </div>
-            <span className="category-count">{section.items.length} items</span>
+            <div className="category-title-actions">
+              <span className="category-count">{section.items.length} items</span>
+              <div className="carousel-arrows">
+                <button
+                  type="button"
+                  className="carousel-arrow-btn"
+                  onClick={() => scrollRow(section.id, 'left')}
+                  aria-label="Scroll left"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  className="carousel-arrow-btn"
+                  onClick={() => scrollRow(section.id, 'right')}
+                  aria-label="Scroll right"
+                >
+                  ›
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="cards-grid">
+
+          <div
+            className="cards-grid"
+            ref={(el) => { scrollRefs.current[section.id] = el; }}
+          >
             {section.items.map((item) => {
               const activeSize = item.sizes ? (selectedSizes[item.id] || item.sizes[0]) : null;
               const activePrice = activeSize ? activeSize.price : item.price;
@@ -106,7 +111,7 @@ export default function Menu({ onAddToCart, cart }) {
                   key={item.id}
                   className={`coffee-card-3d ${item.featured ? 'featured-signature' : ''} ${isOutOfStock ? 'card-out-of-stock' : ''}`}
                 >
-                  <div className="card-bg-image-wrapper" onClick={() => handleOpenProductModal(item)} style={{ cursor: 'pointer' }}>
+                  <div className="card-bg-image-wrapper" onClick={() => handleOpenProductModal(item)}>
                     <img
                       src={cardImg}
                       alt={item.name}
@@ -116,7 +121,6 @@ export default function Menu({ onAddToCart, cart }) {
                         e.target.src = '/images/products/caramelmacc.png';
                       }}
                     />
-                    <div className="card-bg-overlay" />
                   </div>
 
                   <div className="card-top" onClick={() => handleOpenProductModal(item)} style={{ cursor: 'pointer' }}>
@@ -130,7 +134,7 @@ export default function Menu({ onAddToCart, cart }) {
                   </div>
 
                   {item.sizes && (
-                    <div className="drink-size-selector-row" style={{ display: 'flex', gap: '6px', margin: '8px 0' }}>
+                    <div className="drink-size-selector-row">
                       {item.sizes.map((s) => (
                         <button
                           key={s.size}
@@ -139,17 +143,6 @@ export default function Menu({ onAddToCart, cart }) {
                           onClick={(e) => {
                             e.stopPropagation();
                             handleSizeSelect(item.id, s);
-                          }}
-                          style={{
-                            flex: 1,
-                            padding: '4px 6px',
-                            borderRadius: '8px',
-                            border: (activeSize?.size === s.size) ? '1px solid var(--color-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
-                            background: (activeSize?.size === s.size) ? 'rgba(201, 139, 91, 0.25)' : 'rgba(0, 0, 0, 0.3)',
-                            color: (activeSize?.size === s.size) ? 'var(--color-gold)' : 'var(--color-text-muted)',
-                            fontSize: '0.74rem',
-                            fontWeight: 'bold',
-                            cursor: 'pointer'
                           }}
                         >
                           {s.label || s.size} (₱{s.price})
@@ -190,13 +183,13 @@ export default function Menu({ onAddToCart, cart }) {
                 alt={modalItem.name}
                 style={{ height: '130px', width: 'auto', objectFit: 'contain', margin: '0 auto 10px', borderRadius: '12px' }}
               />
-              <h2 style={{ color: '#fff', fontSize: '1.35rem', margin: '0 0 6px' }}>{modalItem.name}</h2>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.84rem', margin: 0, lineHeight: '1.4' }}>{modalItem.description}</p>
+              <h2 style={{ fontSize: '1.35rem', margin: '0 0 6px', color: 'var(--brown-900)' }}>{modalItem.name}</h2>
+              <p style={{ fontSize: '0.84rem', margin: 0, lineHeight: '1.4', color: 'var(--text-muted)' }}>{modalItem.description}</p>
             </div>
 
             {modalItem.sizes && (
               <div style={{ marginBottom: '18px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--color-gold)', marginBottom: '8px' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--accent)', marginBottom: '8px' }}>
                   Choose Size:
                 </label>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -206,17 +199,7 @@ export default function Menu({ onAddToCart, cart }) {
                       type="button"
                       className={`size-pill-btn ${(modalSize?.size === s.size) ? 'active' : ''}`}
                       onClick={() => setModalSize(s)}
-                      style={{
-                        flex: 1,
-                        padding: '10px 6px',
-                        borderRadius: '10px',
-                        border: (modalSize?.size === s.size) ? '1.5px solid var(--color-gold)' : '1px solid rgba(255, 255, 255, 0.15)',
-                        background: (modalSize?.size === s.size) ? 'rgba(201, 139, 91, 0.3)' : 'rgba(0, 0, 0, 0.4)',
-                        color: (modalSize?.size === s.size) ? 'var(--color-gold)' : '#fff',
-                        fontSize: '0.85rem',
-                        fontWeight: 'bold',
-                        cursor: 'pointer'
-                      }}
+                      style={{ flex: 1, padding: '10px 6px', borderRadius: '10px' }}
                     >
                       {s.label || s.size}<br />
                       <span style={{ fontSize: '0.76rem', opacity: 0.85 }}>₱{s.price}</span>
@@ -237,7 +220,7 @@ export default function Menu({ onAddToCart, cart }) {
               <button
                 type="button"
                 className="btn-3d-add"
-                style={{ flex: 1, height: '42px', fontSize: '0.92rem', fontWeight: 'bold' }}
+                style={{ flex: 1, height: '42px', fontSize: '0.88rem', fontWeight: 'bold', width: 'auto', minWidth: 0 }}
                 onClick={() => {
                   handleAdd(modalItem, modalSize, modalQty);
                   setModalItem(null);
