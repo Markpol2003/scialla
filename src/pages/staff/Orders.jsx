@@ -9,18 +9,35 @@ export default function Orders() {
   const readyOrders = orders.filter((o) => o.status === 'ready');
 
   const consolidateItems = (items = []) => {
+    let list = items;
+    if (typeof list === 'string') {
+      try {
+        list = JSON.parse(list);
+      } catch {
+        list = [];
+      }
+    }
+    if (!Array.isArray(list)) {
+      list = [];
+    }
+
     const map = new Map();
-    items.forEach((item) => {
-      const rawName = item.name || item.product_name || item.productName || item.item_name || 'Item';
-      const cleanName = rawName.replace(/^\d+x\s*/i, '').replace(/\s*\([\d\s\w]+\)\s*/i, '').trim() || rawName;
-      const sizeVal = item.size || (rawName.match(/\(([^)]+)\)/) ? rawName.match(/\(([^)]+)\)/)[1] : '');
-      const itemQty = item.qty || item.quantity || 1;
-      const key = `${item.id || item.item_id || cleanName}-${sizeVal}-${item.price}`;
+    list.forEach((item) => {
+      if (!item) return;
+      const rawName = item.rawName || item.name || item.product_name || item.productName || item.item_name || item.title || 'Item';
+      const cleanName = typeof rawName === 'string'
+        ? rawName.replace(/^\d+x\s*/i, '').replace(/\s*\([\d\s\w]+\)\s*/i, '').trim() || rawName
+        : 'Item';
+      const sizeVal = item.size || item.selectedSize || (typeof rawName === 'string' && rawName.match(/\(([^)]+)\)/) ? rawName.match(/\(([^)]+)\)/)[1] : '');
+      const itemQty = parseInt(item.qty || item.quantity || 1, 10) || 1;
+      const itemPrice = parseFloat(item.price || 0) || 0;
+      const key = `${item.id || item.item_id || cleanName}-${sizeVal}-${itemPrice}`;
+
       if (map.has(key)) {
         const existing = map.get(key);
         map.set(key, { ...existing, qty: existing.qty + itemQty });
       } else {
-        map.set(key, { ...item, name: rawName, cleanName, size: sizeVal, qty: itemQty });
+        map.set(key, { ...item, name: rawName, cleanName, size: sizeVal, qty: itemQty, price: itemPrice });
       }
     });
     return Array.from(map.values());
@@ -53,27 +70,33 @@ export default function Orders() {
                 </div>
 
                 <div className="card-items-list">
-                  {consolidateItems(ord.items).map((item, idx) => (
-                    <div key={idx} className="staff-item-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', margin: '4px 0' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span className="item-qty-badge">{item.qty}×</span>
-                          <span className="item-name" style={{ fontWeight: 'bold' }}>{item.cleanName || item.name}</span>
-                        </div>
-                        <span className="item-line-price">₱{(item.price * item.qty).toFixed(2)}</span>
-                      </div>
-                      {item.size && (
-                        <span className="item-size-badge" style={{ fontSize: '0.78rem', color: '#C98B5B', fontWeight: 'bold', marginLeft: '28px', marginTop: '1px' }}>
-                          {item.size}
-                        </span>
-                      )}
+                  {consolidateItems(ord.items).length === 0 ? (
+                    <div style={{ color: '#D4C6BA', fontStyle: 'italic', fontSize: '0.84rem' }}>
+                      Order Placed (Total: ₱{parseFloat(ord.total || 0).toFixed(2)})
                     </div>
-                  ))}
+                  ) : (
+                    consolidateItems(ord.items).map((item, idx) => (
+                      <div key={idx} className="staff-item-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', margin: '4px 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span className="item-qty-badge">{item.qty}×</span>
+                            <span className="item-name">{item.cleanName || item.name}</span>
+                          </div>
+                          <span className="item-line-price">₱{(parseFloat(item.price || 0) * (parseInt(item.qty, 10) || 1)).toFixed(2)}</span>
+                        </div>
+                        {item.size && (
+                          <span className="item-size-badge" style={{ marginLeft: '28px', marginTop: '1px' }}>
+                            {item.size}
+                          </span>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
 
                 <div className="card-footer-bar">
                   <div className="order-payment-tag">
-                    Paid: <strong>₱{ord.total.toFixed(2)}</strong> ({ord.paymentMethod})
+                    Paid: <strong>₱{parseFloat(ord.total || 0).toFixed(2)}</strong> ({ord.paymentMethod || 'Paid'})
                   </div>
                   <div className="card-actions-row">
                     <button
@@ -121,22 +144,28 @@ export default function Orders() {
                 </div>
 
                 <div className="card-items-list">
-                  {consolidateItems(ord.items).map((item, idx) => (
-                    <div key={idx} className="staff-item-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', margin: '4px 0' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span className="item-qty-badge">{item.qty}×</span>
-                          <span className="item-name" style={{ fontWeight: 'bold' }}>{item.cleanName || item.name}</span>
-                        </div>
-                        <span className="item-line-price">₱{(item.price * item.qty).toFixed(2)}</span>
-                      </div>
-                      {item.size && (
-                        <span className="item-size-badge" style={{ fontSize: '0.78rem', color: '#C98B5B', fontWeight: 'bold', marginLeft: '28px', marginTop: '1px' }}>
-                          {item.size}
-                        </span>
-                      )}
+                  {consolidateItems(ord.items).length === 0 ? (
+                    <div style={{ color: '#D4C6BA', fontStyle: 'italic', fontSize: '0.84rem' }}>
+                      Order in Prep (Total: ₱{parseFloat(ord.total || 0).toFixed(2)})
                     </div>
-                  ))}
+                  ) : (
+                    consolidateItems(ord.items).map((item, idx) => (
+                      <div key={idx} className="staff-item-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', margin: '4px 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span className="item-qty-badge">{item.qty}×</span>
+                            <span className="item-name">{item.cleanName || item.name}</span>
+                          </div>
+                          <span className="item-line-price">₱{(parseFloat(item.price || 0) * (parseInt(item.qty, 10) || 1)).toFixed(2)}</span>
+                        </div>
+                        {item.size && (
+                          <span className="item-size-badge" style={{ marginLeft: '28px', marginTop: '1px' }}>
+                            {item.size}
+                          </span>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
 
                 <div className="card-footer-bar">
@@ -176,19 +205,25 @@ export default function Orders() {
                 </div>
 
                 <div className="card-items-list">
-                  {consolidateItems(ord.items).map((item, idx) => (
-                    <div key={idx} className="staff-item-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', margin: '4px 0' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span className="item-qty-badge">{item.qty}×</span>
-                        <span className="item-name" style={{ fontWeight: 'bold' }}>{item.cleanName || item.name}</span>
-                      </div>
-                      {item.size && (
-                        <span className="item-size-badge" style={{ fontSize: '0.78rem', color: '#C98B5B', fontWeight: 'bold', marginLeft: '28px', marginTop: '1px' }}>
-                          {item.size}
-                        </span>
-                      )}
+                  {consolidateItems(ord.items).length === 0 ? (
+                    <div style={{ color: '#D4C6BA', fontStyle: 'italic', fontSize: '0.84rem' }}>
+                      Ready to Serve (Total: ₱{parseFloat(ord.total || 0).toFixed(2)})
                     </div>
-                  ))}
+                  ) : (
+                    consolidateItems(ord.items).map((item, idx) => (
+                      <div key={idx} className="staff-item-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', margin: '4px 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span className="item-qty-badge">{item.qty}×</span>
+                          <span className="item-name">{item.cleanName || item.name}</span>
+                        </div>
+                        {item.size && (
+                          <span className="item-size-badge" style={{ marginLeft: '28px', marginTop: '1px' }}>
+                            {item.size}
+                          </span>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
 
                 <div className="card-footer-bar">

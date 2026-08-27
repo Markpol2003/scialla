@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { Server } = require('socket.io');
 require('dotenv').config();
 
@@ -96,6 +97,54 @@ function requireDatabase(req, res, next) {
   next();
 }
 
+// Optional Auth Extraction Middleware (for routes accessible by both guests and signed-in users)
+function optionalAuth(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET || 'scialla_dev_jwt_secret_key_2026');
+      req.user = decoded;
+    } catch {
+      // Ignore invalid token for optional auth
+    }
+  }
+  next();
+}
+
+// Auto-run schema migrations on startup
+async function initDatabaseMigrations() {
+  if (!db.pool) return;
+  try {
+    // 1. Ensure guest_sessions table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS guest_sessions (
+        id VARCHAR(64) PRIMARY KEY,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 2. Ensure orders table has guest_session_id, user_id, updated_at
+    await db.query(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS guest_session_id VARCHAR(64);
+    `);
+    await db.query(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_id INTEGER;
+    `);
+    await db.query(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    `);
+
+    console.log('✅ PostgreSQL Database schema migrations verified successfully.');
+  } catch (err) {
+    console.error('⚠️ Database migration error:', err);
+  }
+}
+
+initDatabaseMigrations();
+
 // Initial Manager Seed Mechanism via Environment Variables
 async function seedInitialManager() {
   if (!db.pool) return;
@@ -127,6 +176,69 @@ async function seedInitialManager() {
 seedInitialManager();
 
 // ==================== AUTHENTICATION ROUTES ====================
+
+// Anonymous Guest Session Creation
+app.post('/api/auth/guest-session', async (req, res) => {
+  try {
+    const guestSessionId = crypto.randomUUID();
+
+    if (db.pool) {
+      await db.query(
+        'INSERT INTO guest_sessions (id, created_at, last_active) VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+        [guestSessionId]
+      );
+      console.log(`👤 [Auth] Created new anonymous guest session: ${guestSessionId}`);
+    }
+
+    return res.status(201).json({
+      success: true,
+      guestSessionId,
+      createdAt: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('Create Guest Session Error:', err);
+    // Fallback in-memory UUID if DB is offline
+    const fallbackId = crypto.randomUUID();
+    return res.status(201).json({
+      success: true,
+      guestSessionId: fallbackId,
+      offline: true
+    });
+  }
+});
+
+// Anonymous Guest Session Validation / Heartbeat
+app.get('/api/auth/guest-session/validate', async (req, res) => {
+  const guestSessionId = req.headers['x-guest-session'] || req.query.id;
+
+  if (!guestSessionId || typeof guestSessionId !== 'string') {
+    return res.status(400).json({ success: false, valid: false, message: 'Guest session ID is required.' });
+  }
+
+  try {
+    if (db.pool) {
+      const result = await db.query('SELECT * FROM guest_sessions WHERE id = $1', [guestSessionId]);
+      if (result.rows.length > 0) {
+        await db.query('UPDATE guest_sessions SET last_active = CURRENT_TIMESTAMP WHERE id = $1', [guestSessionId]);
+        return res.json({ success: true, valid: true, guestSessionId });
+      }
+      // If valid UUID format but not in DB (e.g. after DB reset), re-register it
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(guestSessionId)) {
+        await db.query(
+          'INSERT INTO guest_sessions (id, created_at, last_active) VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET last_active = CURRENT_TIMESTAMP',
+          [guestSessionId]
+        );
+        return res.json({ success: true, valid: true, guestSessionId });
+      }
+      return res.status(404).json({ success: false, valid: false, message: 'Invalid guest session.' });
+    }
+
+    return res.json({ success: true, valid: true, guestSessionId, offline: true });
+  } catch (err) {
+    console.error('Validate Guest Session Error:', err);
+    return res.json({ success: true, valid: true, guestSessionId, offline: true });
+  }
+});
 
 // Manager Login
 app.post('/api/auth/manager/login', requireDatabase, async (req, res) => {
@@ -387,8 +499,8 @@ app.patch('/api/staff/:id/password', requireDatabase, verifyToken, verifyManager
 
 // ==================== REAL-TIME ORDERS ROUTES & HELPERS ====================
 
-// Helper: Save & Format Order in PostgreSQL
-async function saveOrderToDatabase(orderData) {
+// Helper: Save & Format Order in PostgreSQL with Ownership
+async function saveOrderToDatabase(orderData, userId = null, guestSessionId = null) {
   const orderId = orderData.id || orderData.orderNum || `SC-${Math.floor(1000 + Math.random() * 9000)}`;
   const tableName = orderData.table || orderData.table_name || 'Table 1';
   const timestamp = orderData.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -396,15 +508,33 @@ async function saveOrderToDatabase(orderData) {
   const paymentMethod = orderData.paymentMethod || orderData.payment_method || 'Cash';
   const status = orderData.status || 'new';
   const items = orderData.items || [];
+  const assignedUserId = userId || orderData.user_id || null;
+  const assignedGuestId = guestSessionId || orderData.guest_session_id || orderData.guestSessionId || null;
 
   if (db.pool) {
+    // Ensure guest session is registered if present
+    if (assignedGuestId) {
+      try {
+        await db.query(
+          'INSERT INTO guest_sessions (id, created_at, last_active) VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET last_active = CURRENT_TIMESTAMP',
+          [assignedGuestId]
+        );
+      } catch (err) {
+        console.warn('Guest session registration note:', err.message);
+      }
+    }
+
     await db.query(
-      `INSERT INTO orders (id, table_name, timestamp, total, payment_method, status)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO orders (id, table_name, timestamp, total, payment_method, status, guest_session_id, user_id, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
        ON CONFLICT (id) DO UPDATE SET
          status = EXCLUDED.status,
-         total = EXCLUDED.total`,
-      [orderId, tableName, timestamp, total, paymentMethod, status]
+         total = EXCLUDED.total,
+         table_name = EXCLUDED.table_name,
+         guest_session_id = COALESCE(EXCLUDED.guest_session_id, orders.guest_session_id),
+         user_id = COALESCE(EXCLUDED.user_id, orders.user_id),
+         updated_at = CURRENT_TIMESTAMP`,
+      [orderId, tableName, timestamp, total, paymentMethod, status, assignedGuestId, assignedUserId]
     );
 
     // Delete existing items for order re-inserts if any
@@ -422,7 +552,7 @@ async function saveOrderToDatabase(orderData) {
         [orderId, itemId, itemName, itemSize, itemQty, itemPrice]
       );
     }
-    console.log(`✅ [DB] Order ${orderId} successfully persisted in PostgreSQL.`);
+    console.log(`✅ [DB] Order ${orderId} successfully persisted in PostgreSQL (Guest: ${assignedGuestId || 'None'}, User: ${assignedUserId || 'None'}).`);
   }
 
   // Construct complete normalized order object for real-time emission and API response
@@ -449,19 +579,47 @@ async function saveOrderToDatabase(orderData) {
 
   return {
     id: orderId,
+    orderId,
     table: tableName,
     timestamp,
     total,
     paymentMethod,
     status,
+    guest_session_id: assignedGuestId,
+    user_id: assignedUserId,
+    updatedAt: new Date().toISOString(),
     items: formattedItems
   };
 }
 
-// Get All Orders (REST API Fallback for Page Reloads)
-app.get('/api/orders', requireDatabase, async (req, res) => {
+// Get Orders (Filtered by Role / Ownership)
+app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
   try {
-    const ordersRes = await db.query('SELECT * FROM orders ORDER BY created_at DESC');
+    const isStaffOrManager = req.user && (req.user.role === 'staff' || req.user.role === 'manager');
+    const guestSessionId = req.headers['x-guest-session'] || req.query.guestSessionId;
+    const userId = req.user ? req.user.id : null;
+
+    let ordersQuery = 'SELECT * FROM orders ORDER BY created_at DESC';
+    let queryParams = [];
+
+    // If customer / guest, filter to orders they own
+    if (!isStaffOrManager) {
+      if (userId && guestSessionId) {
+        ordersQuery = 'SELECT * FROM orders WHERE user_id = $1 OR guest_session_id = $2 ORDER BY created_at DESC';
+        queryParams = [userId, guestSessionId];
+      } else if (userId) {
+        ordersQuery = 'SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC';
+        queryParams = [userId];
+      } else if (guestSessionId) {
+        ordersQuery = 'SELECT * FROM orders WHERE guest_session_id = $1 ORDER BY created_at DESC';
+        queryParams = [guestSessionId];
+      } else {
+        // Fallback for demo or initial state
+        ordersQuery = 'SELECT * FROM orders ORDER BY created_at DESC LIMIT 50';
+      }
+    }
+
+    const ordersRes = await db.query(ordersQuery, queryParams);
     const itemsRes = await db.query('SELECT * FROM order_items ORDER BY id ASC');
 
     const itemsByOrderId = {};
@@ -484,11 +642,15 @@ app.get('/api/orders', requireDatabase, async (req, res) => {
 
     const formattedOrders = ordersRes.rows.map((o) => ({
       id: o.id,
+      orderId: o.id,
       table: o.table_name,
       timestamp: o.timestamp,
       total: parseFloat(o.total),
       paymentMethod: o.payment_method,
       status: o.status,
+      guest_session_id: o.guest_session_id,
+      user_id: o.user_id,
+      updatedAt: o.updated_at || o.created_at,
       items: itemsByOrderId[o.id] || []
     }));
 
@@ -499,14 +661,85 @@ app.get('/api/orders', requireDatabase, async (req, res) => {
   }
 });
 
-// Create Order (HTTP POST) - Public for Customer Checkout
-app.post('/api/orders', requireDatabase, async (req, res) => {
-  try {
-    const fullOrder = await saveOrderToDatabase(req.body);
+// Get Single Order by ID (Validates Ownership)
+app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
+  const orderId = req.params.id;
+  const guestSessionId = req.headers['x-guest-session'] || req.query.guestSessionId;
+  const isStaffOrManager = req.user && (req.user.role === 'staff' || req.user.role === 'manager');
 
-    // Emit real-time Socket.IO event AFTER PostgreSQL operation succeeds
-    io.emit('order:created', fullOrder);
-    console.log(`📡 [Socket] Emitted order:created for ${fullOrder.id} to all connected clients.`);
+  try {
+    const ordersRes = await db.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+    if (ordersRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Order not found.' });
+    }
+
+    const orderRow = ordersRes.rows[0];
+
+    // Ownership Verification
+    const isOwner = isStaffOrManager ||
+      (orderRow.user_id && req.user && orderRow.user_id === req.user.id) ||
+      (orderRow.guest_session_id && guestSessionId && orderRow.guest_session_id === guestSessionId) ||
+      (!orderRow.user_id && !orderRow.guest_session_id); // Legacy fallback
+
+    if (!isOwner) {
+      return res.status(403).json({ success: false, message: 'You are not authorized to view this order.' });
+    }
+
+    const itemsRes = await db.query('SELECT * FROM order_items WHERE order_id = $1 ORDER BY id ASC', [orderId]);
+    const formattedItems = itemsRes.rows.map((item) => ({
+      id: item.item_id || item.id,
+      item_id: item.item_id || item.id,
+      name: item.name || 'Item',
+      product_name: item.name || 'Item',
+      productName: item.name || 'Item',
+      item_name: item.name || 'Item',
+      size: item.size || '',
+      qty: parseInt(item.qty, 10),
+      quantity: parseInt(item.qty, 10),
+      price: parseFloat(item.price)
+    }));
+
+    return res.json({
+      success: true,
+      order: {
+        id: orderRow.id,
+        orderId: orderRow.id,
+        table: orderRow.table_name,
+        timestamp: orderRow.timestamp,
+        total: parseFloat(orderRow.total),
+        paymentMethod: orderRow.payment_method,
+        status: orderRow.status,
+        guest_session_id: orderRow.guest_session_id,
+        user_id: orderRow.user_id,
+        updatedAt: orderRow.updated_at || orderRow.created_at,
+        items: formattedItems
+      }
+    });
+  } catch (err) {
+    console.error('Get Order By ID Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch order details.' });
+  }
+});
+
+// Create Order (HTTP POST) - Public for Customer Checkout
+app.post('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
+  try {
+    const userId = req.user ? req.user.id : null;
+    const guestSessionId = req.headers['x-guest-session'] || req.body.guestSessionId || req.body.guest_session_id || null;
+
+    const fullOrder = await saveOrderToDatabase(req.body, userId, guestSessionId);
+
+    // Emit real-time Socket.IO event strictly to staff dashboards and customer's room
+    io.to('staff:orders').emit('order:created', fullOrder);
+    io.to(`order:${fullOrder.id}`).emit('order:created', fullOrder);
+    if (guestSessionId) {
+      io.to(`guest:${guestSessionId}`).emit('order:created', fullOrder);
+    }
+    if (userId) {
+      io.to(`user:${userId}`).emit('order:created', fullOrder);
+    }
+
+    console.log(`📡 [Socket] Targeted emission for new order ${fullOrder.id} (Staff + Owner)`);
 
     return res.status(201).json({ success: true, order: fullOrder });
   } catch (err) {
@@ -515,8 +748,8 @@ app.post('/api/orders', requireDatabase, async (req, res) => {
   }
 });
 
-// Update Order Status (PATCH) - Protected or Public Fallback
-app.patch('/api/orders/:id', requireDatabase, async (req, res) => {
+// Update Order Status (PATCH) - Targeted Status Updates
+app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
   const orderId = req.params.id;
   const { status } = req.body;
 
@@ -525,20 +758,33 @@ app.patch('/api/orders/:id', requireDatabase, async (req, res) => {
   }
 
   try {
+    let updatedAt = new Date().toISOString();
+
     if (db.pool) {
-      await db.query('UPDATE orders SET status = $1 WHERE id = $2', [status, orderId]);
+      const updateRes = await db.query(
+        'UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING updated_at',
+        [status, orderId]
+      );
+      if (updateRes.rows.length > 0 && updateRes.rows[0].updated_at) {
+        updatedAt = new Date(updateRes.rows[0].updated_at).toISOString();
+      }
       console.log(`💾 [DB] Order ${orderId} status updated in PostgreSQL to: ${status}`);
     }
 
-    const payload = { id: orderId, status };
+    const payload = {
+      id: orderId,
+      orderId,
+      status,
+      updatedAt
+    };
 
-    // Emit status update to customer tracking room
+    // 1. Emit targeted status update strictly to the customer/device listening to this order
     io.to(`order:${orderId}`).emit('order:status_updated', payload);
-    console.log(`📡 [Socket] Emitted order:status_updated (${status}) to room order:${orderId}`);
+    console.log(`📡 [Socket] Targeted order:status_updated (${status}) to room order:${orderId}`);
 
-    // Broadcast status update to all connected clients for Staff Dashboard live sync
-    io.emit('order:status_updated', payload);
-    console.log(`📡 [Socket] Broadcast order:status_updated (${status}) for ${orderId} to all clients.`);
+    // 2. Emit status update to staff room for staff dashboard synchronizations
+    io.to('staff:orders').emit('order:status_updated', payload);
+    console.log(`📡 [Socket] Emitted order:status_updated (${status}) for ${orderId} to staff:orders`);
 
     return res.json({ success: true, order: payload });
   } catch (err) {
@@ -562,16 +808,73 @@ const io = new Server(server, {
   }
 });
 
-// Socket.IO Real-Time Event Handlers
+// Socket.IO Real-Time Event Handlers with Authentication & Ownership Verification
 io.on('connection', (socket) => {
   console.log(`⚡ [Socket] Client connected: ${socket.id}`);
 
-  // Customer joins order-specific room for live status tracking
-  socket.on('join:order', (orderId) => {
-    if (orderId) {
+  // Handshake authentication for logged-in users and anonymous guests
+  const auth = socket.handshake.auth || {};
+  const token = auth.token;
+  const guestSessionId = auth.guestSessionId || socket.handshake.query?.guestSessionId;
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET || 'scialla_dev_jwt_secret_key_2026');
+      socket.data.user = decoded;
+      socket.data.role = decoded.role;
+      if (decoded.role === 'staff' || decoded.role === 'manager') {
+        socket.join('staff:orders');
+        console.log(`🛡️ [Socket Auth] Staff/Manager ${decoded.id} joined staff:orders`);
+      }
+      socket.join(`user:${decoded.id}`);
+    } catch {
+      // Invalid token ignored
+    }
+  }
+
+  if (guestSessionId && typeof guestSessionId === 'string') {
+    socket.data.guestSessionId = guestSessionId;
+    socket.join(`guest:${guestSessionId}`);
+    console.log(`👤 [Socket Auth] Guest session connected: guest:${guestSessionId}`);
+  }
+
+  // Customer joins order-specific room for targeted status tracking with server verification
+  socket.on('join:order', async (orderId) => {
+    if (!orderId) return;
+
+    let isAuthorized = false;
+
+    // Staff and managers can monitor any order
+    if (socket.data.role === 'staff' || socket.data.role === 'manager') {
+      isAuthorized = true;
+    } else if (db.pool) {
+      try {
+        const ordRes = await db.query('SELECT user_id, guest_session_id FROM orders WHERE id = $1', [orderId]);
+        if (ordRes.rows.length > 0) {
+          const row = ordRes.rows[0];
+          if (row.user_id && socket.data.user?.id && row.user_id === socket.data.user.id) {
+            isAuthorized = true;
+          } else if (row.guest_session_id && socket.data.guestSessionId && row.guest_session_id === socket.data.guestSessionId) {
+            isAuthorized = true;
+          } else if (!row.user_id && !row.guest_session_id) {
+            // Legacy order fallback
+            isAuthorized = true;
+          }
+        }
+      } catch (err) {
+        console.error('Error verifying order ownership in join:order:', err);
+      }
+    } else {
+      isAuthorized = true;
+    }
+
+    if (isAuthorized) {
       const room = `order:${orderId}`;
       socket.join(room);
-      console.log(`📌 [Socket] Client ${socket.id} joined room: ${room}`);
+      console.log(`📌 [Socket] Client ${socket.id} joined verified room: ${room}`);
+    } else {
+      console.warn(`🚫 [Socket] Unauthorized attempt to join order:${orderId} by ${socket.id}`);
+      socket.emit('error:unauthorized', { message: `Unauthorized: You do not own order #${orderId}` });
     }
   });
 
@@ -587,26 +890,49 @@ io.on('connection', (socket) => {
   // Order creation via Socket.IO
   socket.on('order:create', async (orderData) => {
     try {
-      const fullOrder = await saveOrderToDatabase(orderData);
-      io.emit('order:created', fullOrder);
-      console.log(`📡 [Socket Event] Created & emitted order:created for ${fullOrder.id}`);
+      const userId = socket.data.user ? socket.data.user.id : null;
+      const guestSessionId = socket.data.guestSessionId || orderData.guest_session_id || orderData.guestSessionId || null;
+      const fullOrder = await saveOrderToDatabase(orderData, userId, guestSessionId);
+
+      io.to('staff:orders').emit('order:created', fullOrder);
+      io.to(`order:${fullOrder.id}`).emit('order:created', fullOrder);
+      if (guestSessionId) {
+        io.to(`guest:${guestSessionId}`).emit('order:created', fullOrder);
+      }
+      console.log(`📡 [Socket Event] Created & emitted targeted order:created for ${fullOrder.id}`);
     } catch (err) {
       console.error('Error processing order:create socket event:', err);
     }
   });
 
-  // Order status update via Socket.IO
+  // Order status update via Socket.IO (Staff / Manager)
   socket.on('order:update_status', async ({ id, status }) => {
     if (!id || !status) return;
     try {
+      let updatedAt = new Date().toISOString();
+
       if (db.pool) {
-        await db.query('UPDATE orders SET status = $1 WHERE id = $2', [status, id]);
+        const updateRes = await db.query(
+          'UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING updated_at',
+          [status, id]
+        );
+        if (updateRes.rows.length > 0 && updateRes.rows[0].updated_at) {
+          updatedAt = new Date(updateRes.rows[0].updated_at).toISOString();
+        }
         console.log(`💾 [Socket DB] Order ${id} status updated to: ${status}`);
       }
-      const payload = { id, status };
+
+      const payload = {
+        id,
+        orderId: id,
+        status,
+        updatedAt
+      };
+
+      // Targeted emission strictly to order room and staff room
       io.to(`order:${id}`).emit('order:status_updated', payload);
-      io.emit('order:status_updated', payload);
-      console.log(`📡 [Socket Event] Emitted order:status_updated for ${id} -> ${status}`);
+      io.to('staff:orders').emit('order:status_updated', payload);
+      console.log(`📡 [Socket Event] Targeted order:status_updated for ${id} -> ${status}`);
     } catch (err) {
       console.error('Error processing order:update_status socket event:', err);
     }
@@ -627,4 +953,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Scialla Production Node Backend listening on 0.0.0.0:${PORT}`);
   console.log(`⚡ Socket.IO Server bound to HTTP server on port ${PORT}`);
 });
+
 

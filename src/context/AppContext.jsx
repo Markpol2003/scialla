@@ -348,7 +348,22 @@ export function AppProvider({ children }) {
     const saved = localStorage.getItem('scialla_user');
     return saved ? JSON.parse(saved) : null;
   });
+  const [guestSessionId, setGuestSessionId] = useState(() => {
+    try {
+      return localStorage.getItem('scialla_guest_session');
+    } catch {
+      return null;
+    }
+  });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
+
+  const triggerToast = (msg, duration = 4000) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((curr) => (curr === msg ? null : curr));
+    }, duration);
+  };
 
   const [menuCategories, setMenuCategories] = useState(initialCategories);
   const [orders, setOrders] = useState(() => {
@@ -360,11 +375,31 @@ export function AppProvider({ children }) {
     }
   });
   const [staffList, setStaffList] = useState([]);
-  const [lastCustomerOrder, setLastCustomerOrder] = useState(null);
+  const [lastCustomerOrder, setLastCustomerOrder] = useState(() => {
+    try {
+      const saved = localStorage.getItem('scialla_active_order');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
 
   // Real-Time WebSocket Connection
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
+
+  // Sync active customer order to localStorage
+  useEffect(() => {
+    try {
+      if (lastCustomerOrder) {
+        localStorage.setItem('scialla_active_order', JSON.stringify(lastCustomerOrder));
+      } else {
+        localStorage.removeItem('scialla_active_order');
+      }
+    } catch (e) {
+      console.warn('Failed to sync active order:', e);
+    }
+  }, [lastCustomerOrder]);
 
   // Sync orders to localStorage for instant cross-tab sync
   useEffect(() => {
@@ -386,6 +421,14 @@ export function AppProvider({ children }) {
           }
         } catch {}
       }
+      if (e.key === 'scialla_active_order' && e.newValue) {
+        try {
+          setLastCustomerOrder(JSON.parse(e.newValue));
+        } catch {}
+      }
+      if (e.key === 'scialla_guest_session' && e.newValue) {
+        setGuestSessionId(e.newValue);
+      }
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
@@ -404,7 +447,14 @@ export function AppProvider({ children }) {
   };
 
   useEffect(() => {
-    // Validate stored token on load with backend
+    // 1. Initialize or validate guest session ID from backend
+    api.getOrCreateGuestSession().then((gId) => {
+      if (gId) {
+        setGuestSessionId(gId);
+      }
+    });
+
+    // 2. Validate stored token on load with backend
     const token = localStorage.getItem('scialla_token');
     if (token) {
       api.getCurrentUser().then((user) => {
@@ -417,15 +467,28 @@ export function AppProvider({ children }) {
       });
     }
 
-    // Function to fetch orders from REST API
+    // 3. Hydrate active customer order from PostgreSQL if present
+    const savedActiveOrder = localStorage.getItem('scialla_active_order');
+    if (savedActiveOrder) {
+      try {
+        const parsed = JSON.parse(savedActiveOrder);
+        if (parsed && parsed.id) {
+          api.getOrderById(parsed.id).then((freshOrder) => {
+            if (freshOrder) {
+              setLastCustomerOrder(freshOrder);
+            }
+          });
+        }
+      } catch {}
+    }
+
+    // 4. Function to fetch orders from REST API
     const fetchOrdersFromApi = () => {
       api.getOrders().then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           setOrders((prev) => {
             const map = new Map();
-            // Put latest fetched from DB first
             data.forEach((ord) => map.set(ord.id, ord));
-            // Keep any local pending orders not yet in DB
             prev.forEach((ord) => {
               if (!map.has(ord.id)) {
                 map.set(ord.id, ord);
@@ -437,21 +500,37 @@ export function AppProvider({ children }) {
       });
     };
 
-    // Initial fetch
     fetchOrdersFromApi();
-
-    // Polling interval (every 5 seconds) as reliable real-time fallback
     const pollInterval = setInterval(fetchOrdersFromApi, 5000);
 
-    // Initialize Socket.IO connection
+    // 5. Initialize Socket.IO connection with credentials
+    const currentGuestId = localStorage.getItem('scialla_guest_session');
+    const currentAuthToken = localStorage.getItem('scialla_token');
+
     const socketInstance = io(WS_URL, {
       transports: ['websocket', 'polling'],
-      autoConnect: true
+      autoConnect: true,
+      auth: {
+        token: currentAuthToken,
+        guestSessionId: currentGuestId
+      }
     });
 
     socketInstance.on('connect', () => {
       console.log(`⚡ Scialla Real-Time Socket.IO connected (${socketInstance.id}) on ${WS_URL}`);
       setIsConnected(true);
+
+      // Re-join active order room if customer has an active order
+      const activeOrd = localStorage.getItem('scialla_active_order');
+      if (activeOrd) {
+        try {
+          const ordObj = JSON.parse(activeOrd);
+          if (ordObj && ordObj.id) {
+            socketInstance.emit('join:order', ordObj.id);
+            console.log(`📌 Re-joined order room on socket connect: order:${ordObj.id}`);
+          }
+        } catch {}
+      }
     });
 
     socketInstance.on('disconnect', () => {
@@ -467,14 +546,40 @@ export function AppProvider({ children }) {
       });
     });
 
+    // Targeted status update handler
     socketInstance.on('order:status_updated', (data) => {
-      console.log('📡 Received real-time order:status_updated:', data);
+      console.log('📡 Received targeted order:status_updated:', data);
+      const targetOrderId = data.id || data.orderId;
+
+      // Update staff dashboard orders queue
       setOrders((prev) =>
-        prev.map((ord) => (ord.id === data.id ? { ...ord, status: data.status } : ord))
+        prev.map((ord) => (ord.id === targetOrderId ? { ...ord, status: data.status, updatedAt: data.updatedAt } : ord))
       );
-      setLastCustomerOrder((prev) =>
-        prev && prev.id === data.id ? { ...prev, status: data.status } : prev
-      );
+
+      // Update customer live tracking if it matches this device's active order
+      setLastCustomerOrder((prev) => {
+        if (prev && prev.id === targetOrderId) {
+          if (prev.status !== data.status) {
+            // Trigger targeted in-app toast notification
+            if (data.status === 'preparing') {
+              triggerToast('☕ Your order has been accepted & is being prepared!');
+            } else if (data.status === 'ready') {
+              const isTakeout = (prev.table || '').toLowerCase().includes('takeout');
+              triggerToast(
+                isTakeout
+                  ? `🟢 Ready for Counter Pickup! Order #${prev.id}`
+                  : `🟢 Your order is ready! Serving to ${prev.table || 'Table'}`
+              );
+            } else if (data.status === 'completed') {
+              triggerToast('✅ Order completed. Thank you for visiting Scialla!');
+            } else if (data.status === 'cancelled') {
+              triggerToast('❌ Your order was cancelled.');
+            }
+          }
+          return { ...prev, status: data.status, updatedAt: data.updatedAt };
+        }
+        return prev;
+      });
     });
 
     socketInstance.on('stock:updated', (data) => {
@@ -503,17 +608,7 @@ export function AppProvider({ children }) {
     socket.emit('join:order', lastCustomerOrder.id);
     console.log(`📌 Emitted join:order for order:${lastCustomerOrder.id}`);
 
-    const handleStatusUpdate = (data) => {
-      if (data.id === lastCustomerOrder.id) {
-        console.log(`📡 Customer tracking room update received for #${data.id}: ${data.status}`);
-        setLastCustomerOrder((prev) => (prev ? { ...prev, status: data.status } : null));
-      }
-    };
-
-    socket.on('order:status_updated', handleStatusUpdate);
-
     return () => {
-      socket.off('order:status_updated', handleStatusUpdate);
       if (lastCustomerOrder?.id) {
         socket.emit('leave:order', lastCustomerOrder.id);
       }
@@ -560,7 +655,7 @@ export function AppProvider({ children }) {
     setIsAuthModalOpen(true);
   };
 
-  // Place order from Customer UI
+  // Place order from Customer UI (Public Anonymous or Signed-In)
   const placeOrder = async (orderData) => {
     const rawItems = orderData.items || [];
     const itemMap = new Map();
@@ -584,6 +679,8 @@ export function AppProvider({ children }) {
     });
     const consolidatedItems = Array.from(itemMap.values());
 
+    const activeGuestId = guestSessionId || (await api.getOrCreateGuestSession());
+
     const newOrder = {
       id: orderData.orderNum || orderData.id || `SC-${Math.floor(1000 + Math.random() * 9000)}`,
       table: orderData.table,
@@ -591,7 +688,9 @@ export function AppProvider({ children }) {
       items: consolidatedItems,
       total: orderData.total,
       paymentMethod: orderData.paymentMethod,
-      status: 'new'
+      status: 'new',
+      guest_session_id: activeGuestId,
+      user_id: currentUser ? currentUser.id : null
     };
 
     setOrders((prev) => {
@@ -600,18 +699,22 @@ export function AppProvider({ children }) {
     });
     setLastCustomerOrder(newOrder);
 
-    // Save to PostgreSQL via REST API (which emits order:created Socket.IO event to all clients)
+    // Save to PostgreSQL via REST API
     const response = await api.createOrder(newOrder);
     if (response && response.order) {
       setOrders((prev) =>
         prev.map((o) => (o.id === newOrder.id ? response.order : o))
       );
+      setLastCustomerOrder(response.order);
     }
 
     // Direct Socket.IO emission fallback if connected
     if (socket && socket.connected) {
       socket.emit('order:create', newOrder);
+      socket.emit('join:order', newOrder.id);
     }
+
+    triggerToast(`Order placed successfully! #${newOrder.id}`);
   };
 
   // Update order status (Staff / Manager)
@@ -625,11 +728,11 @@ export function AppProvider({ children }) {
       if (newStatus === 'completed') {
         setTimeout(() => {
           setLastCustomerOrder(null);
-        }, 4000);
+        }, 6000);
       }
     }
 
-    // Persist status change in PostgreSQL via REST API (emits room update + broadcast)
+    // Persist status change in PostgreSQL via REST API (emits targeted room updates)
     await api.updateOrderStatus(orderId, newStatus);
 
     // Direct Socket.IO emission fallback if connected
@@ -715,6 +818,9 @@ export function AppProvider({ children }) {
         activeRole,
         setActiveRole,
         currentUser,
+        guestSessionId,
+        toastMessage,
+        triggerToast,
         login,
         logout,
         isAuthModalOpen,

@@ -2,11 +2,22 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
 
+function getGuestSessionId() {
+  try {
+    return localStorage.getItem('scialla_guest_session');
+  } catch {
+    return null;
+  }
+}
+
 function getAuthHeaders() {
   const token = localStorage.getItem('scialla_token');
+  const guestSessionId = getGuestSessionId();
+
   return {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {})
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(guestSessionId ? { 'X-Guest-Session': guestSessionId } : {})
   };
 }
 
@@ -132,12 +143,62 @@ export const api = {
     }
   },
 
+  // Anonymous Guest Session Management
+  async getOrCreateGuestSession() {
+    let currentId = getGuestSessionId();
+    if (currentId) {
+      // Validate with server (non-blocking verification)
+      fetch(`${API_BASE_URL}/api/auth/guest-session/validate`, {
+        headers: { 'X-Guest-Session': currentId }
+      }).catch(() => {});
+      return currentId;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/guest-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.guestSessionId) {
+          localStorage.setItem('scialla_guest_session', data.guestSessionId);
+          return data.guestSessionId;
+        }
+      }
+    } catch {
+      // Offline fallback
+    }
+
+    // Client fallback if backend is unreachable
+    const fallbackId = `sc-guest-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    try {
+      localStorage.setItem('scialla_guest_session', fallbackId);
+    } catch {}
+    return fallbackId;
+  },
+
   // Customer & Staff Orders
   async getOrders() {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/orders`);
+      const res = await fetch(`${API_BASE_URL}/api/orders`, {
+        headers: getAuthHeaders()
+      });
       if (!res.ok) return null;
       return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async getOrderById(orderId) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/orders/${orderId}`, {
+        headers: getAuthHeaders()
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.order || null;
     } catch {
       return null;
     }
@@ -147,7 +208,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE_URL}/api/orders`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(orderData)
       });
       return await res.json();
@@ -160,7 +221,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE_URL}/api/orders/${orderId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ status })
       });
       return await res.json();

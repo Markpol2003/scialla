@@ -19,18 +19,35 @@ export default function StaffDashboardPage() {
   const completedOrders = orders.filter((o) => o.status === 'completed' || o.status === 'cancelled');
 
   const consolidateItems = (items = []) => {
+    let list = items;
+    if (typeof list === 'string') {
+      try {
+        list = JSON.parse(list);
+      } catch {
+        list = [];
+      }
+    }
+    if (!Array.isArray(list)) {
+      list = [];
+    }
+
     const map = new Map();
-    items.forEach((item) => {
-      const rawName = item.name || item.product_name || item.productName || item.item_name || 'Item';
-      const cleanName = rawName.replace(/^\d+x\s*/i, '').replace(/\s*\([\d\s\w]+\)\s*/i, '').trim() || rawName;
-      const sizeVal = item.size || (rawName.match(/\(([^)]+)\)/) ? rawName.match(/\(([^)]+)\)/)[1] : '');
-      const itemQty = item.qty || item.quantity || 1;
-      const key = `${item.id || item.item_id || cleanName}-${sizeVal}-${item.price}`;
+    list.forEach((item) => {
+      if (!item) return;
+      const rawName = item.rawName || item.name || item.product_name || item.productName || item.item_name || item.title || 'Item';
+      const cleanName = typeof rawName === 'string'
+        ? rawName.replace(/^\d+x\s*/i, '').replace(/\s*\([\d\s\w]+\)\s*/i, '').trim() || rawName
+        : 'Item';
+      const sizeVal = item.size || item.selectedSize || (typeof rawName === 'string' && rawName.match(/\(([^)]+)\)/) ? rawName.match(/\(([^)]+)\)/)[1] : '');
+      const itemQty = parseInt(item.qty || item.quantity || 1, 10) || 1;
+      const itemPrice = parseFloat(item.price || 0) || 0;
+      const key = `${item.id || item.item_id || cleanName}-${sizeVal}-${itemPrice}`;
+
       if (map.has(key)) {
         const existing = map.get(key);
         map.set(key, { ...existing, qty: existing.qty + itemQty });
       } else {
-        map.set(key, { ...item, name: rawName, cleanName, size: sizeVal, qty: itemQty });
+        map.set(key, { ...item, name: rawName, cleanName, size: sizeVal, qty: itemQty, price: itemPrice });
       }
     });
     return Array.from(map.values());

@@ -26,6 +26,13 @@ CREATE TABLE IF NOT EXISTS staff (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Guest Sessions Table (Anonymous Device / Customer Identification)
+CREATE TABLE IF NOT EXISTS guest_sessions (
+    id VARCHAR(64) PRIMARY KEY,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Orders Table
 CREATE TABLE IF NOT EXISTS orders (
     id VARCHAR(50) PRIMARY KEY,
@@ -34,7 +41,10 @@ CREATE TABLE IF NOT EXISTS orders (
     total NUMERIC(10, 2) NOT NULL,
     payment_method VARCHAR(50) NOT NULL,
     status VARCHAR(50) DEFAULT 'new',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    guest_session_id VARCHAR(64) REFERENCES guest_sessions(id) ON DELETE SET NULL,
+    user_id INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Order Items Table
@@ -47,3 +57,4 @@ CREATE TABLE IF NOT EXISTS order_items (
     qty INTEGER NOT NULL,
     price NUMERIC(10, 2) NOT NULL
 );
+

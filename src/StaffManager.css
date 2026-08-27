@@ -156,198 +156,6 @@
   box-shadow: 0 0 8px var(--color-success);
 }
 
-/* CUSTOMER LIVE ORDER TRACKER BANNER - EXECUTIVE LASER STEPPER */
-.live-order-tracker-banner {
-  background: rgba(18, 13, 10, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(201, 139, 91, 0.45);
-  border-radius: 16px;
-  margin: 16px 24px -4px 24px;
-  padding: 16px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  color: var(--color-text-main);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75), 0 0 20px rgba(201, 139, 91, 0.2);
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.live-order-tracker-banner::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
-  animation: laserScan 3s linear infinite;
-}
-
-@keyframes laserScan {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-
-.tracker-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.tracker-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.tracker-title {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: var(--color-text-main);
-  letter-spacing: 0.3px;
-}
-
-.tracker-table-badge {
-  font-size: 0.72rem;
-  font-weight: 800;
-  color: var(--color-gold);
-  background: rgba(201, 139, 91, 0.15);
-  border: 1px solid rgba(201, 139, 91, 0.35);
-  padding: 2px 10px;
-  border-radius: 12px;
-  font-family: var(--font-mono);
-}
-
-.btn-dismiss-tracker {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: var(--color-text-muted);
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  transition: all 0.2s ease;
-}
-
-.btn-dismiss-tracker:hover {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
-  border-color: rgba(239, 68, 68, 0.4);
-}
-
-/* 4-STEP LASER PROGRESS STEPPER */
-.tracker-progress-stepper {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 12px;
-  position: relative;
-}
-
-.stepper-node {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  z-index: 2;
-  transition: all 0.3s ease;
-}
-
-.node-dot {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.6);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  color: var(--color-text-muted);
-  font-size: 0.72rem;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-}
-
-.node-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--color-text-muted);
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-.stepper-node.active .node-dot {
-  background: var(--color-gold);
-  border-color: var(--color-gold);
-  color: #120d0a;
-  box-shadow: 0 0 14px rgba(201, 139, 91, 0.8);
-}
-
-.stepper-node.active .node-label {
-  color: var(--color-gold);
-  text-shadow: 0 0 8px rgba(201, 139, 91, 0.4);
-}
-
-.stepper-line {
-  flex: 1;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.1);
-  margin: 0 8px -18px 8px;
-  z-index: 1;
-  transition: all 0.4s ease;
-}
-
-.stepper-line.active-line {
-  background: linear-gradient(90deg, var(--color-gold), #34d399);
-  box-shadow: 0 0 10px rgba(201, 139, 91, 0.7);
-}
-
-.tracker-status-step {
-  display: flex;
-  justify-content: center;
-  margin-top: 4px;
-}
-
-.status-pill {
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 0.82rem;
-  font-weight: 800;
-  letter-spacing: 0.3px;
-}
-
-.status-new {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.4);
-}
-
-.status-prep {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.4);
-}
-
-.status-ready {
-  background: rgba(16, 185, 129, 0.18);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.5);
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
-}
-
-.status-complete {
-  background: rgba(201, 139, 91, 0.2);
-  color: var(--color-gold);
-  border: 1px solid var(--color-gold);
-}
-
 /* STAFF DASHBOARD STYLES */
 .staff-container,
 .manager-container {
@@ -548,95 +356,122 @@
 
 /* Staff Order Card */
 .staff-order-card {
-  background: rgba(18, 13, 10, 0.8);
-  border: 1px solid rgba(201, 139, 91, 0.3);
-  border-radius: 10px;
-  padding: 14px;
+  background: rgba(26, 18, 13, 0.95);
+  border: 1.5px solid rgba(201, 139, 91, 0.35);
+  border-radius: 12px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  transition: transform 0.2s ease;
+  gap: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  color: #F5EEDC;
 }
 
 .staff-order-card:hover {
   transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
 }
 
 .card-new {
-  border-left: 4px solid #f59e0b;
+  border-left: 5px solid #f59e0b;
 }
 
 .card-preparing {
-  border-left: 4px solid #3b82f6;
+  border-left: 5px solid #3b82f6;
 }
 
 .card-ready {
-  border-left: 4px solid #10b981;
+  border-left: 5px solid #10b981;
 }
 
 .card-header-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
+  padding-bottom: 2px;
 }
 
 .order-id-pill {
-  font-weight: bold;
+  font-weight: 800;
   font-family: var(--font-mono);
-  color: var(--color-gold);
+  color: #E2B688 !important;
+  font-size: 0.95rem;
 }
 
 .order-table-tag {
   background: rgba(201, 139, 91, 0.2);
-  color: var(--color-gold);
-  padding: 2px 8px;
+  color: #F5EEDC !important;
+  padding: 3px 10px;
   border-radius: 6px;
-  font-weight: bold;
+  font-weight: 800;
+  border: 1px solid rgba(201, 139, 91, 0.4);
 }
 
 .order-time-tag {
-  color: var(--color-text-muted);
-  font-size: 0.75rem;
+  color: #D4C6BA !important;
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 .card-items-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 0;
-  border-top: 1px dashed rgba(255, 255, 255, 0.1);
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
 }
 
 .staff-item-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.88rem;
+  flex-direction: column;
+  align-items: flex-start;
+  font-size: 0.92rem;
+  width: 100%;
+}
+
+.item-name {
+  color: #FFFFFF !important;
+  font-weight: 700;
+  font-size: 0.92rem;
 }
 
 .item-qty-badge {
-  font-weight: 800;
-  color: var(--color-gold);
-  margin-right: 8px;
+  font-weight: 900;
+  color: #E2B688 !important;
+  margin-right: 6px;
+  font-size: 0.95rem;
+}
+
+.item-size-badge {
+  font-size: 0.78rem;
+  color: #D4A373 !important;
+  font-weight: 700;
 }
 
 .item-line-price {
   font-family: var(--font-mono);
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
+  color: #E2B688 !important;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .card-footer-bar {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  padding-top: 4px;
 }
 
 .order-payment-tag {
-  font-size: 0.78rem;
-  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  color: #D4C6BA !important;
+}
+
+.order-payment-tag strong {
+  color: #FFFFFF !important;
 }
 
 .card-actions-row {

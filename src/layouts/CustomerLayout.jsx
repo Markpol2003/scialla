@@ -8,7 +8,7 @@ import UserProfileDropdown from '../components/UserProfileDropdown';
 import '../CoffeeMenu.css';
 
 export default function CustomerLayout({ onNavigate }) {
-  const { lastCustomerOrder, setLastCustomerOrder, currentUser, orders } = useApp();
+  const { lastCustomerOrder, setLastCustomerOrder, currentUser, orders, toastMessage } = useApp();
 
   const occupiedTables = (orders || [])
     .filter((o) => ['new', 'preparing', 'ready'].includes(o.status))
@@ -216,66 +216,68 @@ export default function CustomerLayout({ onNavigate }) {
         </div>
       )}
 
-      {/* Live Order Tracking Banner */}
+      {/* Sleek Compact Live Order Tracker */}
       {lastCustomerOrder && (
         <div className="live-order-tracker-banner">
-          <div className="tracker-header">
-            <span className="pulse-indicator" />
-            <div className="tracker-meta">
-              <strong className="tracker-title">Live Order Tracker #{lastCustomerOrder.id}</strong>
+          <div className="tracker-left">
+            <div className="tracker-live-tag">
+              <span className="pulse-indicator" />
+              <strong className="tracker-order-id">#{lastCustomerOrder.id}</strong>
               <span className="tracker-table-badge">{lastCustomerOrder.table}</span>
+            </div>
+
+            <div className="tracker-status-pill-wrap">
+              {lastCustomerOrder.status === 'new' && (
+                <span className="status-pill status-new">Order Received • Barista in queue</span>
+              )}
+              {lastCustomerOrder.status === 'preparing' && (
+                <span className="status-pill status-prep">Barista is handcrafting your order</span>
+              )}
+              {lastCustomerOrder.status === 'ready' && (
+                <span className="status-pill status-ready">
+                  {(lastCustomerOrder.table || '').toLowerCase().includes('takeout')
+                    ? 'Ready for Counter Pickup!'
+                    : `Ready! Serving to ${lastCustomerOrder.table || 'Table'}`}
+                </span>
+              )}
+              {lastCustomerOrder.status === 'completed' && (
+                <span className="status-pill status-complete">Completed • Enjoy your visit!</span>
+              )}
+            </div>
+          </div>
+
+          <div className="tracker-right">
+            {/* Compact 4-Step Stepper */}
+            <div className="tracker-mini-stepper">
+              <div className={`mini-node ${['new', 'preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
+                <span className="mini-dot">1</span>
+                <span className="mini-label">Received</span>
+              </div>
+              <div className={`mini-line ${['preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
+              <div className={`mini-node ${['preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
+                <span className="mini-dot">2</span>
+                <span className="mini-label">Crafting</span>
+              </div>
+              <div className={`mini-line ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
+              <div className={`mini-node ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
+                <span className="mini-dot">3</span>
+                <span className="mini-label">Ready</span>
+              </div>
+              <div className={`mini-line ${lastCustomerOrder.status === 'completed' ? 'active-line' : ''}`} />
+              <div className={`mini-node ${lastCustomerOrder.status === 'completed' ? 'active' : ''}`}>
+                <span className="mini-dot">4</span>
+                <span className="mini-label">Done</span>
+              </div>
             </div>
 
             <button
               type="button"
               className="btn-dismiss-tracker"
               onClick={() => setLastCustomerOrder(null)}
-              title="Dismiss notification"
+              title="Dismiss tracker"
             >
               ✕
             </button>
-          </div>
-
-          {/* 4-Step Progress Stepper */}
-          <div className="tracker-progress-stepper">
-            <div className={`stepper-node ${['new', 'preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
-              <span className="node-dot">1</span>
-              <span className="node-label">Received</span>
-            </div>
-            <div className={`stepper-line ${['preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
-            <div className={`stepper-node ${['preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
-              <span className="node-dot">2</span>
-              <span className="node-label">Preparing</span>
-            </div>
-            <div className={`stepper-line ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
-            <div className={`stepper-node ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
-              <span className="node-dot">3</span>
-              <span className="node-label">{(lastCustomerOrder.table || '').toLowerCase().includes('takeout') ? 'Counter Pickup' : 'Ready to Serve'}</span>
-            </div>
-            <div className={`stepper-line ${lastCustomerOrder.status === 'completed' ? 'active-line' : ''}`} />
-            <div className={`stepper-node ${lastCustomerOrder.status === 'completed' ? 'active' : ''}`}>
-              <span className="node-dot">4</span>
-              <span className="node-label">Delivered</span>
-            </div>
-          </div>
-
-          <div className="tracker-status-step">
-            {lastCustomerOrder.status === 'new' && (
-              <span className="status-pill status-new">Received by Barista • Preparing to accept...</span>
-            )}
-            {lastCustomerOrder.status === 'preparing' && (
-              <span className="status-pill status-prep">Barista is handcrafting your order now!</span>
-            )}
-            {lastCustomerOrder.status === 'ready' && (
-              <span className="status-pill status-ready">
-                {(lastCustomerOrder.table || '').toLowerCase().includes('takeout')
-                  ? 'Ready for Counter Pickup! Present Order #' + lastCustomerOrder.id
-                  : `Ready! Serving to ${lastCustomerOrder.table || 'Table'}`}
-              </span>
-            )}
-            {lastCustomerOrder.status === 'completed' && (
-              <span className="status-pill status-complete">Completed & Delivered. Thank you for visiting Scialla!</span>
-            )}
           </div>
         </div>
       )}
@@ -331,6 +333,13 @@ export default function CustomerLayout({ onNavigate }) {
           onNavigate={onNavigate}
           onClose={() => setIsAuthOpen(false)}
         />
+      )}
+
+      {/* Global In-App Toast Notification */}
+      {toastMessage && (
+        <div className="scialla-toast" style={{ zIndex: 9999999 }}>
+          <span>{toastMessage}</span>
+        </div>
       )}
     </div>
   );
