@@ -125,7 +125,37 @@ function optionalAuth(req, res, next) {
 async function initDatabaseMigrations() {
   if (!db.pool) return;
   try {
-    // 1. Ensure guest_sessions table exists
+    // 1. Managers Table
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS managers (
+        id SERIAL PRIMARY KEY,
+        first_name VARCHAR(100) NOT NULL,
+        last_name VARCHAR(100) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        status VARCHAR(20) DEFAULT 'Active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 2. Staff Table
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS staff (
+        id SERIAL PRIMARY KEY,
+        first_name VARCHAR(100) NOT NULL,
+        last_name VARCHAR(100) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        username VARCHAR(100) UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role VARCHAR(50) DEFAULT 'Staff',
+        status VARCHAR(20) DEFAULT 'Active',
+        created_by INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 3. Guest Sessions Table
     await db.query(`
       CREATE TABLE IF NOT EXISTS guest_sessions (
         id VARCHAR(64) PRIMARY KEY,
@@ -134,18 +164,43 @@ async function initDatabaseMigrations() {
       );
     `);
 
-    // 2. Ensure orders table has guest_session_id, user_id, updated_at
+    // 4. Orders Table
     await db.query(`
-      ALTER TABLE orders ADD COLUMN IF NOT EXISTS guest_session_id VARCHAR(64);
-    `);
-    await db.query(`
-      ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_id INTEGER;
-    `);
-    await db.query(`
-      ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+      CREATE TABLE IF NOT EXISTS orders (
+        id VARCHAR(50) PRIMARY KEY,
+        table_name VARCHAR(50) NOT NULL,
+        timestamp VARCHAR(50),
+        total NUMERIC(10, 2) NOT NULL,
+        payment_method VARCHAR(50) NOT NULL,
+        status VARCHAR(50) DEFAULT 'new',
+        guest_session_id VARCHAR(64),
+        user_id INTEGER,
+        items_json TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
-    console.log('✅ PostgreSQL Database schema migrations verified successfully.');
+    // Add missing columns to orders if it already existed
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS guest_session_id VARCHAR(64);`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_id INTEGER;`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS items_json TEXT;`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
+
+    // 5. Order Items Table
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS order_items (
+        id SERIAL PRIMARY KEY,
+        order_id VARCHAR(50) NOT NULL,
+        item_id VARCHAR(50),
+        name VARCHAR(255) NOT NULL,
+        size VARCHAR(50) DEFAULT '',
+        qty INTEGER NOT NULL,
+        price NUMERIC(10, 2) NOT NULL
+      );
+    `);
+
+    console.log('✅ PostgreSQL Database schema and tables verified successfully.');
   } catch (err) {
     console.error('⚠️ Database migration error:', err);
   }
@@ -519,6 +574,34 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
   const assignedUserId = userId || orderData.user_id || null;
   const assignedGuestId = guestSessionId || orderData.guest_session_id || orderData.guestSessionId || null;
 
+  // Construct complete normalized order object for real-time emission and DB storage
+  const formattedItems = items.map((item) => {
+    const rawName = item.rawName || item.name || item.product_name || item.productName || item.item_name || 'Item';
+    const cleanName = typeof rawName === 'string'
+      ? rawName.replace(/^\d+x\s*/i, '').trim()
+      : 'Item';
+    const itemSize = item.size || item.selectedSize || '';
+    const itemQty = parseInt(item.qty || item.quantity || item.count || 1, 10) || 1;
+    const itemPrice = parseFloat(item.price || 0) || 0;
+    const itemId = String(item.id || item.item_id || item.originalId || '');
+
+    return {
+      id: itemId,
+      item_id: itemId,
+      name: cleanName,
+      product_name: cleanName,
+      productName: cleanName,
+      item_name: cleanName,
+      displayName: cleanName,
+      size: itemSize,
+      qty: itemQty,
+      quantity: itemQty,
+      price: itemPrice
+    };
+  });
+
+  const itemsJson = JSON.stringify(formattedItems);
+
   if (db.pool) {
     // Ensure guest session is registered if present
     if (assignedGuestId) {
@@ -532,58 +615,38 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
       }
     }
 
-    await db.query(
-      `INSERT INTO orders (id, table_name, timestamp, total, payment_method, status, guest_session_id, user_id, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
-       ON CONFLICT (id) DO UPDATE SET
-         status = EXCLUDED.status,
-         total = EXCLUDED.total,
-         table_name = EXCLUDED.table_name,
-         guest_session_id = COALESCE(EXCLUDED.guest_session_id, orders.guest_session_id),
-         user_id = COALESCE(EXCLUDED.user_id, orders.user_id),
-         updated_at = CURRENT_TIMESTAMP`,
-      [orderId, tableName, timestamp, total, paymentMethod, status, assignedGuestId, assignedUserId]
-    );
+    try {
+      await db.query(
+        `INSERT INTO orders (id, table_name, timestamp, total, payment_method, status, guest_session_id, user_id, items_json, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+         ON CONFLICT (id) DO UPDATE SET
+           status = EXCLUDED.status,
+           total = EXCLUDED.total,
+           table_name = EXCLUDED.table_name,
+           guest_session_id = COALESCE(EXCLUDED.guest_session_id, orders.guest_session_id),
+           user_id = COALESCE(EXCLUDED.user_id, orders.user_id),
+           items_json = EXCLUDED.items_json,
+           updated_at = CURRENT_TIMESTAMP`,
+        [orderId, tableName, timestamp, total, paymentMethod, status, assignedGuestId, assignedUserId, itemsJson]
+      );
+    } catch (err) {
+      console.error('Error inserting order row into orders table:', err);
+    }
 
     // Delete existing items for order re-inserts if any
-    await db.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
-
-    for (const item of items) {
-      const itemName = item.name || item.product_name || item.productName || item.item_name || 'Item';
-      const itemSize = item.size || item.selectedSize || '';
-      const itemQty = parseInt(item.qty || item.quantity || 1, 10);
-      const itemPrice = parseFloat(item.price || 0);
-      const itemId = String(item.id || item.item_id || item.originalId || '');
-
-      await db.query(
-        'INSERT INTO order_items (order_id, item_id, name, size, qty, price) VALUES ($1, $2, $3, $4, $5, $6)',
-        [orderId, itemId, itemName, itemSize, itemQty, itemPrice]
-      );
+    try {
+      await db.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
+      for (const item of formattedItems) {
+        await db.query(
+          'INSERT INTO order_items (order_id, item_id, name, size, qty, price) VALUES ($1, $2, $3, $4, $5, $6)',
+          [orderId, item.id, item.name, item.size, item.qty, item.price]
+        );
+      }
+      console.log(`✅ [DB] Order ${orderId} & ${formattedItems.length} items persisted in PostgreSQL.`);
+    } catch (err) {
+      console.warn('Note on order_items table insert:', err.message);
     }
-    console.log(`✅ [DB] Order ${orderId} successfully persisted in PostgreSQL (Guest: ${assignedGuestId || 'None'}, User: ${assignedUserId || 'None'}).`);
   }
-
-  // Construct complete normalized order object for real-time emission and API response
-  const formattedItems = items.map((item) => {
-    const itemName = item.name || item.product_name || item.productName || item.item_name || 'Item';
-    const itemSize = item.size || item.selectedSize || '';
-    const itemQty = parseInt(item.qty || item.quantity || 1, 10);
-    const itemPrice = parseFloat(item.price || 0);
-    const itemId = String(item.id || item.item_id || item.originalId || '');
-
-    return {
-      id: itemId,
-      item_id: itemId,
-      name: itemName,
-      product_name: itemName,
-      productName: itemName,
-      item_name: itemName,
-      size: itemSize,
-      qty: itemQty,
-      quantity: itemQty,
-      price: itemPrice
-    };
-  });
 
   return {
     id: orderId,
@@ -595,6 +658,7 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
     status,
     guest_session_id: assignedGuestId,
     user_id: assignedUserId,
+    createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     items: formattedItems
   };
@@ -607,7 +671,7 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
     const guestSessionId = req.headers['x-guest-session'] || req.query.guestSessionId;
     const userId = req.user ? req.user.id : null;
 
-    let ordersQuery = 'SELECT * FROM orders ORDER BY created_at DESC';
+    let ordersQuery = 'SELECT * FROM orders ORDER BY created_at ASC';
     let queryParams = [];
 
     // If customer / guest, filter to orders they own
@@ -623,12 +687,17 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
         queryParams = [guestSessionId];
       } else {
         // Fallback for demo or initial state
-        ordersQuery = 'SELECT * FROM orders ORDER BY created_at DESC LIMIT 50';
+        ordersQuery = 'SELECT * FROM orders ORDER BY created_at ASC LIMIT 50';
       }
     }
 
     const ordersRes = await db.query(ordersQuery, queryParams);
-    const itemsRes = await db.query('SELECT * FROM order_items ORDER BY id ASC');
+    let itemsRes = { rows: [] };
+    try {
+      itemsRes = await db.query('SELECT * FROM order_items ORDER BY id ASC');
+    } catch (err) {
+      console.warn('order_items query note:', err.message);
+    }
 
     const itemsByOrderId = {};
     itemsRes.rows.forEach((item) => {
@@ -641,26 +710,40 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
         product_name: itemName,
         productName: itemName,
         item_name: itemName,
+        displayName: itemName,
         size: item.size || '',
-        qty: parseInt(item.qty, 10),
-        quantity: parseInt(item.qty, 10),
-        price: parseFloat(item.price)
+        qty: parseInt(item.qty, 10) || 1,
+        quantity: parseInt(item.qty, 10) || 1,
+        price: parseFloat(item.price) || 0
       });
     });
 
-    const formattedOrders = ordersRes.rows.map((o) => ({
-      id: o.id,
-      orderId: o.id,
-      table: o.table_name,
-      timestamp: o.timestamp,
-      total: parseFloat(o.total),
-      paymentMethod: o.payment_method,
-      status: o.status,
-      guest_session_id: o.guest_session_id,
-      user_id: o.user_id,
-      updatedAt: o.updated_at || o.created_at,
-      items: itemsByOrderId[o.id] || []
-    }));
+    const formattedOrders = ordersRes.rows.map((o) => {
+      let orderItems = itemsByOrderId[o.id] || [];
+      if (orderItems.length === 0 && o.items_json) {
+        try {
+          const parsed = JSON.parse(o.items_json);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            orderItems = parsed;
+          }
+        } catch {}
+      }
+
+      return {
+        id: o.id,
+        orderId: o.id,
+        table: o.table_name,
+        timestamp: o.timestamp,
+        total: parseFloat(o.total),
+        paymentMethod: o.payment_method,
+        status: o.status,
+        guest_session_id: o.guest_session_id,
+        user_id: o.user_id,
+        createdAt: o.created_at,
+        updatedAt: o.updated_at || o.created_at,
+        items: orderItems
+      };
+    });
 
     return res.json(formattedOrders);
   } catch (err) {
@@ -693,19 +776,32 @@ app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
       return res.status(403).json({ success: false, message: 'You are not authorized to view this order.' });
     }
 
-    const itemsRes = await db.query('SELECT * FROM order_items WHERE order_id = $1 ORDER BY id ASC', [orderId]);
-    const formattedItems = itemsRes.rows.map((item) => ({
-      id: item.item_id || item.id,
-      item_id: item.item_id || item.id,
-      name: item.name || 'Item',
-      product_name: item.name || 'Item',
-      productName: item.name || 'Item',
-      item_name: item.name || 'Item',
-      size: item.size || '',
-      qty: parseInt(item.qty, 10),
-      quantity: parseInt(item.qty, 10),
-      price: parseFloat(item.price)
-    }));
+    let formattedItems = [];
+    try {
+      const itemsRes = await db.query('SELECT * FROM order_items WHERE order_id = $1 ORDER BY id ASC', [orderId]);
+      formattedItems = itemsRes.rows.map((item) => ({
+        id: item.item_id || item.id,
+        item_id: item.item_id || item.id,
+        name: item.name || 'Item',
+        product_name: item.name || 'Item',
+        productName: item.name || 'Item',
+        item_name: item.name || 'Item',
+        displayName: item.name || 'Item',
+        size: item.size || '',
+        qty: parseInt(item.qty, 10) || 1,
+        quantity: parseInt(item.qty, 10) || 1,
+        price: parseFloat(item.price) || 0
+      }));
+    } catch {}
+
+    if (formattedItems.length === 0 && orderRow.items_json) {
+      try {
+        const parsed = JSON.parse(orderRow.items_json);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          formattedItems = parsed;
+        }
+      } catch {}
+    }
 
     return res.json({
       success: true,
@@ -719,6 +815,7 @@ app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
         status: orderRow.status,
         guest_session_id: orderRow.guest_session_id,
         user_id: orderRow.user_id,
+        createdAt: orderRow.created_at,
         updatedAt: orderRow.updated_at || orderRow.created_at,
         items: formattedItems
       }
