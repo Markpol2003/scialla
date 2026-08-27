@@ -1,4 +1,6 @@
 const http = require('http');
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
@@ -45,14 +47,20 @@ app.use(cors({
 
 app.use(express.json());
 
-// Root & Health Status Endpoints
-app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Scialla API is running'
-  });
-});
+// Look for frontend build dist folder
+const candidateDistPaths = [
+  path.join(__dirname, '..', 'dist'),
+  path.join(__dirname, 'dist'),
+  path.join(process.cwd(), 'dist')
+];
+const frontendDist = candidateDistPaths.find((p) => fs.existsSync(p));
 
+if (frontendDist) {
+  console.log(`🌐 [Static] Serving frontend static assets from: ${frontendDist}`);
+  app.use(express.static(frontendDist));
+}
+
+// Health Status Endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
@@ -946,6 +954,20 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`🔌 [Socket] Client disconnected: ${socket.id}`);
   });
+});
+
+// SPA Client-Side Routing Fallback (/staff, /manager, /checkout, etc.)
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+    return next();
+  }
+  if (frontendDist && fs.existsSync(path.join(frontendDist, 'index.html'))) {
+    return res.sendFile(path.join(frontendDist, 'index.html'));
+  }
+  if (req.path === '/') {
+    return res.json({ success: true, message: 'Scialla API is running' });
+  }
+  return res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found.` });
 });
 
 // Start Server listening on process.env.PORT || 10000 on 0.0.0.0

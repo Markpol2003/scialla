@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import Products from './Products';
+import Staff from './Staff';
 
 export default function ManagerDashboardPage() {
   const {
@@ -125,29 +126,7 @@ export default function ManagerDashboardPage() {
 
       {activeTab === 'products' && <Products />}
 
-      {activeTab === 'staff' && (
-        <div className="manager-staff-manager">
-          <div className="box-header">
-            <h2>Café Staff & Barista Roster</h2>
-            <span className="box-tag">4 Active Team Members</span>
-          </div>
-
-          <div className="staff-roster-grid">
-            {staffList.map((member) => (
-              <div key={member.id} className="staff-card">
-                <div className="staff-avatar">{member.avatar}</div>
-                <div className="staff-details">
-                  <h3>{member.name}</h3>
-                  <p className="staff-role">{member.role}</p>
-                  <span className={`staff-status-pill status-${member.status.toLowerCase().replace(' ', '-')}`}>
-                    ● {member.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {activeTab === 'staff' && <Staff />}
 
     </div>
   );

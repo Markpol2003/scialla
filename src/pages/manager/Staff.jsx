@@ -143,129 +143,135 @@ export default function Staff() {
 
   return (
     <div className="manager-staff-manager">
-      <div className="box-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ margin: 0 }}>Café Staff & Barista Roster</h2>
-          <span className="box-tag">{activeCount} Active Team Member(s)</span>
+      {/* Luxury Roster Header Banner */}
+      <div className="staff-roster-header-container">
+        <div className="roster-header-titles">
+          <h2>☕ Café Staff & Barista Roster</h2>
+          <div className="roster-active-badge-pill">
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+            {activeCount} Active Team Member(s) • Authorized Operations Pass
+          </div>
         </div>
 
         <button
           type="button"
-          className="btn-login-submit"
+          className="btn-add-staff-luxury"
           onClick={handleOpenAdd}
-          style={{ width: 'auto', padding: '10px 20px', fontSize: '0.88rem' }}
         >
-          + Add New Staff Member
+          <span style={{ fontSize: '1.1rem', lineHeight: '1' }}>+</span> Add New Staff Member
         </button>
       </div>
 
-      {/* Staff Roster Grid */}
-      <div className="staff-roster-grid" style={{ marginTop: '20px' }}>
-        {staffList.map((member) => {
+      {/* Staff Roster Badges Grid */}
+      <div className="staff-roster-grid">
+        {staffList.map((member, index) => {
           const initials = `${(member.first_name || member.name || 'S')[0]}${(member.last_name || '')[0] || ''}`.toUpperCase();
           const isResigned = member.status === 'Resigned';
           const isInactive = member.status === 'Inactive';
+          const badgeId = String(member.id || index + 1).padStart(3, '0');
+          const statusClass = isResigned ? 'status-resigned' : isInactive ? 'status-inactive' : 'status-active';
+
+          let roleIcon = '☕';
+          if (member.role?.toLowerCase().includes('barista')) roleIcon = '🍵';
+          if (member.role?.toLowerCase().includes('manager')) roleIcon = '👑';
+          if (member.role?.toLowerCase().includes('lead')) roleIcon = '⭐';
 
           return (
             <div
               key={member.id}
-              className="staff-card"
-              style={{
-                opacity: isResigned ? 0.6 : 1,
-                borderColor: isResigned ? '#4b5563' : isInactive ? '#eab308' : 'var(--color-gold)'
-              }}
+              className={`staff-id-badge-card ${statusClass}`}
             >
-              <div className="staff-avatar">{initials}</div>
-              <div className="staff-details" style={{ width: '100%' }}>
-                <h3>{member.first_name ? `${member.first_name} ${member.last_name}` : member.name}</h3>
-                <p className="staff-role" style={{ color: 'var(--color-gold)', fontWeight: 'bold' }}>{member.role}</p>
-                <p style={{ fontSize: '0.78rem', color: '#9ca3af', margin: '4px 0' }}>
-                  @{member.username} • {member.email}
-                </p>
+              {/* Badge Top Header */}
+              <div className="badge-top-row">
+                <span className="badge-id-num">PASS #{badgeId}</span>
+                <span className={`badge-status-pill ${isResigned ? 'resigned' : isInactive ? 'inactive' : 'active'}`}>
+                  ● {member.status}
+                </span>
+              </div>
 
-                <div style={{ margin: '8px 0' }}>
-                  <span
-                    className="staff-status-pill"
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: '12px',
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold',
-                      background: isResigned
-                        ? 'rgba(239, 68, 68, 0.2)'
-                        : isInactive
-                        ? 'rgba(234, 179, 8, 0.2)'
-                        : 'rgba(16, 185, 129, 0.2)',
-                      color: isResigned ? '#ef4444' : isInactive ? '#eab308' : '#10b981'
-                    }}
-                  >
-                    ● {member.status}
-                  </span>
+              {/* Profile Identity Hub */}
+              <div className="badge-profile-hub">
+                <div className="badge-avatar-ring">
+                  {initials}
                 </div>
-
-                {/* Staff Actions Stack */}
-                <div className="staff-actions-row" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '12px' }}>
-                  {!isResigned && (
-                    <>
-                      <button
-                        type="button"
-                        className="btn-table-action"
-                        onClick={() => handleOpenEdit(member)}
-                        style={{ fontSize: '0.75rem', padding: '4px 8px' }}
-                      >
-                        ✏ Edit
-                      </button>
-
-                      {member.status === 'Active' ? (
-                        <button
-                          type="button"
-                          className="btn-table-action"
-                          onClick={() => handleStatusChange(member.id, 'Inactive')}
-                          style={{ fontSize: '0.75rem', padding: '4px 8px', borderColor: '#eab308', color: '#eab308' }}
-                        >
-                          Deactivate
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn-table-action"
-                          onClick={() => handleStatusChange(member.id, 'Active')}
-                          style={{ fontSize: '0.75rem', padding: '4px 8px', borderColor: '#10b981', color: '#10b981' }}
-                        >
-                          Activate
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        className="btn-table-action"
-                        onClick={() => handleOpenResetPassword(member)}
-                        style={{ fontSize: '0.75rem', padding: '4px 8px' }}
-                      >
-                        🔑 Password
-                      </button>
-
-                      <button
-                        type="button"
-                        className="btn-table-action"
-                        onClick={() => {
-                          if (confirm(`Mark ${member.first_name || member.name} as Resigned? Account will be disabled immediately.`)) {
-                            handleStatusChange(member.id, 'Resigned');
-                          }
-                        }}
-                        style={{ fontSize: '0.75rem', padding: '4px 8px', borderColor: '#ef4444', color: '#ef4444' }}
-                      >
-                        Mark Resigned
-                      </button>
-                    </>
-                  )}
-
-                  {isResigned && (
-                    <span style={{ fontSize: '0.75rem', color: '#9ca3af', italic: 'true' }}>
-                      Resigned Employee (Login Revoked)
-                    </span>
-                  )}
+                <div className="badge-profile-meta">
+                  <h3 className="badge-name">
+                    {member.first_name ? `${member.first_name} ${member.last_name}` : member.name}
+                  </h3>
+                  <div className="badge-role-chip">
+                    <span>{roleIcon}</span>
+                    <span>{member.role || 'Staff'}</span>
+                  </div>
                 </div>
+              </div>
+
+              {/* Credentials Inset Tray */}
+              <div className="badge-creds-tray">
+                <div className="badge-cred-item">
+                  <span>👤</span>
+                  <span>Username: <strong>@{member.username}</strong></span>
+                </div>
+                <div className="badge-cred-item">
+                  <span>✉️</span>
+                  <span>Email: <strong>{member.email}</strong></span>
+                </div>
+              </div>
+
+              {/* Action Buttons Grid */}
+              <div className="badge-actions-grid">
+                {!isResigned ? (
+                  <>
+                    <button
+                      type="button"
+                      className="badge-btn badge-btn-edit"
+                      onClick={() => handleOpenEdit(member)}
+                    >
+                      ✏️ Edit
+                    </button>
+
+                    {member.status === 'Active' ? (
+                      <button
+                        type="button"
+                        className="badge-btn badge-btn-toggle-deactivate"
+                        onClick={() => handleStatusChange(member.id, 'Inactive')}
+                      >
+                        ⏸️ Deactivate
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="badge-btn badge-btn-toggle-activate"
+                        onClick={() => handleStatusChange(member.id, 'Active')}
+                      >
+                        ▶️ Activate
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="badge-btn badge-btn-password"
+                      onClick={() => handleOpenResetPassword(member)}
+                    >
+                      🔑 Password
+                    </button>
+
+                    <button
+                      type="button"
+                      className="badge-btn badge-btn-resign"
+                      onClick={() => {
+                        if (confirm(`Mark ${member.first_name || member.name} as Resigned? Account access will be terminated immediately.`)) {
+                          handleStatusChange(member.id, 'Resigned');
+                        }
+                      }}
+                    >
+                      🚫 Resign
+                    </button>
+                  </>
+                ) : (
+                  <div style={{ gridColumn: 'span 2', textAlign: 'center', color: '#ef4444', fontSize: '0.78rem', fontStyle: 'italic', padding: '6px 0' }}>
+                    🔒 Resigned Employee (Access Revoked)
+                  </div>
+                )}
               </div>
             </div>
           );

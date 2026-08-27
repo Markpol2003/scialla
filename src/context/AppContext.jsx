@@ -542,7 +542,7 @@ export function AppProvider({ children }) {
       console.log('📡 Received real-time order:created:', newOrder);
       setOrders((prev) => {
         if (prev.some((o) => o.id === newOrder.id)) return prev;
-        return [newOrder, ...prev];
+        return [...prev, newOrder];
       });
     });
 
@@ -695,7 +695,7 @@ export function AppProvider({ children }) {
 
     setOrders((prev) => {
       if (prev.some((o) => o.id === newOrder.id)) return prev;
-      return [newOrder, ...prev];
+      return [...prev, newOrder];
     });
     setLastCustomerOrder(newOrder);
 

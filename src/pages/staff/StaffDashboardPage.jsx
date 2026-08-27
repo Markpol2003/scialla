@@ -13,9 +13,41 @@ export default function StaffDashboardPage() {
 
   const [activeTab, setActiveTab] = useState('orders');
 
-  const newOrders = orders.filter((o) => o.status === 'new');
-  const preparingOrders = orders.filter((o) => o.status === 'preparing');
-  const readyOrders = orders.filter((o) => o.status === 'ready');
+  const parseTimeStr = (str) => {
+    if (!str) return 0;
+    const match = String(str).match(/(\d+):(\d+)\s*(AM|PM)?/i);
+    if (match) {
+      let hrs = parseInt(match[1], 10);
+      const mins = parseInt(match[2], 10);
+      const meridiem = (match[3] || '').toUpperCase();
+      if (meridiem === 'PM' && hrs < 12) hrs += 12;
+      if (meridiem === 'AM' && hrs === 12) hrs = 0;
+      return hrs * 60 + mins;
+    }
+    return 0;
+  };
+
+  const sortByOldestFirst = (list) => {
+    return [...list].sort((a, b) => {
+      const timeA = new Date(a.createdAt || a.created_at || 0).getTime();
+      const timeB = new Date(b.createdAt || b.created_at || 0).getTime();
+      if (!isNaN(timeA) && !isNaN(timeB) && timeA > 0 && timeB > 0 && timeA !== timeB) {
+        return timeA - timeB;
+      }
+      if (a.timestamp && b.timestamp) {
+        const minsA = parseTimeStr(a.timestamp);
+        const minsB = parseTimeStr(b.timestamp);
+        if (minsA !== minsB && minsA > 0 && minsB > 0) {
+          return minsA - minsB;
+        }
+      }
+      return 0;
+    });
+  };
+
+  const newOrders = sortByOldestFirst(orders.filter((o) => o.status === 'new'));
+  const preparingOrders = sortByOldestFirst(orders.filter((o) => o.status === 'preparing'));
+  const readyOrders = sortByOldestFirst(orders.filter((o) => o.status === 'ready'));
   const completedOrders = orders.filter((o) => o.status === 'completed' || o.status === 'cancelled');
 
   const consolidateItems = (items = []) => {
@@ -24,33 +56,101 @@ export default function StaffDashboardPage() {
       try {
         list = JSON.parse(list);
       } catch {
-        list = [];
+        list = list.split(',').map((s) => s.trim()).filter(Boolean);
       }
     }
     if (!Array.isArray(list)) {
       list = [];
     }
 
-    const map = new Map();
-    list.forEach((item) => {
+    const result = [];
+    list.forEach((item, idx) => {
       if (!item) return;
-      const rawName = item.rawName || item.name || item.product_name || item.productName || item.item_name || item.title || 'Item';
-      const cleanName = typeof rawName === 'string'
-        ? rawName.replace(/^\d+x\s*/i, '').replace(/\s*\([\d\s\w]+\)\s*/i, '').trim() || rawName
-        : 'Item';
-      const sizeVal = item.size || item.selectedSize || (typeof rawName === 'string' && rawName.match(/\(([^)]+)\)/) ? rawName.match(/\(([^)]+)\)/)[1] : '');
-      const itemQty = parseInt(item.qty || item.quantity || 1, 10) || 1;
-      const itemPrice = parseFloat(item.price || 0) || 0;
-      const key = `${item.id || item.item_id || cleanName}-${sizeVal}-${itemPrice}`;
 
+      if (typeof item === 'string') {
+        const qtyMatch = item.match(/^(\d+)x\s*/i);
+        const qty = qtyMatch ? parseInt(qtyMatch[1], 10) : 1;
+        const clean = item.replace(/^\d+x\s*/i, '').trim();
+        const sizeMatch = clean.match(/\(([^)]+)\)/);
+        const size = sizeMatch ? sizeMatch[1] : '';
+        const nameOnly = clean.replace(/\s*\([^)]+\)/g, '').trim() || clean;
+        result.push({
+          id: `str-${idx}`,
+          name: nameOnly,
+          displayName: nameOnly,
+          size,
+          qty,
+          price: 0
+        });
+        return;
+      }
+
+      const rawName = item.rawName || item.name || item.product_name || item.productName || item.item_name || item.title || item.item || 'Item';
+      const sizeVal = item.size || item.selectedSize || (typeof rawName === 'string' && rawName.match(/\(([^)]+)\)/) ? rawName.match(/\(([^)]+)\)/)[1] : '');
+      const nameOnly = typeof rawName === 'string'
+        ? rawName.replace(/^\d+x\s*/i, '').replace(/\s*\([^)]+\)/g, '').trim() || rawName
+        : 'Item';
+      const itemQty = parseInt(item.qty || item.quantity || item.count || 1, 10) || 1;
+      const itemPrice = parseFloat(item.price || 0) || 0;
+
+      result.push({
+        ...item,
+        name: nameOnly,
+        displayName: nameOnly,
+        size: sizeVal,
+        qty: itemQty,
+        price: itemPrice
+      });
+    });
+
+    const map = new Map();
+    result.forEach((it) => {
+      const key = `${it.displayName}-${it.size}-${it.price}`;
       if (map.has(key)) {
         const existing = map.get(key);
-        map.set(key, { ...existing, qty: existing.qty + itemQty });
+        map.set(key, { ...existing, qty: existing.qty + it.qty });
       } else {
-        map.set(key, { ...item, name: rawName, cleanName, size: sizeVal, qty: itemQty, price: itemPrice });
+        map.set(key, it);
       }
     });
+
     return Array.from(map.values());
+  };
+
+  const renderItemList = (items, orderTotal) => {
+    const list = consolidateItems(items);
+    if (list.length === 0) {
+      return (
+        <div style={{ color: '#E2B688', fontStyle: 'italic', fontSize: '0.86rem', padding: '4px 0' }}>
+          ☕ 1× Customer Order Items (₱{parseFloat(orderTotal || 0).toFixed(2)})
+        </div>
+      );
+    }
+
+    return list.map((item, idx) => (
+      <div key={idx} className="staff-item-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', margin: '5px 0', width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="item-qty-badge" style={{ color: '#E2B688', fontWeight: 900, fontSize: '0.95rem' }}>
+              {item.qty}×
+            </span>
+            <span className="item-name" style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '0.94rem' }}>
+              {item.displayName || item.name}
+            </span>
+          </div>
+          {item.price > 0 && (
+            <span className="item-line-price" style={{ color: '#E2B688', fontWeight: 700, fontSize: '0.86rem', fontFamily: 'var(--font-mono, monospace)' }}>
+              ₱{(parseFloat(item.price) * item.qty).toFixed(2)}
+            </span>
+          )}
+        </div>
+        {item.size && (
+          <span className="item-size-badge" style={{ color: '#D4A373', fontSize: '0.78rem', fontWeight: 700, marginLeft: '26px', marginTop: '2px' }}>
+            {item.size}
+          </span>
+        )}
+      </div>
+    ));
   };
 
   return (
@@ -124,22 +224,7 @@ export default function StaffDashboardPage() {
                     </div>
 
                     <div className="card-items-list">
-                      {consolidateItems(ord.items).map((item, idx) => (
-                        <div key={idx} className="staff-item-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', margin: '4px 0' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span className="item-qty-badge">{item.qty}×</span>
-                              <span className="item-name" style={{ fontWeight: 'bold' }}>{item.cleanName || item.name}</span>
-                            </div>
-                            <span className="item-line-price">₱{(item.price * item.qty).toFixed(2)}</span>
-                          </div>
-                          {item.size && (
-                            <span className="item-size-badge" style={{ fontSize: '0.78rem', color: '#C98B5B', fontWeight: 'bold', marginLeft: '28px', marginTop: '1px' }}>
-                              {item.size}
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                      {renderItemList(ord.items, ord.total)}
                     </div>
 
                     <div className="card-footer-bar">
@@ -191,22 +276,7 @@ export default function StaffDashboardPage() {
                     </div>
 
                     <div className="card-items-list">
-                      {consolidateItems(ord.items).map((item, idx) => (
-                        <div key={idx} className="staff-item-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', margin: '4px 0' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span className="item-qty-badge">{item.qty}×</span>
-                              <span className="item-name" style={{ fontWeight: 'bold' }}>{item.cleanName || item.name}</span>
-                            </div>
-                            <span className="item-line-price">₱{(item.price * item.qty).toFixed(2)}</span>
-                          </div>
-                          {item.size && (
-                            <span className="item-size-badge" style={{ fontSize: '0.78rem', color: '#C98B5B', fontWeight: 'bold', marginLeft: '28px', marginTop: '1px' }}>
-                              {item.size}
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                      {renderItemList(ord.items, ord.total)}
                     </div>
 
                     <div className="card-footer-bar">
@@ -245,19 +315,7 @@ export default function StaffDashboardPage() {
                     </div>
 
                     <div className="card-items-list">
-                      {consolidateItems(ord.items).map((item, idx) => (
-                        <div key={idx} className="staff-item-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', margin: '4px 0' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span className="item-qty-badge">{item.qty}×</span>
-                            <span className="item-name" style={{ fontWeight: 'bold' }}>{item.cleanName || item.name}</span>
-                          </div>
-                          {item.size && (
-                            <span className="item-size-badge" style={{ fontSize: '0.78rem', color: '#C98B5B', fontWeight: 'bold', marginLeft: '28px', marginTop: '1px' }}>
-                              {item.size}
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                      {renderItemList(ord.items, ord.total)}
                     </div>
 
                     <div className="card-footer-bar">
