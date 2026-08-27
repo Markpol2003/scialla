@@ -351,13 +351,45 @@ export function AppProvider({ children }) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const [menuCategories, setMenuCategories] = useState(initialCategories);
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState(() => {
+    try {
+      const saved = localStorage.getItem('scialla_orders');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [staffList, setStaffList] = useState([]);
   const [lastCustomerOrder, setLastCustomerOrder] = useState(null);
 
   // Real-Time WebSocket Connection
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
+
+  // Sync orders to localStorage for instant cross-tab sync
+  useEffect(() => {
+    try {
+      localStorage.setItem('scialla_orders', JSON.stringify(orders));
+    } catch (e) {
+      console.warn('Failed to sync orders to localStorage:', e);
+    }
+  }, [orders]);
+
+  // Listen for storage events (Instant cross-tab updates between customer & staff)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'scialla_orders' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setOrders(parsed);
+          }
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // Fetch Staff List from DB if Manager
   const refreshStaffList = async () => {
@@ -385,12 +417,31 @@ export function AppProvider({ children }) {
       });
     }
 
-    // Fetch initial orders via REST API fallback
-    api.getOrders().then((data) => {
-      if (Array.isArray(data)) {
-        setOrders(data);
-      }
-    });
+    // Function to fetch orders from REST API
+    const fetchOrdersFromApi = () => {
+      api.getOrders().then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setOrders((prev) => {
+            const map = new Map();
+            // Put latest fetched from DB first
+            data.forEach((ord) => map.set(ord.id, ord));
+            // Keep any local pending orders not yet in DB
+            prev.forEach((ord) => {
+              if (!map.has(ord.id)) {
+                map.set(ord.id, ord);
+              }
+            });
+            return Array.from(map.values());
+          });
+        }
+      });
+    };
+
+    // Initial fetch
+    fetchOrdersFromApi();
+
+    // Polling interval (every 5 seconds) as reliable real-time fallback
+    const pollInterval = setInterval(fetchOrdersFromApi, 5000);
 
     // Initialize Socket.IO connection
     const socketInstance = io(WS_URL, {
@@ -440,6 +491,7 @@ export function AppProvider({ children }) {
     setSocket(socketInstance);
 
     return () => {
+      clearInterval(pollInterval);
       socketInstance.disconnect();
     };
   }, []);
