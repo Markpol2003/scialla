@@ -146,7 +146,7 @@ export default function Staff() {
       {/* Luxury Roster Header Banner */}
       <div className="staff-roster-header-container">
         <div className="roster-header-titles">
-          <h2>☕ Café Staff & Barista Roster</h2>
+          <h2>Café Staff & Barista Roster</h2>
           <div className="roster-active-badge-pill">
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
             {activeCount} Active Team Member(s) • Authorized Operations Pass
@@ -158,7 +158,7 @@ export default function Staff() {
           className="btn-add-staff-luxury"
           onClick={handleOpenAdd}
         >
-          <span style={{ fontSize: '1.1rem', lineHeight: '1' }}>+</span> Add New Staff Member
+          Add New Staff Member
         </button>
       </div>
 
@@ -170,11 +170,6 @@ export default function Staff() {
           const isInactive = member.status === 'Inactive';
           const badgeId = String(member.id || index + 1).padStart(3, '0');
           const statusClass = isResigned ? 'status-resigned' : isInactive ? 'status-inactive' : 'status-active';
-
-          let roleIcon = '☕';
-          if (member.role?.toLowerCase().includes('barista')) roleIcon = '🍵';
-          if (member.role?.toLowerCase().includes('manager')) roleIcon = '👑';
-          if (member.role?.toLowerCase().includes('lead')) roleIcon = '⭐';
 
           return (
             <div
@@ -199,7 +194,6 @@ export default function Staff() {
                     {member.first_name ? `${member.first_name} ${member.last_name}` : member.name}
                   </h3>
                   <div className="badge-role-chip">
-                    <span>{roleIcon}</span>
                     <span>{member.role || 'Staff'}</span>
                   </div>
                 </div>
@@ -208,11 +202,9 @@ export default function Staff() {
               {/* Credentials Inset Tray */}
               <div className="badge-creds-tray">
                 <div className="badge-cred-item">
-                  <span>👤</span>
                   <span>Username: <strong>@{member.username}</strong></span>
                 </div>
                 <div className="badge-cred-item">
-                  <span>✉️</span>
                   <span>Email: <strong>{member.email}</strong></span>
                 </div>
               </div>
@@ -226,7 +218,7 @@ export default function Staff() {
                       className="badge-btn badge-btn-edit"
                       onClick={() => handleOpenEdit(member)}
                     >
-                      ✏️ Edit
+                      Edit
                     </button>
 
                     {member.status === 'Active' ? (
@@ -235,7 +227,7 @@ export default function Staff() {
                         className="badge-btn badge-btn-toggle-deactivate"
                         onClick={() => handleStatusChange(member.id, 'Inactive')}
                       >
-                        ⏸️ Deactivate
+                        Deactivate
                       </button>
                     ) : (
                       <button
@@ -243,7 +235,7 @@ export default function Staff() {
                         className="badge-btn badge-btn-toggle-activate"
                         onClick={() => handleStatusChange(member.id, 'Active')}
                       >
-                        ▶️ Activate
+                        Activate
                       </button>
                     )}
 
@@ -252,7 +244,7 @@ export default function Staff() {
                       className="badge-btn badge-btn-password"
                       onClick={() => handleOpenResetPassword(member)}
                     >
-                      🔑 Password
+                      Password
                     </button>
 
                     <button
@@ -264,12 +256,12 @@ export default function Staff() {
                         }
                       }}
                     >
-                      🚫 Resign
+                      Resign
                     </button>
                   </>
                 ) : (
                   <div style={{ gridColumn: 'span 2', textAlign: 'center', color: '#ef4444', fontSize: '0.78rem', fontStyle: 'italic', padding: '6px 0' }}>
-                    🔒 Resigned Employee (Access Revoked)
+                    Resigned Employee (Access Revoked)
                   </div>
                 )}
               </div>
