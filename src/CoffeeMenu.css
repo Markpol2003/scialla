@@ -206,6 +206,56 @@ body {
   align-items: center;
 }
 
+.profile-dropdown-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.profile-trigger-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 20px;
+  padding: 4px 10px 4px 5px;
+  background: rgba(212, 163, 115, 0.15);
+  border: 1px solid rgba(212, 163, 115, 0.35);
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.profile-trigger-btn:hover {
+  background: rgba(212, 163, 115, 0.25);
+  border-color: #D4A373;
+}
+
+.user-avatar-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #D4A373;
+  color: #140E0A;
+  font-weight: 900;
+  font-size: 0.74rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.user-name-str {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.chevron-icon {
+  font-size: 0.72rem;
+  color: #D4A373;
+  margin-left: 1px;
+}
+
 .btn-single-signin {
   background: #D4A373;
   border: none;
@@ -2508,6 +2558,15 @@ body {
     padding: 4px 8px;
     font-size: 0.68rem;
     white-space: nowrap;
+  }
+
+  .profile-trigger-btn .user-name-str {
+    display: none !important;
+  }
+
+  .profile-trigger-btn {
+    padding: 3px 6px 3px 4px !important;
+    gap: 3px !important;
   }
 
   /* Fix layout stacking for mobile */

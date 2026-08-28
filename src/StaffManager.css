@@ -2194,10 +2194,39 @@
     justify-content: center;
   }
 
+  .portal-top-bar {
+    padding: 10px 14px;
+    height: 56px;
+  }
+
+  .portal-brand-title {
+    font-size: 1rem;
+    gap: 6px;
+  }
+
+  .brand-bold {
+    letter-spacing: 1px;
+    font-size: 0.95rem;
+  }
+
+  .portal-tag {
+    font-size: 0.64rem;
+    padding: 1px 6px;
+  }
+
+  .profile-trigger-btn .user-name-str {
+    display: none !important;
+  }
+
+  .profile-trigger-btn {
+    padding: 4px 8px 4px 5px !important;
+    gap: 4px !important;
+  }
+
   .portal-sidebar-backdrop {
     display: block;
     position: fixed;
-    top: 60px;
+    top: 56px;
     left: 0;
     right: 0;
     bottom: 0;
@@ -2208,7 +2237,7 @@
 
   .portal-sidebar {
     position: fixed;
-    top: 60px;
+    top: 56px;
     left: 0;
     bottom: 0;
     width: 250px;
@@ -2224,19 +2253,74 @@
   }
 
   .portal-main-content {
-    padding: 16px;
+    padding: 14px 12px;
+    width: 100%;
+    overflow-x: clip;
   }
 
   .manager-table,
-  .staff-history-table {
+  .staff-history-table,
+  .staff-mgmt-table,
+  .products-table {
     display: block;
     overflow-x: auto;
     white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
   }
 
   .kpi-cards-row {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
+  }
+
+  .kpi-card {
+    padding: 14px 12px;
+    min-height: auto;
+  }
+
+  .kpi-title {
+    font-size: 0.68rem;
+    letter-spacing: 0.5px;
+  }
+
+  .kpi-main-val {
+    font-size: 1.25rem;
+    word-break: break-word;
+  }
+
+  .orders-board-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .order-column {
+    min-height: auto;
+    padding: 14px 12px;
+  }
+
+  .card-header-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .card-footer-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .card-actions-row {
+    display: flex;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .btn-staff-action {
+    flex: 1;
+    min-height: 40px;
+    justify-content: center;
+    font-size: 0.8rem;
   }
 }
 
@@ -2447,9 +2531,9 @@
   .profile-trigger-btn {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     border-radius: 20px;
-    padding: 5px 14px 5px 6px;
+    padding: 5px 12px 5px 6px;
     background: rgba(201, 139, 91, 0.14);
     border: 1px solid rgba(201, 139, 91, 0.35);
     color: var(--color-text-main);
@@ -2462,6 +2546,20 @@
     background: rgba(201, 139, 91, 0.25);
     border-color: var(--color-gold);
     box-shadow: 0 6px 16px rgba(201, 139, 91, 0.2);
+  }
+
+  .user-avatar-badge {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--color-gold, #c98b5b);
+    color: #120d0a;
+    font-weight: 900;
+    font-size: 0.78rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
   .avatar-circle {
@@ -3972,6 +4070,208 @@
 
 /* Mobile Phone Responsiveness Rules */
 @media (max-width: 600px) {
+  .portal-top-bar {
+    padding: 8px 12px;
+    height: 52px;
+  }
+
+  .portal-brand-title {
+    font-size: 0.92rem;
+    gap: 5px;
+  }
+
+  .brand-bold {
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+  }
+
+  .portal-tag {
+    font-size: 0.6rem;
+    padding: 1px 5px;
+  }
+
+  .portal-main-content {
+    padding: 10px;
+  }
+
+  .profile-trigger-btn .user-name-str {
+    display: none !important;
+  }
+
+  .profile-trigger-btn {
+    padding: 3px 6px 3px 4px !important;
+    gap: 3px !important;
+  }
+
+  .user-avatar-badge {
+    width: 22px;
+    height: 22px;
+    font-size: 0.7rem;
+  }
+
+  .chevron-icon {
+    font-size: 0.68rem;
+  }
+
+  /* KPI Cards in Dashboard */
+  .kpi-cards-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .kpi-card {
+    padding: 10px 8px;
+  }
+
+  .kpi-title {
+    font-size: 0.62rem;
+  }
+
+  .kpi-main-val {
+    font-size: 1.1rem;
+  }
+
+  /* Catalog / Products Menu */
+  .catalog-hero {
+    padding: 16px 14px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .catalog-title {
+    font-size: 1.25rem;
+  }
+
+  .catalog-subtitle {
+    font-size: 0.78rem;
+  }
+
+  .catalog-hero-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .hero-stat {
+    min-width: 0;
+    padding: 8px 4px;
+  }
+
+  .hero-stat-value {
+    font-size: 1.15rem;
+  }
+
+  .hero-stat-label {
+    font-size: 0.65rem;
+  }
+
+  .catalog-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .catalog-search {
+    width: 100%;
+    min-width: 0;
+    padding: 8px 14px;
+  }
+
+  .catalog-filter-chips {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .catalog-filter-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-chip {
+    padding: 6px 12px;
+    font-size: 0.74rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Sales Tab */
+  .manager-two-columns {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .manager-box {
+    padding: 14px 12px;
+  }
+
+  .monthly-target-meter-card {
+    padding: 10px 12px !important;
+  }
+
+  .meter-header-row,
+  .meter-footer-info {
+    font-size: 0.74rem !important;
+    gap: 8px !important;
+  }
+
+  .chart-bars-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+  }
+
+  .top-product-item {
+    padding: 8px 6px;
+    gap: 8px;
+  }
+
+  .p-name {
+    font-size: 0.82rem;
+  }
+
+  .p-price {
+    font-size: 0.68rem;
+  }
+
+  .p-count {
+    font-size: 0.72rem;
+  }
+
+  .p-total {
+    font-size: 0.8rem;
+  }
+
+  /* Staff Management Tab */
+  .staff-roster-header-container {
+    padding: 14px 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .roster-header-titles h2 {
+    font-size: 1.15rem;
+  }
+
+  .btn-add-staff-luxury {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 16px;
+    font-size: 0.82rem;
+  }
+
+  .staff-table-card {
+    padding: 12px;
+  }
+
+  .modal-form-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
   .staff-inv-summary-cards {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -4005,10 +4305,6 @@
 
   .avail-rows-list {
     grid-template-columns: 1fr;
-  }
-
-  .portal-main-content {
-    padding: 12px;
   }
 
   .profile-modal-card,

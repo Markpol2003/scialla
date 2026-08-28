@@ -123,11 +123,15 @@ export default function ProfileDropdown({ onNavigate }) {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="profile-trigger-btn"
+        title={`${cleanName} (${roleTitle})`}
+        aria-label="User Profile"
       >
-        <span className="user-name-str">
-          {cleanName} ({roleTag})
+        <span className="user-avatar-badge">
+          {currentUser.role === 'manager' ? 'M' : currentUser.role === 'staff' ? 'S' : '👤'}
         </span>
-
+        <span className="user-name-str">
+          {roleTag}
+        </span>
         <span className="chevron-icon">▾</span>
       </button>
 
