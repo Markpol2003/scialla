@@ -295,12 +295,12 @@ export default function Staff() {
             )}
 
             <form onSubmit={handleAddSubmit} className="login-form">
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div className="form-group" style={{ flex: 1 }}>
+              <div className="form-row-2col">
+                <div className="form-group">
                   <label>First Name</label>
                   <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required placeholder="Marco" />
                 </div>
-                <div className="form-group" style={{ flex: 1 }}>
+                <div className="form-group">
                   <label>Last Name</label>
                   <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required placeholder="Santos" />
                 </div>
@@ -357,12 +357,12 @@ export default function Staff() {
             )}
 
             <form onSubmit={handleEditSubmit} className="login-form">
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div className="form-group" style={{ flex: 1 }}>
+              <div className="form-row-2col">
+                <div className="form-group">
                   <label>First Name</label>
                   <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
                 </div>
-                <div className="form-group" style={{ flex: 1 }}>
+                <div className="form-group">
                   <label>Last Name</label>
                   <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                 </div>
