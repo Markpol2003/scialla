@@ -130,9 +130,22 @@ export default function Checkout({
               )}
             </div>
 
-            <button className="btn-3d-pay" onClick={handlePay}>
-              Pay ₱{totalAmount.toFixed(2)} with {paymentMethod}
-            </button>
+            <div className="checkout-actions-row">
+              <button
+                type="button"
+                className="btn-3d-cancel"
+                onClick={onClose}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-3d-pay"
+                onClick={handlePay}
+              >
+                Pay ₱{totalAmount.toFixed(2)} with {paymentMethod}
+              </button>
+            </div>
           </>
         ) : (
           <div className="receipt-success-state">

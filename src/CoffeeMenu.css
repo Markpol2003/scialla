@@ -137,48 +137,7 @@ body {
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
 }
 
-/* ─── Smooth Waving Animation for Scialla Cafe (White on Dark Header) ─── */
-.brand-wave {
-  display: inline-flex !important;
-  align-items: baseline;
-  white-space: nowrap;
-}
-
-.wave-char {
-  display: inline-block;
-  animation: brandTextWave 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-  transform-origin: 50% 100%;
-  will-change: transform;
-}
-
-.wave-space {
-  display: inline-block;
-  width: 0.26em;
-}
-
-.scialla-customer-brand:hover .wave-char {
-  animation-duration: 1.2s;
-}
-
-@keyframes brandTextWave {
-  0%, 100% {
-    transform: translateY(0) rotate(0deg);
-    color: #FFFFFF;
-  }
-  25% {
-    transform: translateY(-7px) rotate(-1.5deg);
-    color: #F0CFA8;
-    text-shadow: 0 4px 14px rgba(240, 207, 168, 0.5);
-  }
-  50% {
-    transform: translateY(0) rotate(0deg);
-    color: #FFFFFF;
-  }
-  75% {
-    transform: translateY(2.5px) rotate(0.8deg);
-    color: #FFFFFF;
-  }
-}
+/* Brand name — static (wave animation removed) */
 
 .brand-name {
   font-family: var(--font-display);
@@ -1560,17 +1519,18 @@ body {
   background: rgba(199, 75, 75, 0.1);
   border: 1px solid rgba(199, 75, 75, 0.3);
   color: var(--danger);
-  font-size: 0.9rem;
-  font-weight: 800;
-  width: 36px;
-  height: 36px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 8px 14px;
+  min-height: 36px;
   border-radius: var(--radius-sm);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .mobile-bar-cancel-btn:hover {
@@ -1580,7 +1540,7 @@ body {
 }
 
 .mobile-bar-cancel-btn:active {
-  transform: scale(0.92);
+  transform: scale(0.95);
 }
 
 .mobile-bar-btn:active {
@@ -1843,8 +1803,50 @@ body {
   box-shadow: 0 2px 8px rgba(139, 111, 78, 0.25);
 }
 
+/* Checkout Actions Row (Pay + Cancel) */
+.checkout-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.btn-3d-cancel {
+  padding: 14px 20px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid rgba(199, 75, 75, 0.4);
+  border-bottom: 4px solid rgba(199, 75, 75, 0.6);
+  background: rgba(199, 75, 75, 0.08);
+  color: var(--danger);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-3d-cancel:hover {
+  background: var(--danger);
+  color: #FFFFFF;
+  border-color: var(--danger);
+  border-bottom-color: #a83232;
+  box-shadow: 0 4px 14px rgba(199, 75, 75, 0.25);
+}
+
+.btn-3d-cancel:active {
+  transform: translateY(2px);
+  border-bottom-width: 1px;
+}
+
 /* Pay Button */
 .btn-3d-pay {
+  flex: 1;
   width: 100%;
   padding: 14px;
   border-radius: var(--radius-md);
@@ -2024,17 +2026,63 @@ body {
 .live-order-tracker-banner {
   max-width: 1440px;
   width: calc(100% - 56px);
-  margin: 16px auto 0;
-  padding: 10px 18px;
-  background: #FFFFFF;
-  border: 1.5px solid var(--border-light);
-  border-radius: var(--radius-lg);
+  margin: 0 auto;
+  padding: 14px 44px 14px 20px;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid transparent;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   box-shadow: 0 4px 18px rgba(60, 40, 25, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.95);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   animation: fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: sticky;
+  top: 62px;
+  z-index: 999;
+  overflow: hidden;
+}
+
+/* Animated light circling the border */
+.live-order-tracker-banner::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--tracker-glow-angle, 0deg),
+    transparent 0%,
+    transparent 70%,
+    rgba(139, 111, 78, 0.5) 80%,
+    rgba(212, 163, 115, 0.8) 85%,
+    rgba(139, 111, 78, 0.5) 90%,
+    transparent 100%
+  );
+  z-index: -2;
+  animation: trackerBorderGlow 4s linear infinite;
+}
+
+/* Inner fill to mask the gradient, leaving only the border visible */
+.live-order-tracker-banner::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.97);
+  z-index: -1;
+}
+
+@keyframes trackerBorderGlow {
+  0% { --tracker-glow-angle: 0deg; }
+  100% { --tracker-glow-angle: 360deg; }
+}
+
+@property --tracker-glow-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
 }
 
 .tracker-left {
@@ -2184,6 +2232,9 @@ body {
 }
 
 .btn-dismiss-tracker {
+  position: absolute;
+  top: 8px;
+  right: 8px;
   background: var(--bg-input);
   border: 1px solid var(--border-light);
   color: var(--text-muted);
@@ -2197,6 +2248,7 @@ body {
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+  z-index: 2;
 }
 
 .btn-dismiss-tracker:hover {
@@ -2207,25 +2259,51 @@ body {
 
 @media (max-width: 768px) {
   .live-order-tracker-banner {
-    width: calc(100% - 24px);
-    margin: 12px auto 0;
+    width: 100%;
+    margin: 0 auto;
     padding: 10px 14px;
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
+    top: 56px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
   }
 
   .tracker-right {
     width: 100%;
+    justify-content: center;
+  }
+
+  .tracker-mini-stepper {
+    width: 100%;
+    max-width: 360px;
+    margin: 4px auto 0;
+    display: flex;
+    align-items: flex-start;
     justify-content: space-between;
   }
 
+  .mini-node {
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
   .mini-label {
-    display: none;
+    display: block;
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
   }
 
   .mini-line {
-    width: 22px;
+    flex: 1;
+    min-width: 12px;
+    margin-top: 9px;
   }
 }
 
@@ -2291,6 +2369,8 @@ body {
     grid-template-columns: 1fr;
     gap: 20px;
     padding: 16px;
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
   .scialla-cart-sidebar {
@@ -2359,10 +2439,28 @@ body {
     padding: 6px 12px;
     font-size: 0.74rem;
   }
+
+  /* Fix modal overflow on tablets */
+  .receipt-3d-card,
+  .auth-modal-card,
+  .table-select-modal {
+    max-width: calc(100vw - 32px);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .receipt-modal-backdrop {
+    padding: 12px;
+  }
 }
 
-/* Phone Screen Header Optimization (<= 600px) */
+/* Phone Screen Optimization (<= 600px) */
 @media (max-width: 600px) {
+  .scialla-container {
+    padding-bottom: 120px;
+    overflow-x: clip;
+  }
+
   .scialla-unified-header {
     padding: 0 10px !important;
   }
@@ -2376,16 +2474,23 @@ body {
     font-size: 1.32rem !important;
     font-weight: 900 !important;
     color: #FFFFFF !important;
+    white-space: nowrap;
   }
 
   .header-table-badge-btn {
     padding: 4px 7px;
     gap: 3px;
     border-radius: 10px;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .table-badge-label {
     font-size: 0.72rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .table-badge-change {
@@ -2396,58 +2501,28 @@ body {
     padding: 5px 10px;
     font-size: 0.70rem;
     border-radius: 10px;
+    white-space: nowrap;
   }
 
   .btn-return-portal {
     padding: 4px 8px;
     font-size: 0.68rem;
-  }
-}
-
-/* Extra Small Phone Screen (<= 380px) */
-@media (max-width: 380px) {
-  .header-compact-row {
-    gap: 4px;
+    white-space: nowrap;
   }
 
-  .customer-brand-title {
-    font-size: 1.15rem !important;
-  }
-
-  .header-table-badge-btn {
-    padding: 3px 6px;
-  }
-
-  .table-badge-label {
-    font-size: 0.68rem;
-  }
-
-  .table-badge-change {
-    display: none;
-  }
-
-  .btn-single-signin {
-    padding: 4px 8px;
-    font-size: 0.68rem;
-  }
-}
-
-/* Mobile Cards */
-@media (max-width: 520px) {
-  .scialla-container {
-    padding-bottom: 120px;
-  }
-
+  /* Fix layout stacking for mobile */
   .scialla-layout {
     width: 100%;
     padding: 0 12px;
     margin: 0;
     display: block;
+    overflow-x: clip;
   }
 
   .scialla-content {
     width: 100%;
     min-width: 0;
+    overflow-x: clip;
   }
 
   .category-block {
@@ -2464,6 +2539,8 @@ body {
   .cards-grid {
     scrollbar-width: none;
     -ms-overflow-style: none;
+    gap: 12px;
+    padding: 4px 2px 10px;
   }
 
   .cards-grid::-webkit-scrollbar {
@@ -2543,12 +2620,275 @@ body {
   .scialla-cart-sidebar {
     display: none !important;
   }
+
+  /* Fix cart sidebar when shown on mobile */
+  .cart-card-3d {
+    width: 100%;
+    box-sizing: border-box;
+    max-width: 100%;
+  }
+
+  .cart-item-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .item-row-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Fix modals on mobile to not overflow */
+  .receipt-modal-backdrop {
+    padding: 10px;
+  }
+
+  .receipt-3d-card {
+    max-width: 100%;
+    width: 100%;
+    padding: 20px 16px;
+    box-sizing: border-box;
+  }
+
+  .auth-modal-card {
+    max-width: 100%;
+    width: 100%;
+    padding: 22px 16px;
+    box-sizing: border-box;
+  }
+
+  .table-select-modal {
+    max-width: 100%;
+    width: 100%;
+    padding: 22px 16px;
+    box-sizing: border-box;
+  }
+
+  /* Fix table custom input on mobile */
+  .table-custom-input-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .table-custom-input-field {
+    width: 100%;
+  }
+
+  .btn-table-custom-save {
+    width: 100%;
+  }
+
+  /* Fix table quick grid on mobile */
+  .table-quick-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+
+  /* Fix mobile checkout bar text overflow */
+  .mobile-bar-info {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .mobile-bar-count {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  /* Live order tracker — sticky below header on phone */
+  .live-order-tracker-banner {
+    width: 100%;
+    margin: 0 auto;
+    padding: 10px 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    top: 52px;
+  }
+
+  .tracker-left {
+    width: 100%;
+  }
+
+  .tracker-right {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .tracker-mini-stepper {
+    width: 100%;
+    max-width: 340px;
+    margin: 4px auto 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .mini-node {
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+  }
+
+  .mini-label {
+    display: block;
+    font-size: 0.60rem;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .mini-line {
+    flex: 1;
+    min-width: 10px;
+    margin-top: 9px;
+  }
+
+  .tracker-status-pill-wrap {
+    max-width: 100%;
+  }
+
+  .status-pill {
+    font-size: 0.68rem;
+    padding: 3px 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100vw - 130px);
+  }
+
+  /* QR payment box on mobile */
+  .qr-payment-preview-box {
+    padding: 12px;
+  }
+
+  .payment-qr-code-img {
+    width: 160px;
+  }
+
+  .checkout-actions-row {
+    gap: 8px;
+  }
+
+  .btn-3d-cancel {
+    padding: 12px 16px;
+    font-size: 0.82rem;
+    min-height: 44px;
+  }
+
+  .btn-3d-pay {
+    padding: 12px 14px;
+    font-size: 0.84rem;
+    min-height: 44px;
+  }
 }
 
-@media (max-width: 350px) {
+/* Extra Small Phone Screen (<= 380px) */
+@media (max-width: 380px) {
+  .header-compact-row {
+    gap: 4px;
+  }
+
+  .customer-brand-title {
+    font-size: 1.15rem !important;
+  }
+
+  .header-table-badge-btn {
+    padding: 3px 6px;
+    max-width: 90px;
+  }
+
+  .table-badge-label {
+    font-size: 0.68rem;
+  }
+
+  .table-badge-change {
+    display: none;
+  }
+
+  .btn-single-signin {
+    padding: 4px 8px;
+    font-size: 0.68rem;
+  }
+
   .coffee-card-3d {
     min-width: 140px !important;
     max-width: 160px !important;
+  }
+
+  /* Stack mobile checkout bar vertically on very small screens */
+  .mobile-checkout-bar {
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+
+  .mobile-bar-actions {
+    width: 100%;
+  }
+
+  .mobile-bar-btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  .mobile-bar-cancel-btn {
+    padding: 8px 12px;
+    font-size: 0.74rem;
+  }
+
+  .checkout-actions-row {
+    flex-direction: column-reverse;
+    gap: 6px;
+  }
+
+  .btn-3d-cancel {
+    width: 100%;
+    min-height: 40px;
+    padding: 10px;
+  }
+
+  .btn-3d-pay {
+    width: 100%;
+  }
+
+  /* Order tracker on extra small screens */
+  .tracker-mini-stepper {
+    width: 100%;
+    max-width: 290px;
+    margin: 4px auto 0;
+  }
+
+  .mini-node {
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .mini-dot {
+    width: 18px;
+    height: 18px;
+    font-size: 0.56rem;
+  }
+
+  .mini-label {
+    display: block;
+    font-size: 0.52rem;
+  }
+
+  .mini-line {
+    flex: 1;
+    min-width: 6px;
+    margin-top: 8px;
+  }
+
+  .status-pill {
+    font-size: 0.62rem;
+    max-width: calc(100vw - 100px);
   }
 }
 

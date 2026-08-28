@@ -67,18 +67,11 @@ export default function CustomerLayout({ onNavigate }) {
       {/* COMPACT SINGLE-ROW HEADER */}
       <header className="scialla-unified-header">
         <div className="header-compact-row">
-          {/* Left: Brand with Waving Animation */}
+          {/* Left: Brand */}
           <div className="scialla-customer-brand" title="Scialla Cafe">
-            <span className="customer-brand-title brand-wave">
-              {'Scialla Cafe'.split('').map((char, index) => (
-                <span
-                  key={index}
-                  className={`wave-char ${char === ' ' ? 'wave-space' : ''}`}
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  {char === ' ' ? '\u00A0' : char}
-                </span>
-              ))}
+            <span className="customer-brand-title">
+              <span className="brand-name">Scialla Cafe</span>
+              <span className="brand-dot">.</span>
             </span>
           </div>
 
@@ -251,7 +244,7 @@ export default function CustomerLayout({ onNavigate }) {
             <div className="tracker-mini-stepper">
               <div className={`mini-node ${['new', 'preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
                 <span className="mini-dot">1</span>
-                <span className="mini-label">Received</span>
+                <span className="mini-label">Accepted</span>
               </div>
               <div className={`mini-line ${['preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
               <div className={`mini-node ${['preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
@@ -306,13 +299,23 @@ export default function CustomerLayout({ onNavigate }) {
           </span>
           <span className="mobile-bar-total">₱{totalAmount.toFixed(2)}</span>
         </div>
-        <button
-          type="button"
-          className="mobile-bar-btn"
-          onClick={() => setIsCheckoutOpen(true)}
-        >
-          Checkout →
-        </button>
+        <div className="mobile-bar-actions">
+          <button
+            type="button"
+            className="mobile-bar-cancel-btn"
+            onClick={() => setCart([])}
+            title="Cancel / Clear Order"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="mobile-bar-btn"
+            onClick={() => setIsCheckoutOpen(true)}
+          >
+            Checkout →
+          </button>
+        </div>
       </div>
 
       {/* Checkout Modal */}

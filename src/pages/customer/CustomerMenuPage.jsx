@@ -633,9 +633,22 @@ export default function CustomerMenuPage() {
                   )}
                 </div>
 
-                <button className="btn-3d-pay" onClick={handlePay}>
-                  Pay ₱{totalAmount.toFixed(2)} with {paymentMethod}
-                </button>
+                <div className="checkout-actions-row">
+                  <button
+                    type="button"
+                    className="btn-3d-cancel"
+                    onClick={() => setIsReceiptOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-3d-pay"
+                    onClick={handlePay}
+                  >
+                    Pay ₱{totalAmount.toFixed(2)} with {paymentMethod}
+                  </button>
+                </div>
               </>
             ) : (
               <div className="receipt-success-state">
