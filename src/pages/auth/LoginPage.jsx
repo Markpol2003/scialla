@@ -11,6 +11,7 @@ export default function LoginPage({ targetRole = 'staff', onNavigate, onClose })
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
 
   // Body Scroll Lock while Login Modal is active
   useEffect(() => {
@@ -109,7 +110,7 @@ export default function LoginPage({ targetRole = 'staff', onNavigate, onClose })
               lineHeight: '1.4'
             }}
           >
-            ⚠ {errorMsg}
+            {errorMsg}
           </div>
         )}
 
@@ -157,10 +158,77 @@ export default function LoginPage({ targetRole = 'staff', onNavigate, onClose })
             </div>
           </div>
 
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-6px', marginBottom: '14px' }}>
+            <button
+              type="button"
+              className="btn-forgot-link"
+              onClick={() => setShowForgotModal(true)}
+              style={{ color: '#E2B688', fontSize: '0.78rem', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              Forgot Password?
+            </button>
+          </div>
+
           <button type="submit" className="btn-login-submit" disabled={loading}>
             {loading ? 'Signing in...' : `Sign In`}
           </button>
         </form>
+
+        {/* FORGOT PASSWORD MODAL / DIALOG */}
+        {showForgotModal && (
+          <div
+            className="receipt-modal-backdrop"
+            onClick={() => setShowForgotModal(false)}
+            style={{ zIndex: 1000000 }}
+          >
+            <div
+              className="forgot-password-card"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                maxWidth: '380px',
+                width: '90%',
+                background: '#1A0C06',
+                border: '1.5px solid #C98B5B',
+                borderRadius: '16px',
+                padding: '24px',
+                color: '#FFFFFF',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.8)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#E2B688', fontFamily: 'var(--font-display)' }}>
+                  {selectedRole === 'manager' ? 'Manager Password Recovery' : 'Staff Password Recovery'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotModal(false)}
+                  style={{ background: 'none', border: 'none', color: '#E2B688', fontSize: '1.2rem', cursor: 'pointer' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p style={{ fontSize: '0.84rem', color: '#D4C3B3', lineHeight: '1.5', marginBottom: '16px' }}>
+                {selectedRole === 'manager'
+                  ? 'For Store Manager accounts, please verify your root administrator email address or contact Scialla System Admin.'
+                  : 'To reset your staff password, your Store Manager can update your credentials immediately from the Manager Portal Staff Roster.'}
+              </p>
+
+              <div style={{ background: 'rgba(201, 139, 91, 0.1)', border: '1px solid rgba(201, 139, 91, 0.3)', borderRadius: '10px', padding: '12px', marginBottom: '16px', fontSize: '0.8rem', color: '#F3E5D8' }}>
+                Tip: The manager has administrative privileges to reset any staff member’s password instantly with 1-click in the Staff Roster.
+              </div>
+
+              <button
+                type="button"
+                className="btn-login-submit"
+                onClick={() => setShowForgotModal(false)}
+                style={{ width: '100%' }}
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>,
     document.body

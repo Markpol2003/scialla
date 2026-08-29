@@ -31,7 +31,7 @@ export default function ManagerLayout({ onNavigate }) {
           <span className="portal-tag tag-manager">MANAGER</span>
         </div>
 
-        {/* User Profile Dropdown Pill (Arrow toggle for profile info & logout) */}
+        {/* User Profile Dropdown Pill */}
         <UserProfileDropdown onNavigate={onNavigate} />
       </header>
 
@@ -45,38 +45,40 @@ export default function ManagerLayout({ onNavigate }) {
           ></div>
         )}
 
-        {/* Left Sidebar */}
+        {/* Left Sidebar Navigation */}
         <aside className={`portal-sidebar ${isSidebarOpen ? 'mobile-open' : ''}`}>
-          <button
-            type="button"
-            className={`sidebar-nav-item ${currentTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => handleTabChange('dashboard')}
-          >
-            Dashboard
-          </button>
-          <button
-            type="button"
-            className={`sidebar-nav-item ${currentTab === 'sales' ? 'active' : ''}`}
-            onClick={() => handleTabChange('sales')}
-          >
-            Sales
-          </button>
-          <button
-            type="button"
-            className={`sidebar-nav-item ${currentTab === 'products' ? 'active' : ''}`}
-            onClick={() => handleTabChange('products')}
-          >
-            Products
-          </button>
-          <button
-            type="button"
-            className={`sidebar-nav-item ${currentTab === 'staff' ? 'active' : ''}`}
-            onClick={() => handleTabChange('staff')}
-          >
-            Staff
-          </button>
+          <div className="sidebar-nav-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <button
+              type="button"
+              className={`sidebar-nav-item ${currentTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => handleTabChange('dashboard')}
+            >
+              Dashboard
+            </button>
+            <button
+              type="button"
+              className={`sidebar-nav-item ${currentTab === 'sales' ? 'active' : ''}`}
+              onClick={() => handleTabChange('sales')}
+            >
+              Sales
+            </button>
+            <button
+              type="button"
+              className={`sidebar-nav-item ${currentTab === 'products' ? 'active' : ''}`}
+              onClick={() => handleTabChange('products')}
+            >
+              Products
+            </button>
+            <button
+              type="button"
+              className={`sidebar-nav-item ${currentTab === 'staff' ? 'active' : ''}`}
+              onClick={() => handleTabChange('staff')}
+            >
+              Staff
+            </button>
+          </div>
 
-          <div className="sidebar-footer-link">
+          <div className="sidebar-footer-link" style={{ marginTop: 'auto', paddingTop: '16px' }}>
             <button
               type="button"
               className="btn-menu-link"

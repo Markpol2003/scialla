@@ -220,19 +220,33 @@ export default function CustomerMenuPage() {
                 <span className="status-pill status-new">Received by Barista • Preparing to accept...</span>
               )}
               {lastCustomerOrder.status === 'preparing' && (
-                <span className="status-pill status-prep">Barista is handcrafting your order now!</span>
+                <span className="status-pill status-prep">
+                  Barista {lastCustomerOrder.accepted_by_name ? `(${lastCustomerOrder.accepted_by_name}) ` : ''}is handcrafting your order now!
+                </span>
               )}
               {lastCustomerOrder.status === 'ready' && (
                 <span className="status-pill status-ready">
                   {(lastCustomerOrder.table || '').toLowerCase().includes('takeout')
                     ? 'Ready for Counter Pickup! Present Order #' + lastCustomerOrder.id
-                    : `Ready! Serving to ${lastCustomerOrder.table || 'Table'}`}
+                    : `Ready! Serving to ${lastCustomerOrder.table || 'Table'}${lastCustomerOrder.accepted_by_name ? ` (Crafted by ${lastCustomerOrder.accepted_by_name})` : ''}`}
                 </span>
               )}
               {lastCustomerOrder.status === 'completed' && (
-                <span className="status-pill status-complete">Completed & Delivered. Thank you for visiting Scialla!</span>
+                <span className="status-pill status-complete">
+                  Completed & Delivered{lastCustomerOrder.completed_by_name ? ` by ${lastCustomerOrder.completed_by_name}` : ''}. Thank you for visiting Scialla!
+                </span>
               )}
             </div>
+
+            {/* Handled by staff info */}
+            {(lastCustomerOrder.accepted_by_name || lastCustomerOrder.completed_by_name) && (
+              <div style={{ marginTop: '8px', fontSize: '0.78rem', color: '#D4C3B3', textAlign: 'center' }}>
+                Handled by: <strong style={{ color: '#E2B688' }}>{lastCustomerOrder.accepted_by_name || lastCustomerOrder.completed_by_name}</strong>
+                {lastCustomerOrder.completed_by_name && lastCustomerOrder.accepted_by_name && lastCustomerOrder.completed_by_name !== lastCustomerOrder.accepted_by_name && (
+                  <span> • Delivered by: <strong style={{ color: '#E2B688' }}>{lastCustomerOrder.completed_by_name}</strong></span>
+                )}
+              </div>
+            )}
           </div>
         )}
         <header className="scialla-header">
@@ -660,21 +674,37 @@ export default function CustomerMenuPage() {
 
                 <div className="success-receipt-summary">
                   <div className="success-line">
-                    <strong>Destination:</strong>
-                    <span style={{ color: '#C98B5B', fontWeight: 'bold' }}>{tableDisplayLabel}</span>
+                    <span className="success-label">Order Reference:</span>
+                    <strong className="success-val-order">#{orderMeta.orderNum}</strong>
                   </div>
                   <div className="success-line">
-                    <strong>Order Ref:</strong>
-                    <span>{orderMeta.orderNum}</span>
+                    <span className="success-label">Destination:</span>
+                    <strong className="success-val-dest">{tableDisplayLabel}</strong>
                   </div>
                   <div className="success-line">
-                    <strong>Payment Method:</strong>
-                    <span>{paymentMethod}</span>
+                    <span className="success-label">Payment Method:</span>
+                    <strong style={{ color: '#1A0C06' }}>{paymentMethod}</strong>
                   </div>
                   <div className="success-line">
-                    <strong>Amount Paid:</strong>
-                    <span>₱{totalAmount.toFixed(2)}</span>
+                    <span className="success-label">Total Paid:</span>
+                    <strong className="success-val-total">₱{totalAmount.toFixed(2)}</strong>
                   </div>
+                  {lastCustomerOrder && (lastCustomerOrder.accepted_by_name || lastCustomerOrder.completed_by_name) && (
+                    <div className="success-staff-block">
+                      {lastCustomerOrder.accepted_by_name && (
+                        <div className="success-line">
+                          <span className="success-label">Crafted / Accepted by:</span>
+                          <strong className="success-val-staff">{lastCustomerOrder.accepted_by_name}</strong>
+                        </div>
+                      )}
+                      {lastCustomerOrder.completed_by_name && (
+                        <div className="success-line">
+                          <span className="success-label">Delivered / Completed by:</span>
+                          <strong className="success-val-delivered">{lastCustomerOrder.completed_by_name}</strong>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <button className="btn-3d-new-order" onClick={handleNewOrder}>

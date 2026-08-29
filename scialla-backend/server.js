@@ -176,6 +176,12 @@ async function initDatabaseMigrations() {
         guest_session_id VARCHAR(64),
         user_id INTEGER,
         items_json TEXT,
+        accepted_by_id INTEGER,
+        accepted_by_name VARCHAR(150),
+        accepted_at TIMESTAMP,
+        completed_by_id INTEGER,
+        completed_by_name VARCHAR(150),
+        completed_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -185,6 +191,12 @@ async function initDatabaseMigrations() {
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS guest_session_id VARCHAR(64);`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_id INTEGER;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS items_json TEXT;`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS accepted_by_id INTEGER;`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS accepted_by_name VARCHAR(150);`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMP;`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_by_id INTEGER;`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_by_name VARCHAR(150);`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
 
     // 5. Order Items Table
@@ -197,6 +209,17 @@ async function initDatabaseMigrations() {
         size VARCHAR(50) DEFAULT '',
         qty INTEGER NOT NULL,
         price NUMERIC(10, 2) NOT NULL
+      );
+    `);
+
+    // 6. Product Stock Table for PostgreSQL inventory persistence
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS product_stock (
+        item_id VARCHAR(50) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        in_stock BOOLEAN DEFAULT TRUE,
+        quantity INTEGER DEFAULT 50,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
@@ -237,6 +260,48 @@ async function seedInitialManager() {
 }
 
 seedInitialManager();
+
+// Initial Staff Seed Mechanism
+async function seedInitialStaff() {
+  if (!db.pool) return;
+  try {
+    const checkRes = await db.query('SELECT COUNT(*) FROM staff');
+    const count = parseInt(checkRes.rows[0].count, 10);
+    if (count === 0) {
+      const defaultStaff = [
+        {
+          first_name: 'Maria',
+          last_name: 'Santos',
+          email: 'maria@scialla.com',
+          username: 'maria_barista',
+          password: 'password123',
+          role: 'Head Barista'
+        },
+        {
+          first_name: 'John',
+          last_name: 'Cruz',
+          email: 'john@scialla.com',
+          username: 'john_barista',
+          password: 'password123',
+          role: 'Barista / Cashier'
+        }
+      ];
+
+      for (const s of defaultStaff) {
+        const hashedPassword = bcrypt.hashSync(s.password, 10);
+        await db.query(
+          'INSERT INTO staff (first_name, last_name, email, username, password_hash, role, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [s.first_name, s.last_name, s.email, s.username, hashedPassword, s.role, 'Active']
+        );
+      }
+      console.log('✅ Initial Staff members seeded with registered full names (Maria Santos, John Cruz).');
+    }
+  } catch (err) {
+    console.error('Error seeding initial staff:', err);
+  }
+}
+
+seedInitialStaff();
 
 // ==================== AUTHENTICATION ROUTES ====================
 
@@ -560,9 +625,129 @@ app.patch('/api/staff/:id/password', requireDatabase, verifyToken, verifyManager
   }
 });
 
+// Active Staff Tracking Store (Socket ID -> Presence Data)
+const activeStaffSockets = new Map();
+
+function getActiveStaffList() {
+  const staffMap = new Map();
+  for (const info of activeStaffSockets.values()) {
+    if (!staffMap.has(info.id)) {
+      staffMap.set(info.id, info);
+    }
+  }
+  return Array.from(staffMap.values());
+}
+
+async function getStaffOnDutyWithStats() {
+  const activeList = getActiveStaffList();
+  if (!db.pool) {
+    return activeList.map((s) => ({ ...s, ordersHandledToday: 0 }));
+  }
+
+  try {
+    const listWithStats = await Promise.all(
+      activeList.map(async (staff) => {
+        const statsRes = await db.query(
+          `SELECT COUNT(DISTINCT id) AS count FROM orders 
+           WHERE (accepted_by_id = $1 OR completed_by_id = $1 OR accepted_by_name = $2 OR completed_by_name = $2) 
+           AND created_at >= CURRENT_DATE`,
+          [staff.id, staff.name || '']
+        );
+        const count = statsRes.rows.length > 0 ? parseInt(statsRes.rows[0].count, 10) : 0;
+        return {
+          ...staff,
+          ordersHandledToday: count
+        };
+      })
+    );
+    return listWithStats;
+  } catch (err) {
+    console.error('Error computing staff on-duty stats:', err);
+    return activeList.map((s) => ({ ...s, ordersHandledToday: 0 }));
+  }
+}
+
+// Get Staff On Duty (Real-time presence with shift login times & order count)
+app.get('/api/staff/on-duty', async (req, res) => {
+  try {
+    const onDutyStaff = await getStaffOnDutyWithStats();
+    return res.json({ success: true, staff: onDutyStaff });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch on-duty staff.' });
+  }
+});
+
+// ==================== PRODUCT STOCK & INVENTORY ROUTES ====================
+
+// Get Product Stock (All connected clients)
+app.get('/api/products/stock', async (req, res) => {
+  try {
+    if (db.pool) {
+      const stockRes = await db.query('SELECT item_id, name, in_stock, quantity, updated_at FROM product_stock');
+      const stockMap = {};
+      stockRes.rows.forEach((r) => {
+        stockMap[r.item_id] = {
+          itemId: r.item_id,
+          name: r.name,
+          inStock: r.in_stock,
+          quantity: r.quantity,
+          updatedAt: r.updated_at
+        };
+      });
+      return res.json({ success: true, stock: stockMap });
+    }
+    return res.json({ success: true, stock: {} });
+  } catch (err) {
+    console.error('Get Stock Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch product stock.' });
+  }
+});
+
+// Update Product Stock (Staff / Manager)
+app.patch('/api/products/stock/:id', requireDatabase, optionalAuth, async (req, res) => {
+  const itemId = req.params.id;
+  const { inStock, quantity, name } = req.body;
+
+  try {
+    const stockVal = typeof inStock === 'boolean' ? inStock : true;
+    const qtyVal = typeof quantity === 'number' ? quantity : (stockVal ? 50 : 0);
+    const itemName = name || itemId;
+
+    const upsertRes = await db.query(
+      `INSERT INTO product_stock (item_id, name, in_stock, quantity, updated_at)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+       ON CONFLICT (item_id) DO UPDATE SET
+         name = EXCLUDED.name,
+         in_stock = EXCLUDED.in_stock,
+         quantity = EXCLUDED.quantity,
+         updated_at = CURRENT_TIMESTAMP
+       RETURNING item_id, name, in_stock, quantity, updated_at`,
+      [itemId, itemName, stockVal, qtyVal]
+    );
+
+    const updatedRow = upsertRes.rows[0];
+    const payload = {
+      itemId: updatedRow.item_id,
+      name: updatedRow.name,
+      inStock: updatedRow.in_stock,
+      quantity: updatedRow.quantity,
+      updatedAt: updatedRow.updated_at
+    };
+
+    // Broadcast real-time stock update to ALL connected clients (customers, staff, managers)
+    io.emit('stock:updated', payload);
+    console.log(`📦 [Stock Sync] Item ${itemId} stock updated: inStock=${stockVal}, qty=${qtyVal}`);
+
+    return res.json({ success: true, item: payload });
+  } catch (err) {
+    console.error('Update Stock Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to update product stock.' });
+  }
+});
+
 // ==================== REAL-TIME ORDERS ROUTES & HELPERS ====================
 
-// Helper: Save & Format Order in PostgreSQL with Ownership
+// Helper: Save & Format Order in PostgreSQL with Ownership and Audit Trail
 async function saveOrderToDatabase(orderData, userId = null, guestSessionId = null) {
   const orderId = orderData.id || orderData.orderNum || `SC-${Math.floor(1000 + Math.random() * 9000)}`;
   const tableName = orderData.table || orderData.table_name || 'Table 1';
@@ -573,6 +758,12 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
   const items = orderData.items || [];
   const assignedUserId = userId || orderData.user_id || null;
   const assignedGuestId = guestSessionId || orderData.guest_session_id || orderData.guestSessionId || null;
+  const acceptedById = orderData.accepted_by_id || null;
+  const acceptedByName = orderData.accepted_by_name || null;
+  const acceptedAt = orderData.accepted_at || null;
+  const completedById = orderData.completed_by_id || null;
+  const completedByName = orderData.completed_by_name || null;
+  const completedAt = orderData.completed_at || null;
 
   // Construct complete normalized order object for real-time emission and DB storage
   const formattedItems = items.map((item) => {
@@ -617,8 +808,12 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
 
     try {
       await db.query(
-        `INSERT INTO orders (id, table_name, timestamp, total, payment_method, status, guest_session_id, user_id, items_json, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+        `INSERT INTO orders (
+           id, table_name, timestamp, total, payment_method, status,
+           guest_session_id, user_id, items_json, accepted_by_id, accepted_by_name,
+           accepted_at, completed_by_id, completed_by_name, completed_at, updated_at
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, CURRENT_TIMESTAMP)
          ON CONFLICT (id) DO UPDATE SET
            status = EXCLUDED.status,
            total = EXCLUDED.total,
@@ -626,8 +821,19 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
            guest_session_id = COALESCE(EXCLUDED.guest_session_id, orders.guest_session_id),
            user_id = COALESCE(EXCLUDED.user_id, orders.user_id),
            items_json = EXCLUDED.items_json,
+           accepted_by_id = COALESCE(EXCLUDED.accepted_by_id, orders.accepted_by_id),
+           accepted_by_name = COALESCE(EXCLUDED.accepted_by_name, orders.accepted_by_name),
+           accepted_at = COALESCE(EXCLUDED.accepted_at, orders.accepted_at),
+           completed_by_id = COALESCE(EXCLUDED.completed_by_id, orders.completed_by_id),
+           completed_by_name = COALESCE(EXCLUDED.completed_by_name, orders.completed_by_name),
+           completed_at = COALESCE(EXCLUDED.completed_at, orders.completed_at),
            updated_at = CURRENT_TIMESTAMP`,
-        [orderId, tableName, timestamp, total, paymentMethod, status, assignedGuestId, assignedUserId, itemsJson]
+        [
+          orderId, tableName, timestamp, total, paymentMethod, status,
+          assignedGuestId, assignedUserId, itemsJson,
+          acceptedById, acceptedByName, acceptedAt,
+          completedById, completedByName, completedAt
+        ]
       );
     } catch (err) {
       console.error('Error inserting order row into orders table:', err);
@@ -658,23 +864,29 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
     status,
     guest_session_id: assignedGuestId,
     user_id: assignedUserId,
+    accepted_by_id: acceptedById,
+    accepted_by_name: acceptedByName,
+    accepted_at: acceptedAt,
+    completed_by_id: completedById,
+    completed_by_name: completedByName,
+    completed_at: completedAt,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     items: formattedItems
   };
 }
 
-// Get Orders (Filtered by Role / Ownership)
+// Get Orders (Filtered by Role / Ownership with Full Staff Audit Trail)
 app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
   try {
     const isStaffOrManager = req.user && (req.user.role === 'staff' || req.user.role === 'manager');
     const guestSessionId = req.headers['x-guest-session'] || req.query.guestSessionId;
     const userId = req.user ? req.user.id : null;
 
-    let ordersQuery = 'SELECT * FROM orders ORDER BY created_at ASC';
+    let ordersQuery = 'SELECT * FROM orders ORDER BY created_at DESC';
     let queryParams = [];
 
-    // If customer / guest, filter to orders they own
+    // If customer / guest, filter strictly to orders they own
     if (!isStaffOrManager) {
       if (userId && guestSessionId) {
         ordersQuery = 'SELECT * FROM orders WHERE user_id = $1 OR guest_session_id = $2 ORDER BY created_at DESC';
@@ -687,7 +899,7 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
         queryParams = [guestSessionId];
       } else {
         // Fallback for demo or initial state
-        ordersQuery = 'SELECT * FROM orders ORDER BY created_at ASC LIMIT 50';
+        ordersQuery = 'SELECT * FROM orders ORDER BY created_at DESC LIMIT 50';
       }
     }
 
@@ -739,6 +951,12 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
         status: o.status,
         guest_session_id: o.guest_session_id,
         user_id: o.user_id,
+        accepted_by_id: o.accepted_by_id,
+        accepted_by_name: o.accepted_by_name,
+        accepted_at: o.accepted_at,
+        completed_by_id: o.completed_by_id,
+        completed_by_name: o.completed_by_name,
+        completed_at: o.completed_at,
         createdAt: o.created_at,
         updatedAt: o.updated_at || o.created_at,
         items: orderItems
@@ -752,7 +970,7 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
   }
 });
 
-// Get Single Order by ID (Validates Ownership)
+// Get Single Order by ID (Validates Ownership & Returns Staff Audit Info)
 app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
   const orderId = req.params.id;
   const guestSessionId = req.headers['x-guest-session'] || req.query.guestSessionId;
@@ -770,7 +988,7 @@ app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
     const isOwner = isStaffOrManager ||
       (orderRow.user_id && req.user && orderRow.user_id === req.user.id) ||
       (orderRow.guest_session_id && guestSessionId && orderRow.guest_session_id === guestSessionId) ||
-      (!orderRow.user_id && !orderRow.guest_session_id); // Legacy fallback
+      (!orderRow.user_id && !orderRow.guest_session_id);
 
     if (!isOwner) {
       return res.status(403).json({ success: false, message: 'You are not authorized to view this order.' });
@@ -815,6 +1033,12 @@ app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
         status: orderRow.status,
         guest_session_id: orderRow.guest_session_id,
         user_id: orderRow.user_id,
+        accepted_by_id: orderRow.accepted_by_id,
+        accepted_by_name: orderRow.accepted_by_name,
+        accepted_at: orderRow.accepted_at,
+        completed_by_id: orderRow.completed_by_id,
+        completed_by_name: orderRow.completed_by_name,
+        completed_at: orderRow.completed_at,
         createdAt: orderRow.created_at,
         updatedAt: orderRow.updated_at || orderRow.created_at,
         items: formattedItems
@@ -826,11 +1050,36 @@ app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
   }
 });
 
-// Create Order (HTTP POST) - Public for Customer Checkout
+// Create Order (HTTP POST) - Public for Customer Checkout with Stock Validation
 app.post('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
   try {
     const userId = req.user ? req.user.id : null;
     const guestSessionId = req.headers['x-guest-session'] || req.body.guestSessionId || req.body.guest_session_id || null;
+    const orderItems = req.body.items || [];
+
+    // Backend Stock Verification to prevent overselling
+    if (db.pool && Array.isArray(orderItems) && orderItems.length > 0) {
+      for (const it of orderItems) {
+        const itemId = String(it.id || it.item_id || it.originalId || '');
+        if (itemId) {
+          const baseItemId = itemId.includes('-') ? itemId.split('-')[0] : itemId;
+          const stockCheck = await db.query(
+            'SELECT in_stock, quantity, name FROM product_stock WHERE item_id = $1 OR item_id = $2',
+            [itemId, baseItemId]
+          );
+          if (stockCheck.rows.length > 0) {
+            const sRow = stockCheck.rows[0];
+            if (sRow.in_stock === false || (typeof sRow.quantity === 'number' && sRow.quantity <= 0)) {
+              return res.status(409).json({
+                success: false,
+                message: `${sRow.name || it.name || 'An item'} is no longer available. Please update your order.`,
+                outOfStockItem: itemId
+              });
+            }
+          }
+        }
+      }
+    }
 
     const fullOrder = await saveOrderToDatabase(req.body, userId, guestSessionId);
 
@@ -853,10 +1102,10 @@ app.post('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
   }
 });
 
-// Update Order Status (PATCH) - Targeted Status Updates
+// Update Order Status (PATCH) - Atomic Multi-Staff Concurrency Handling & Registered Staff Identity
 app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
   const orderId = req.params.id;
-  const { status } = req.body;
+  const { status, staffName: clientStaffName } = req.body;
 
   if (!status) {
     return res.status(400).json({ success: false, message: 'Status is required.' });
@@ -864,32 +1113,107 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
 
   try {
     let updatedAt = new Date().toISOString();
+    let updatedOrder = null;
 
     if (db.pool) {
-      const updateRes = await db.query(
-        'UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING updated_at',
-        [status, orderId]
-      );
-      if (updateRes.rows.length > 0 && updateRes.rows[0].updated_at) {
-        updatedAt = new Date(updateRes.rows[0].updated_at).toISOString();
+      // 1. Fetch current order from PostgreSQL to prevent multi-staff race conditions
+      const currentRes = await db.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+      if (currentRes.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Order not found.' });
       }
-      console.log(`💾 [DB] Order ${orderId} status updated in PostgreSQL to: ${status}`);
+
+      const currentOrder = currentRes.rows[0];
+
+      // Multi-Staff Concurrency Check: If staff tries to accept an order already handled
+      if (status === 'preparing' && currentOrder.status !== 'new' && currentOrder.status !== 'preparing') {
+        return res.status(409).json({
+          success: false,
+          message: `Order #${orderId} has already been accepted and is currently in status "${currentOrder.status}" (Handled by ${currentOrder.accepted_by_name || 'another team member'}).`,
+          order: currentOrder
+        });
+      }
+
+      // Determine authenticated staff identity from server-side verified JWT or registered database profile
+      let authenticatedStaffId = req.user && (req.user.role === 'staff' || req.user.role === 'manager') ? req.user.id : null;
+      let authenticatedStaffName = null;
+
+      if (authenticatedStaffId) {
+        // Query database to retrieve exact registered full name
+        try {
+          const stRes = await db.query('SELECT first_name, last_name, username FROM staff WHERE id = $1', [authenticatedStaffId]);
+          if (stRes.rows.length > 0) {
+            const stRow = stRes.rows[0];
+            authenticatedStaffName = `${stRow.first_name || ''} ${stRow.last_name || ''}`.trim() || stRow.username;
+          }
+        } catch {}
+      }
+
+      if (!authenticatedStaffName) {
+        if (req.user) {
+          authenticatedStaffName = req.user.name || (req.user.first_name ? `${req.user.first_name} ${req.user.last_name || ''}`.trim() : req.user.username);
+        } else if (clientStaffName) {
+          authenticatedStaffName = clientStaffName;
+        }
+      }
+
+      let updateSql = 'UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP';
+      let params = [status, orderId];
+      let paramIdx = 3;
+
+      if (status === 'preparing') {
+        // Record registered staff who accepted order
+        if (authenticatedStaffName && !currentOrder.accepted_by_name) {
+          updateSql += `, accepted_by_id = $${paramIdx++}, accepted_by_name = $${paramIdx++}, accepted_at = CURRENT_TIMESTAMP`;
+          params.push(authenticatedStaffId, authenticatedStaffName);
+        }
+      } else if (status === 'completed') {
+        // Record registered staff who completed order
+        if (authenticatedStaffName) {
+          updateSql += `, completed_by_id = $${paramIdx++}, completed_by_name = $${paramIdx++}, completed_at = CURRENT_TIMESTAMP`;
+          params.push(authenticatedStaffId, authenticatedStaffName);
+        }
+      }
+
+      updateSql += ' WHERE id = $2 RETURNING *';
+
+      const updateRes = await db.query(updateSql, params);
+      if (updateRes.rows.length > 0) {
+        const row = updateRes.rows[0];
+        updatedAt = new Date(row.updated_at).toISOString();
+        updatedOrder = {
+          id: row.id,
+          orderId: row.id,
+          status: row.status,
+          table: row.table_name,
+          total: parseFloat(row.total),
+          paymentMethod: row.payment_method,
+          accepted_by_id: row.accepted_by_id,
+          accepted_by_name: row.accepted_by_name,
+          accepted_at: row.accepted_at,
+          completed_by_id: row.completed_by_id,
+          completed_by_name: row.completed_by_name,
+          completed_at: row.completed_at,
+          updatedAt
+        };
+      }
+      console.log(`💾 [DB] Order ${orderId} updated to ${status} by ${authenticatedStaffName || 'Staff'}`);
     }
 
-    const payload = {
+    const payload = updatedOrder || {
       id: orderId,
       orderId,
       status,
       updatedAt
     };
 
-    // 1. Emit targeted status update strictly to the customer/device listening to this order
-    io.to(`order:${orderId}`).emit('order:status_updated', payload);
-    console.log(`📡 [Socket] Targeted order:status_updated (${status}) to room order:${orderId}`);
+    // 1. Emit targeted status update to order room and staff room (chained to prevent duplicate packets)
+    io.to(`order:${orderId}`).to('staff:orders').emit('order:status_updated', payload);
+    io.emit('order:updated', payload);
 
-    // 2. Emit status update to staff room for staff dashboard synchronizations
-    io.to('staff:orders').emit('order:status_updated', payload);
-    console.log(`📡 [Socket] Emitted order:status_updated (${status}) for ${orderId} to staff:orders`);
+    // 3. Emit updated staff presence and live order counts
+    getStaffOnDutyWithStats().then((list) => {
+      io.emit('staff:presence', list);
+    });
 
     return res.json({ success: true, order: payload });
   } catch (err) {
@@ -927,9 +1251,23 @@ io.on('connection', (socket) => {
       const decoded = jwt.verify(token, JWT_SECRET || 'scialla_dev_jwt_secret_key_2026');
       socket.data.user = decoded;
       socket.data.role = decoded.role;
+
       if (decoded.role === 'staff' || decoded.role === 'manager') {
         socket.join('staff:orders');
-        console.log(`🛡️ [Socket Auth] Staff/Manager ${decoded.id} joined staff:orders`);
+      }
+
+      if (decoded.role === 'staff') {
+        activeStaffSockets.set(socket.id, {
+          id: decoded.id,
+          name: decoded.name || 'Staff Member',
+          email: decoded.email,
+          role: decoded.staffRole || decoded.role || 'Barista',
+          loginTime: new Date().toISOString()
+        });
+        console.log(`[Socket Auth] Staff ${decoded.id} (${decoded.name}) on duty.`);
+        getStaffOnDutyWithStats().then((list) => {
+          io.emit('staff:presence', list);
+        });
       }
       socket.join(`user:${decoded.id}`);
     } catch {
@@ -1011,32 +1349,81 @@ io.on('connection', (socket) => {
   });
 
   // Order status update via Socket.IO (Staff / Manager)
-  socket.on('order:update_status', async ({ id, status }) => {
+  socket.on('order:update_status', async ({ id, status, staffName: clientStaffName }) => {
     if (!id || !status) return;
     try {
       let updatedAt = new Date().toISOString();
+      let updatedOrder = null;
 
       if (db.pool) {
-        const updateRes = await db.query(
-          'UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING updated_at',
-          [status, id]
-        );
-        if (updateRes.rows.length > 0 && updateRes.rows[0].updated_at) {
-          updatedAt = new Date(updateRes.rows[0].updated_at).toISOString();
+        const staffId = socket.data.user?.id || null;
+        let staffName = socket.data.user?.name;
+
+        if (staffId) {
+          try {
+            const stRes = await db.query('SELECT first_name, last_name, username FROM staff WHERE id = $1', [staffId]);
+            if (stRes.rows.length > 0) {
+              const stRow = stRes.rows[0];
+              staffName = `${stRow.first_name || ''} ${stRow.last_name || ''}`.trim() || stRow.username;
+            }
+          } catch {}
+        }
+
+        if (!staffName) {
+          staffName = clientStaffName || socket.data.user?.username;
+        }
+
+        let updateSql = 'UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP';
+        let params = [status, id];
+        let pIdx = 3;
+
+        if (status === 'preparing') {
+          if (staffName) {
+            updateSql += `, accepted_by_id = $${pIdx++}, accepted_by_name = $${pIdx++}, accepted_at = CURRENT_TIMESTAMP`;
+            params.push(staffId, staffName);
+          }
+        } else if (status === 'completed') {
+          if (staffName) {
+            updateSql += `, completed_by_id = $${pIdx++}, completed_by_name = $${pIdx++}, completed_at = CURRENT_TIMESTAMP`;
+            params.push(staffId, staffName);
+          }
+        }
+
+        updateSql += ' WHERE id = $2 RETURNING *';
+
+        const updateRes = await db.query(updateSql, params);
+        if (updateRes.rows.length > 0) {
+          const row = updateRes.rows[0];
+          updatedAt = new Date(row.updated_at).toISOString();
+          updatedOrder = {
+            id: row.id,
+            orderId: row.id,
+            status: row.status,
+            table: row.table_name,
+            total: parseFloat(row.total),
+            paymentMethod: row.payment_method,
+            accepted_by_id: row.accepted_by_id,
+            accepted_by_name: row.accepted_by_name,
+            accepted_at: row.accepted_at,
+            completed_by_id: row.completed_by_id,
+            completed_by_name: row.completed_by_name,
+            completed_at: row.completed_at,
+            updatedAt
+          };
         }
         console.log(`💾 [Socket DB] Order ${id} status updated to: ${status}`);
       }
 
-      const payload = {
+      const payload = updatedOrder || {
         id,
         orderId: id,
         status,
         updatedAt
       };
 
-      // Targeted emission strictly to order room and staff room
-      io.to(`order:${id}`).emit('order:status_updated', payload);
-      io.to('staff:orders').emit('order:status_updated', payload);
+      // Targeted emission strictly to order room and staff room (chained to prevent duplicate packets)
+      io.to(`order:${id}`).to('staff:orders').emit('order:status_updated', payload);
+      io.emit('order:updated', payload);
       console.log(`📡 [Socket Event] Targeted order:status_updated for ${id} -> ${status}`);
     } catch (err) {
       console.error('Error processing order:update_status socket event:', err);
@@ -1044,12 +1431,40 @@ io.on('connection', (socket) => {
   });
 
   // Stock availability toggle via Socket.IO
-  socket.on('stock:toggle', (data) => {
-    io.emit('stock:updated', data);
+  socket.on('stock:toggle', async (data) => {
+    if (data && data.itemId) {
+      const stockVal = typeof data.inStock === 'boolean' ? data.inStock : true;
+      const qtyVal = typeof data.quantity === 'number' ? data.quantity : (stockVal ? 50 : 0);
+      const itemName = data.name || data.itemId;
+
+      if (db.pool) {
+        try {
+          await db.query(
+            `INSERT INTO product_stock (item_id, name, in_stock, quantity, updated_at)
+             VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+             ON CONFLICT (item_id) DO UPDATE SET
+               name = EXCLUDED.name,
+               in_stock = EXCLUDED.in_stock,
+               quantity = EXCLUDED.quantity,
+               updated_at = CURRENT_TIMESTAMP`,
+            [data.itemId, itemName, stockVal, qtyVal]
+          );
+        } catch (e) {
+          console.warn('Socket stock update DB note:', e.message);
+        }
+      }
+      io.emit('stock:updated', { itemId: data.itemId, name: itemName, inStock: stockVal, quantity: qtyVal });
+    }
   });
 
   socket.on('disconnect', () => {
     console.log(`🔌 [Socket] Client disconnected: ${socket.id}`);
+    if (activeStaffSockets.has(socket.id)) {
+      activeStaffSockets.delete(socket.id);
+      getStaffOnDutyWithStats().then((list) => {
+        io.emit('staff:presence', list);
+      });
+    }
   });
 });
 

@@ -128,7 +128,7 @@ const initialCategories = [
         ],
         tag: 'Rich',
         inStock: true,
-        image: '/images/products/garlicparmesan.png'
+        image: '/images/products/cocoadream.png'
       },
       {
         id: 'nc5',
@@ -184,7 +184,7 @@ const initialCategories = [
         ],
         tag: 'Best Seller',
         inStock: true,
-        image: '/images/products/sourcream.png'
+        image: '/images/products/matcha.png'
       }
     ]
   },
@@ -232,7 +232,7 @@ const initialCategories = [
         ],
         tag: 'Tangy',
         inStock: true,
-        image: '/images/products/matcha.png'
+        image: '/images/products/greenapplesoda.png'
       }
     ]
   },
@@ -254,9 +254,9 @@ const initialCategories = [
     category: 'Waffles',
     items: [
       { id: 'wf1', name: 'Strawberry & Cream Waffle', description: 'Freshly baked Belgian waffle topped with strawberry puree and whipped cream', price: 75, tag: 'Sweet', inStock: true, image: '/images/products/strawberrywaffle.png' },
-      { id: 'wf2', name: 'Blueberry & Cream Waffle', description: 'Golden crisp waffle loaded with blueberry topping and whipped cream', price: 75, tag: 'Fruity', inStock: true, image: '/images/products/chococookieewaffles.png' },
+      { id: 'wf2', name: 'Blueberry & Cream Waffle', description: 'Golden crisp waffle loaded with blueberry topping and whipped cream', price: 75, tag: 'Fruity', inStock: true, image: '/images/products/almondcaramelwaffle.png' },
       { id: 'wf3', name: 'Almond Caramel Waffle', description: 'Warm waffle topped with toasted sliced almonds and butter caramel sauce', price: 75, tag: 'Popular', inStock: true, image: '/images/products/almondcaramelwaffle.png' },
-      { id: 'wf4', name: 'Chocolate Cookie Waffle', description: 'Decadent chocolate drizzle waffle topped with crushed cookie pieces', price: 75, tag: 'Indulgent', inStock: true, image: '/images/products/cheesestick.png' },
+      { id: 'wf4', name: 'Chocolate Cookie Waffle', description: 'Decadent chocolate drizzle waffle topped with crushed cookie pieces', price: 75, tag: 'Indulgent', inStock: true, image: '/images/products/chococookieewaffles.png' },
       { id: 'wf5', name: 'Cheesy Cheese Waffle', description: 'Warm savoury cheese waffle topped with melted cheddar cheese', price: 75, tag: 'Savoury', inStock: true, image: '/images/products/cheesequesa.png' }
     ]
   },
@@ -275,7 +275,7 @@ const initialCategories = [
     items: [
       { id: 'pk1', name: 'Kropek', description: 'Crispy deep-fried prawn crackers served with spicy vinegar dip', price: 45, tag: 'Crunchy', inStock: true, image: '/images/products/kropek.png' },
       { id: 'pk2', name: 'Fries in Basket', description: 'Crispy potato fries available in Cheese, BBQ, Sour Cream, White Cheddar, or Salt', price: 55, tag: 'Popular', inStock: true, image: '/images/products/fries.png' },
-      { id: 'pk3', name: 'Cheese Sticks', description: 'Golden fried spring roll wrappers filled with gooey cheddar cheese sticks', price: 99, tag: 'Cheesy', inStock: true, image: '/images/products/bbqfries.png' },
+      { id: 'pk3', name: 'Cheese Sticks', description: 'Golden fried spring roll wrappers filled with gooey cheddar cheese sticks', price: 99, tag: 'Cheesy', inStock: true, image: '/images/products/cheesestick.png' },
       { id: 'pk4', name: 'Overload Fries', description: 'Crispy French fries smothered in melted cheese sauce, bacon bits & jalapeños', price: 99, tag: 'Overloaded', inStock: true, image: '/images/products/cheesefries.png' },
       { id: 'pk5', name: 'Overload Nachos', description: 'Crispy corn tortilla chips topped with ground beef, cheese sauce, salsa & jalapeños', price: 120, tag: 'Best Seller', inStock: true, image: '/images/products/nachos.png' },
       { id: 'pk6', name: 'Chicken Tenders', description: 'Crispy golden fried chicken breast tenders served with dip choice', price: 120, tag: 'Crispy', inStock: true, image: '/images/products/chickenskin.png' }
@@ -285,20 +285,20 @@ const initialCategories = [
     id: 'quesadilla',
     category: 'Quesadilla',
     items: [
-      { id: 'qd1', name: 'Cheesy Quesa', description: 'Toasted flour tortilla stuffed with melted cheddar & mozzarella blend', price: 89, tag: 'Cheesy', inStock: true, image: '/images/products/hamcheesequesa.png' },
-      { id: 'qd2', name: 'Ham & Cheese Quesa', description: 'Grilled tortilla loaded with savory ham slices and melted cheese', price: 89, tag: 'Classic', inStock: true, image: '/images/products/beefquesa.png' },
-      { id: 'qd3', name: 'Beef Quesa', description: 'Toasted tortilla filled with seasoned ground beef and melted cheese', price: 99, tag: 'Popular', inStock: true, image: '/images/products/kikiamsquid.png' },
-      { id: 'qd4', name: 'Quesa Supreme', description: 'Loaded tortilla with beef, ham, bell peppers, onions, and double melted cheese', price: 109, tag: 'Supreme', inStock: true, image: '/images/products/hotdog.png' }
+      { id: 'qd1', name: 'Cheesy Quesa', description: 'Toasted flour tortilla stuffed with melted cheddar & mozzarella blend', price: 89, tag: 'Cheesy', inStock: true, image: '/images/products/cheesequesa.png' },
+      { id: 'qd2', name: 'Ham & Cheese Quesa', description: 'Grilled tortilla loaded with savory ham slices and melted cheese', price: 89, tag: 'Classic', inStock: true, image: '/images/products/hamcheesequesa.png' },
+      { id: 'qd3', name: 'Beef Quesa', description: 'Toasted tortilla filled with seasoned ground beef and melted cheese', price: 99, tag: 'Popular', inStock: true, image: '/images/products/beefquesa.png' },
+      { id: 'qd4', name: 'Quesa Supreme', description: 'Loaded tortilla with beef, ham, bell peppers, onions, and double melted cheese', price: 109, tag: 'Supreme', inStock: true, image: '/images/products/beefquesa.png' }
     ]
   },
   {
     id: 'sandwiches',
     category: 'Sandwiches & Burgers',
     items: [
-      { id: 'sw1', name: 'Hotdog Overload', description: 'Jumbo grilled hotdog in toasted bun with cheese sauce, mayo & bacon bits', price: 89, tag: 'Loaded', inStock: true, image: '/images/products/chickensandwich.png' },
-      { id: 'sw2', name: 'Crispy Chicken Sandwich', description: 'Crispy fried chicken thigh filet with lettuce, mayo & pickles on toasted brioche', price: 99, tag: 'Crispy', inStock: true, image: '/images/products/clubhouse.png' },
-      { id: 'sw3', name: 'Scialla\'s Clubhouse', description: 'Triple decker toasted sandwich with ham, chicken, bacon, egg, cheese & lettuce', price: 120, tag: 'Signature', inStock: true, image: '/images/products/beefburger.png' },
-      { id: 'sw4', name: 'Scialla\'s Beef Burger', description: 'Juicy 100% pure beef patty with melted cheddar, caramelized onions & house sauce', price: 139, tag: 'Gourmet', inStock: true, image: '/images/products/4cheese.png' }
+      { id: 'sw1', name: 'Hotdog Overload', description: 'Jumbo grilled hotdog in toasted bun with cheese sauce, mayo & bacon bits', price: 89, tag: 'Loaded', inStock: true, image: '/images/products/hotdog.png' },
+      { id: 'sw2', name: 'Crispy Chicken Sandwich', description: 'Crispy fried chicken thigh filet with lettuce, mayo & pickles on toasted brioche', price: 99, tag: 'Crispy', inStock: true, image: '/images/products/chickensandwich.png' },
+      { id: 'sw3', name: 'Scialla\'s Clubhouse', description: 'Triple decker toasted sandwich with ham, chicken, bacon, egg, cheese & lettuce', price: 120, tag: 'Signature', inStock: true, image: '/images/products/clubhouse.png' },
+      { id: 'sw4', name: 'Scialla\'s Beef Burger', description: 'Juicy 100% pure beef patty with melted cheddar, caramelized onions & house sauce', price: 139, tag: 'Gourmet', inStock: true, image: '/images/products/beefburger.png' }
     ]
   },
   {
@@ -321,13 +321,13 @@ const initialCategories = [
       { id: 'da2', name: '1 Shot Espresso', description: 'Extra shot of rich single-origin espresso', price: 10, tag: 'Coffee', inStock: true, image: '/images/products/spanish.png' },
       { id: 'da3', name: 'Strawberry Flavor', description: 'Extra organic strawberry syrup shot', price: 10, tag: 'Fruity', inStock: true, image: '/images/products/strawberry.png' },
       { id: 'da4', name: 'Blueberry Flavor', description: 'Extra organic blueberry syrup shot', price: 10, tag: 'Fruity', inStock: true, image: '/images/products/blueberrysoda.png' },
-      { id: 'da5', name: 'Almond Syrup', description: 'Nutty almond syrup shot', price: 10, tag: 'Nutty', inStock: true, image: '/images/products/almondcaramelwaffle.png' },
+      { id: 'da5', name: 'Almond Syrup', description: 'Nutty almond syrup shot', price: 10, tag: 'Nutty', inStock: true, image: '/images/products/caramelmacc.png' },
       { id: 'da6', name: 'Oreo Crumbles', description: 'Extra crunchy crushed Oreo cookies', price: 10, tag: 'Topping', inStock: true, image: '/images/products/oreodalgona.png' },
       { id: 'da7', name: 'Caramel Drizzle', description: 'Rich caramel sauce swirl', price: 10, tag: 'Topping', inStock: true, image: '/images/products/icemocha.png' },
       { id: 'da8', name: 'Chocolate Drizzle', description: 'Rich Dutch cocoa chocolate sauce drizzle', price: 15, tag: 'Topping', inStock: true, image: '/images/products/cocoadream.png' },
       { id: 'da9', name: 'Bobba Pearls', description: 'Chewy tapioca boba pearls', price: 20, tag: 'Chewy', inStock: true, image: '/images/products/tarocream.png' },
       { id: 'da10', name: 'Nata de Coco', description: 'Sweet chewy coconut nata cubes', price: 20, tag: 'Chewy', inStock: true, image: '/images/products/strawberrysoda.png' },
-      { id: 'da11', name: 'Coffee Jelly', description: 'Handcrafted espresso coffee jelly cubes', price: 20, tag: 'Jelly', inStock: true, image: '/images/products/matcha.png' }
+      { id: 'da11', name: 'Coffee Jelly', description: 'Handcrafted espresso coffee jelly cubes', price: 20, tag: 'Jelly', inStock: true, image: '/images/products/spanish.png' }
     ]
   },
   {
@@ -336,7 +336,7 @@ const initialCategories = [
     items: [
       { id: 'fa1', name: 'Extra Egg', description: 'Fried sunny-side up or poached egg', price: 20, tag: 'Side', inStock: true, image: '/images/products/hungarian.png' },
       { id: 'fa2', name: 'Extra Lettuce', description: 'Fresh green leaf lettuce portion', price: 20, tag: 'Fresh', inStock: true, image: '/images/products/crispybelly.png' },
-      { id: 'fa3', name: 'Extra Cheese', description: 'Melted cheddar or mozzarella cheese slice', price: 20, tag: 'Cheesy', inStock: true, image: '/images/products/cheesefries.png' },
+      { id: 'fa3', name: 'Extra Cheese', description: 'Melted cheddar or mozzarella cheese slice', price: 20, tag: 'Cheesy', inStock: true, image: '/images/products/whitecheddar.png' },
       { id: 'fa4', name: 'Extra Mayonnaise', description: 'Creamy garlic mayo dip portion', price: 25, tag: 'Sauce', inStock: true, image: '/images/products/garlicparmesan.png' }
     ]
   }
@@ -375,6 +375,7 @@ export function AppProvider({ children }) {
     }
   });
   const [staffList, setStaffList] = useState([]);
+  const [staffOnDuty, setStaffOnDuty] = useState([]);
   const [lastCustomerOrder, setLastCustomerOrder] = useState(() => {
     try {
       const saved = localStorage.getItem('scialla_active_order');
@@ -384,15 +385,103 @@ export function AppProvider({ children }) {
     }
   });
 
+  // Customer Order History IDs tracking (bound to current guest/user session)
+  const [customerOrderIds, setCustomerOrderIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('scialla_customer_order_ids');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Customer Notifications list with strict deduplication
+  const [customerNotifications, setCustomerNotifications] = useState(() => {
+    try {
+      const saved = localStorage.getItem('scialla_customer_notifications');
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return [];
+      const seen = new Set();
+      return parsed.filter((n) => {
+        const key = n.key || `${n.orderId || 'gen'}-${n.status || ''}-${n.title || ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    } catch {
+      return [];
+    }
+  });
+
   // Real-Time WebSocket Connection
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
+
+  // Sync customer order IDs to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('scialla_customer_order_ids', JSON.stringify(customerOrderIds));
+    } catch (e) {
+      console.warn('Failed to sync customer order IDs:', e);
+    }
+  }, [customerOrderIds]);
+
+  // Sync customer notifications to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('scialla_customer_notifications', JSON.stringify(customerNotifications));
+    } catch (e) {
+      console.warn('Failed to sync customer notifications:', e);
+    }
+  }, [customerNotifications]);
+
+  const addCustomerNotification = (notif) => {
+    const dedupKey = notif.key || `${notif.orderId || 'gen'}-${notif.status || ''}-${notif.title || ''}`;
+    const newEntry = {
+      id: `${dedupKey}`,
+      key: dedupKey,
+      read: false,
+      timestamp: new Date().toISOString(),
+      ...notif
+    };
+
+    setCustomerNotifications((prev) => {
+      // Find if notification for this exact order & status transition already exists
+      const existsIndex = prev.findIndex(
+        (n) => (n.key && n.key === dedupKey) ||
+               (n.orderId && n.orderId === notif.orderId && n.status && n.status === notif.status)
+      );
+
+      if (existsIndex > -1) {
+        // Update in place without duplicating
+        const updated = [...prev];
+        updated[existsIndex] = { ...updated[existsIndex], ...newEntry };
+        return updated;
+      }
+
+      return [newEntry, ...prev].slice(0, 40);
+    });
+  };
+
+  const markNotificationsAsRead = () => {
+    setCustomerNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const clearNotifications = () => {
+    setCustomerNotifications([]);
+  };
+
+  const unreadNotificationsCount = customerNotifications.filter((n) => !n.read).length;
 
   // Sync active customer order to localStorage
   useEffect(() => {
     try {
       if (lastCustomerOrder) {
         localStorage.setItem('scialla_active_order', JSON.stringify(lastCustomerOrder));
+        if (lastCustomerOrder.id) {
+          setCustomerOrderIds((prev) => (prev.includes(lastCustomerOrder.id) ? prev : [lastCustomerOrder.id, ...prev]));
+        }
       } else {
         localStorage.removeItem('scialla_active_order');
       }
@@ -429,6 +518,16 @@ export function AppProvider({ children }) {
       if (e.key === 'scialla_guest_session' && e.newValue) {
         setGuestSessionId(e.newValue);
       }
+      if (e.key === 'scialla_customer_notifications' && e.newValue) {
+        try {
+          setCustomerNotifications(JSON.parse(e.newValue));
+        } catch {}
+      }
+      if (e.key === 'scialla_customer_order_ids' && e.newValue) {
+        try {
+          setCustomerOrderIds(JSON.parse(e.newValue));
+        } catch {}
+      }
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
@@ -438,11 +537,42 @@ export function AppProvider({ children }) {
   const refreshStaffList = async () => {
     const data = await api.getStaffList();
     if (Array.isArray(data)) {
-      const formatted = data.map(s => ({
+      const formatted = data.map((s) => ({
         ...s,
         name: `${s.first_name} ${s.last_name}`
       }));
       setStaffList(formatted);
+    }
+  };
+
+  // Fetch On-Duty Staff
+  const refreshStaffOnDuty = async () => {
+    const onDuty = await api.getStaffOnDuty();
+    if (Array.isArray(onDuty)) {
+      setStaffOnDuty(onDuty);
+    }
+  };
+
+  // Sync Product Stock from PostgreSQL
+  const syncProductStock = async () => {
+    const stockMap = await api.getProductStock();
+    if (stockMap && typeof stockMap === 'object' && Object.keys(stockMap).length > 0) {
+      setMenuCategories((prevCats) =>
+        prevCats.map((cat) => ({
+          ...cat,
+          items: cat.items.map((item) => {
+            const baseId = item.id;
+            const stockInfo = stockMap[baseId];
+            if (stockInfo) {
+              return {
+                ...item,
+                inStock: stockInfo.inStock !== false && (typeof stockInfo.quantity !== 'number' || stockInfo.quantity > 0)
+              };
+            }
+            return item;
+          })
+        }))
+      );
     }
   };
 
@@ -501,7 +631,13 @@ export function AppProvider({ children }) {
     };
 
     fetchOrdersFromApi();
-    const pollInterval = setInterval(fetchOrdersFromApi, 5000);
+    refreshStaffOnDuty();
+    syncProductStock();
+
+    const pollInterval = setInterval(() => {
+      fetchOrdersFromApi();
+      refreshStaffOnDuty();
+    }, 5000);
 
     // 5. Initialize Socket.IO connection with credentials
     const currentGuestId = localStorage.getItem('scialla_guest_session');
@@ -538,12 +674,20 @@ export function AppProvider({ children }) {
       setIsConnected(false);
     });
 
+    socketInstance.on('staff:presence', (list) => {
+      console.log('👥 Received real-time staff:presence:', list);
+      if (Array.isArray(list)) {
+        setStaffOnDuty(list);
+      }
+    });
+
     socketInstance.on('order:created', (newOrder) => {
       console.log('📡 Received real-time order:created:', newOrder);
       setOrders((prev) => {
         if (prev.some((o) => o.id === newOrder.id)) return prev;
-        return [...prev, newOrder];
+        return [newOrder, ...prev];
       });
+      refreshStaffOnDuty();
     });
 
     // Targeted status update handler
@@ -553,41 +697,81 @@ export function AppProvider({ children }) {
 
       // Update staff dashboard orders queue
       setOrders((prev) =>
-        prev.map((ord) => (ord.id === targetOrderId ? { ...ord, status: data.status, updatedAt: data.updatedAt } : ord))
+        prev.map((ord) => (ord.id === targetOrderId ? { ...ord, ...data } : ord))
       );
+
+      // Check if this order belongs to current customer
+      const isCustomerOrder = (lastCustomerOrder && lastCustomerOrder.id === targetOrderId) || customerOrderIds.includes(targetOrderId);
+
+      if (isCustomerOrder) {
+        let title = 'Order Update';
+        let message = `Order #${targetOrderId} status is now ${data.status}.`;
+
+        if (data.status === 'preparing') {
+          title = 'Order is being prepared';
+          message = `Barista ${data.accepted_by_name ? `(${data.accepted_by_name}) ` : ''}is preparing order #${targetOrderId}.`;
+          triggerToast(`Your order has been accepted${data.accepted_by_name ? ' by ' + data.accepted_by_name : ''} and is being prepared!`);
+        } else if (data.status === 'ready') {
+          const isTakeout = (data.table || (lastCustomerOrder && lastCustomerOrder.table) || '').toLowerCase().includes('takeout');
+          title = 'Your order is ready!';
+          message = isTakeout
+            ? `Ready for Counter Pickup! Present Order #${targetOrderId}`
+            : `Your order is ready! Serving to ${data.table || (lastCustomerOrder && lastCustomerOrder.table) || 'Table'}${data.accepted_by_name ? ` (Crafted by ${data.accepted_by_name})` : ''}`;
+          triggerToast(
+            isTakeout
+              ? `Ready for Counter Pickup! Order #${targetOrderId}`
+              : `Your order is ready! Serving to ${data.table || (lastCustomerOrder && lastCustomerOrder.table) || 'Table'}`
+          );
+        } else if (data.status === 'completed') {
+          title = 'Order Completed';
+          message = `Order #${targetOrderId} completed and delivered${data.completed_by_name ? ` by ${data.completed_by_name}` : ''}. Thank you for visiting Scialla!`;
+          triggerToast('Order completed. Thank you for visiting Scialla!');
+        } else if (data.status === 'cancelled') {
+          title = 'Order Cancelled';
+          message = `Order #${targetOrderId} was cancelled.`;
+          triggerToast('Your order was cancelled.');
+        }
+
+        addCustomerNotification({
+          key: `${targetOrderId}-${data.status}`,
+          orderId: targetOrderId,
+          title,
+          message,
+          status: data.status,
+          accepted_by_name: data.accepted_by_name,
+          completed_by_name: data.completed_by_name
+        });
+      }
 
       // Update customer live tracking if it matches this device's active order
       setLastCustomerOrder((prev) => {
         if (prev && prev.id === targetOrderId) {
-          if (prev.status !== data.status) {
-            // Trigger targeted in-app toast notification
-            if (data.status === 'preparing') {
-              triggerToast('☕ Your order has been accepted & is being prepared!');
-            } else if (data.status === 'ready') {
-              const isTakeout = (prev.table || '').toLowerCase().includes('takeout');
-              triggerToast(
-                isTakeout
-                  ? `🟢 Ready for Counter Pickup! Order #${prev.id}`
-                  : `🟢 Your order is ready! Serving to ${prev.table || 'Table'}`
-              );
-            } else if (data.status === 'completed') {
-              triggerToast('✅ Order completed. Thank you for visiting Scialla!');
-            } else if (data.status === 'cancelled') {
-              triggerToast('❌ Your order was cancelled.');
-            }
-          }
-          return { ...prev, status: data.status, updatedAt: data.updatedAt };
+          return { ...prev, ...data };
         }
         return prev;
       });
+
+      refreshStaffOnDuty();
+    });
+
+    socketInstance.on('order:updated', (data) => {
+      const targetId = data.id || data.orderId;
+      setOrders((prev) => prev.map((ord) => (ord.id === targetId ? { ...ord, ...data } : ord)));
+      refreshStaffOnDuty();
     });
 
     socketInstance.on('stock:updated', (data) => {
+      console.log('📦 Real-time stock update received:', data);
       setMenuCategories((prevCats) =>
         prevCats.map((cat) => ({
           ...cat,
           items: cat.items.map((item) =>
-            item.id === data.itemId ? { ...item, inStock: data.inStock } : item
+            item.id === data.itemId
+              ? {
+                  ...item,
+                  inStock: data.inStock !== false && (typeof data.quantity !== 'number' || data.quantity > 0)
+                }
+              : item
           )
         }))
       );
@@ -681,10 +865,13 @@ export function AppProvider({ children }) {
 
     const activeGuestId = guestSessionId || (await api.getOrCreateGuestSession());
 
+    const nowIso = new Date().toISOString();
     const newOrder = {
       id: orderData.orderNum || orderData.id || `SC-${Math.floor(1000 + Math.random() * 9000)}`,
       table: orderData.table,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      createdAt: nowIso,
+      created_at: nowIso,
       items: consolidatedItems,
       total: orderData.total,
       paymentMethod: orderData.paymentMethod,
@@ -693,19 +880,39 @@ export function AppProvider({ children }) {
       user_id: currentUser ? currentUser.id : null
     };
 
+    const targetId = newOrder.id;
+    setCustomerOrderIds((prev) => [targetId, ...prev.filter((id) => id !== targetId)]);
+
     setOrders((prev) => {
-      if (prev.some((o) => o.id === newOrder.id)) return prev;
-      return [...prev, newOrder];
+      if (prev.some((o) => o.id === targetId)) return prev;
+      return [newOrder, ...prev];
     });
     setLastCustomerOrder(newOrder);
 
-    // Save to PostgreSQL via REST API
+    addCustomerNotification({
+      orderId: targetId,
+      title: 'Order Received',
+      message: `Order #${targetId} for ${orderData.table || 'Table'} has been sent to the kitchen.`,
+      status: 'new'
+    });
+
+    // Save to PostgreSQL via REST API (with backend stock verification)
     const response = await api.createOrder(newOrder);
+    if (response && response.success === false) {
+      // Out of stock or validation failure
+      triggerToast(response.message || 'Item is out of stock');
+      syncProductStock(); // Sync latest stock state into menu
+      return { success: false, message: response.message };
+    }
+
     if (response && response.order) {
       setOrders((prev) =>
-        prev.map((o) => (o.id === newOrder.id ? response.order : o))
+        prev.map((o) => (o.id === newOrder.id ? { ...newOrder, ...response.order } : o))
       );
       setLastCustomerOrder(response.order);
+      if (response.order.id) {
+        setCustomerOrderIds((prev) => (prev.includes(response.order.id) ? prev : [response.order.id, ...prev]));
+      }
     }
 
     // Direct Socket.IO emission fallback if connected
@@ -715,16 +922,54 @@ export function AppProvider({ children }) {
     }
 
     triggerToast(`Order placed successfully! #${newOrder.id}`);
+    return { success: true, order: response?.order || newOrder };
   };
 
-  // Update order status (Staff / Manager)
+  // Update order status (Staff / Manager) with server-side audit trails & registered staff full name
   const updateOrderStatus = async (orderId, newStatus) => {
+    let currentStaffName = null;
+    if (currentUser) {
+      if (currentUser.first_name && currentUser.last_name) {
+        currentStaffName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
+      } else if (currentUser.name && currentUser.name.trim().length > 0) {
+        currentStaffName = currentUser.name.trim();
+      } else if (currentUser.id && Array.isArray(staffList)) {
+        const found = staffList.find((s) => s.id === currentUser.id);
+        if (found) {
+          currentStaffName = `${found.first_name || ''} ${found.last_name || ''}`.trim() || found.name;
+        }
+      }
+      if (!currentStaffName) {
+        currentStaffName = currentUser.username;
+      }
+    }
+
+    // 1. Optimistic update with exact registered staff full name
     setOrders((prev) =>
-      prev.map((ord) => (ord.id === orderId ? { ...ord, status: newStatus } : ord))
+      prev.map((ord) => {
+        if (ord.id !== orderId) return ord;
+        const updated = { ...ord, status: newStatus };
+        if (newStatus === 'preparing' && !updated.accepted_by_name && currentStaffName) {
+          updated.accepted_by_name = currentStaffName;
+          updated.accepted_at = new Date().toISOString();
+        } else if (newStatus === 'completed' && currentStaffName) {
+          updated.completed_by_name = currentStaffName;
+          updated.completed_at = new Date().toISOString();
+        }
+        return updated;
+      })
     );
 
     if (lastCustomerOrder && lastCustomerOrder.id === orderId) {
-      setLastCustomerOrder((prev) => ({ ...prev, status: newStatus }));
+      setLastCustomerOrder((prev) => {
+        const updated = { ...prev, status: newStatus };
+        if (newStatus === 'preparing' && !updated.accepted_by_name && currentStaffName) {
+          updated.accepted_by_name = currentStaffName;
+        } else if (newStatus === 'completed' && currentStaffName) {
+          updated.completed_by_name = currentStaffName;
+        }
+        return updated;
+      });
       if (newStatus === 'completed') {
         setTimeout(() => {
           setLastCustomerOrder(null);
@@ -732,24 +977,56 @@ export function AppProvider({ children }) {
       }
     }
 
-    // Persist status change in PostgreSQL via REST API (emits targeted room updates)
-    await api.updateOrderStatus(orderId, newStatus);
+    // 2. Persist status change in PostgreSQL via REST API (passes verified registered staff name)
+    const res = await api.updateOrderStatus(orderId, newStatus, currentStaffName);
+    if (res && res.success === false) {
+      triggerToast(`${res.message || 'Action conflict'}`);
+      if (res.order) {
+        setOrders((prev) => prev.map((ord) => (ord.id === orderId ? { ...ord, ...res.order } : ord)));
+      }
+      return res;
+    }
+
+    if (res && res.order) {
+      setOrders((prev) =>
+        prev.map((ord) => (ord.id === orderId ? { ...ord, ...res.order } : ord))
+      );
+      if (lastCustomerOrder && lastCustomerOrder.id === orderId) {
+        setLastCustomerOrder((prev) => ({ ...prev, ...res.order }));
+      }
+    }
 
     // Direct Socket.IO emission fallback if connected
     if (socket && socket.connected) {
-      socket.emit('order:update_status', { id: orderId, status: newStatus });
+      socket.emit('order:update_status', { id: orderId, status: newStatus, staffName: currentStaffName });
     }
+
+    return res;
   };
 
-  // Toggle item stock status (Staff / Manager)
+  // Toggle item stock status (Staff / Manager) with PostgreSQL persistence
   const toggleItemStock = (itemId) => {
-    let nextStockState = false;
+    // 1. Find the current item synchronously from active categories
+    let currentItem = null;
+    for (const cat of menuCategories) {
+      const found = cat.items.find((i) => i.id === itemId);
+      if (found) {
+        currentItem = found;
+        break;
+      }
+    }
+
+    const currentStock = currentItem ? currentItem.inStock !== false : true;
+    const nextStockState = !currentStock;
+    const nextQuantity = nextStockState ? 50 : 0;
+    const itemName = currentItem ? currentItem.name : itemId;
+
+    // 2. Optimistic local state update
     setMenuCategories((prevCats) =>
       prevCats.map((cat) => ({
         ...cat,
         items: cat.items.map((item) => {
           if (item.id === itemId) {
-            nextStockState = !item.inStock;
             return { ...item, inStock: nextStockState };
           }
           return item;
@@ -757,8 +1034,12 @@ export function AppProvider({ children }) {
       }))
     );
 
+    // 3. Persist to PostgreSQL via REST API
+    api.updateProductStock(itemId, nextStockState, nextQuantity, itemName);
+
+    // 4. Broadcast via Socket.IO
     if (socket && socket.connected) {
-      socket.emit('stock:toggle', { itemId, inStock: nextStockState });
+      socket.emit('stock:toggle', { itemId, inStock: nextStockState, quantity: nextQuantity, name: itemName });
     }
   };
 
@@ -799,8 +1080,8 @@ export function AppProvider({ children }) {
   // Calculate top products
   const productSalesMap = {};
   orders.forEach((ord) => {
-    ord.items.forEach((item) => {
-      productSalesMap[item.name] = (productSalesMap[item.name] || 0) + item.qty;
+    (ord.items || []).forEach((item) => {
+      productSalesMap[item.name] = (productSalesMap[item.name] || 0) + (item.qty || 1);
     });
   });
 
@@ -811,6 +1092,49 @@ export function AppProvider({ children }) {
     { name: 'Cappuccino', count: (productSalesMap['Cappuccino'] || 0) + 48, price: 160 },
     { name: 'Butter Croissant', count: (productSalesMap['Butter Croissant'] || 0) + 42, price: 120 },
   ].sort((a, b) => b.count - a.count);
+
+  // Compute customer order history (newest order placed ALWAYS on top)
+  const customerOrderHistory = orders
+    .filter((o) => {
+      if (!o) return false;
+      const isIdMatch = customerOrderIds.includes(o.id) || (lastCustomerOrder && lastCustomerOrder.id === o.id);
+      const isSessionMatch = Boolean(guestSessionId && o.guest_session_id && o.guest_session_id === guestSessionId);
+      return isIdMatch || isSessionMatch;
+    })
+    .sort((a, b) => {
+      // 1. Order Creation Time (primary sort: most recently placed order on TOP)
+      const getOrderTimestamp = (ord) => {
+        if (!ord) return 0;
+        const rawCreated = ord.createdAt || ord.created_at;
+        if (rawCreated) {
+          const t = new Date(rawCreated).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        return 0;
+      };
+
+      const timeA = getOrderTimestamp(a);
+      const timeB = getOrderTimestamp(b);
+      if (timeA > 0 && timeB > 0 && timeB !== timeA) {
+        return timeB - timeA;
+      }
+
+      // 2. Position in customerOrderIds array (index 0 is newest placed -> top)
+      const idxA = customerOrderIds.indexOf(a.id);
+      const idxB = customerOrderIds.indexOf(b.id);
+      if (idxA !== -1 && idxB !== -1 && idxA !== idxB) {
+        return idxA - idxB;
+      }
+      if (idxA !== -1 && idxB === -1) return -1;
+      if (idxB !== -1 && idxA === -1) return 1;
+
+      // 3. Fallback: Parse numeric order ID (e.g. SC-7427 > SC-6596)
+      const numA = parseInt(String(a.id).replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(String(b.id).replace(/\D/g, ''), 10) || 0;
+      if (numB !== numA) return numB - numA;
+
+      return String(b.id).localeCompare(String(a.id), undefined, { numeric: true });
+    });
 
   return (
     <AppContext.Provider
@@ -828,8 +1152,17 @@ export function AppProvider({ children }) {
         openAuthModal,
         menuCategories,
         orders,
+        customerOrderHistory,
+        customerNotifications,
+        unreadNotificationsCount,
+        markNotificationsAsRead,
+        clearNotifications,
+        addCustomerNotification,
         staffList,
         refreshStaffList,
+        staffOnDuty,
+        refreshStaffOnDuty,
+        syncProductStock,
         lastCustomerOrder,
         setLastCustomerOrder,
         placeOrder,

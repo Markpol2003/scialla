@@ -15,6 +15,8 @@ export default function Checkout({
 
   const [isPaid, setIsPaid] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('GCash');
+  const [createdOrder, setCreatedOrder] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -28,15 +30,24 @@ export default function Checkout({
   });
   const orderNum = `SC-${Math.floor(1000 + Math.random() * 9000)}`;
 
-  const handlePay = () => {
-    setIsPaid(true);
-    placeOrder({
+  const handlePay = async () => {
+    setIsSubmitting(true);
+    const res = await placeOrder({
       orderNum,
       table: tableDisplayLabel,
       items: cart,
       total: totalAmount,
       paymentMethod
     });
+    setIsSubmitting(false);
+
+    if (res && res.success === false) {
+      // Out of stock error caught
+      return;
+    }
+
+    setCreatedOrder(res?.order || { id: orderNum, table: tableDisplayLabel, paymentMethod, total: totalAmount });
+    setIsPaid(true);
   };
 
   const handleFinish = () => {
@@ -48,44 +59,40 @@ export default function Checkout({
   return createPortal(
     <div className="receipt-modal-backdrop" onClick={() => !isPaid && onClose()} style={{ zIndex: 999999 }}>
       <div className="receipt-3d-card" onClick={(e) => e.stopPropagation()}>
-        {!isPaid && (
-          <button className="receipt-close-btn" onClick={onClose}>
-            ✕
-          </button>
-        )}
+        <div className="receipt-header">
+          <h2 className="receipt-brand-title">SCIAL LA CAFE</h2>
+          <p className="receipt-subtitle">OFFICIAL GUEST RECEIPT</p>
+          <div className="receipt-meta-grid">
+            <div className="receipt-meta-item">
+              <span className="meta-label">DESTINATION</span>
+              <span className="meta-val highlight-table">{tableDisplayLabel}</span>
+            </div>
+            <div className="receipt-meta-item">
+              <span className="meta-label">ORDER REF</span>
+              <span className="meta-val">{createdOrder?.id || orderNum}</span>
+            </div>
+            <div className="receipt-meta-item full-width">
+              <span className="meta-label">DATE & TIME</span>
+              <span className="meta-val">{formattedDate}</span>
+            </div>
+          </div>
+        </div>
 
         {!isPaid ? (
           <>
-            <div className="receipt-header">
-              <h2 className="receipt-cafe-title">Scialla Cafe</h2>
-              <p style={{ fontSize: '0.78rem', color: '#7a6e62' }}>Official Order Receipt</p>
-              <span className="receipt-table-pill">{tableDisplayLabel}</span>
-              <div className="receipt-meta">
-                <span>Order: {orderNum}</span>
-                <span>{formattedDate}</span>
-              </div>
+            <div className="receipt-items-scroll">
+              {cart.map((item, idx) => (
+                <div key={idx} className="receipt-item-row">
+                  <div className="item-name-qty">
+                    <span className="item-qty">{item.qty}×</span>
+                    <span className="item-title">{item.name}</span>
+                  </div>
+                  <span className="item-price">₱{(item.price * item.qty).toFixed(2)}</span>
+                </div>
+              ))}
             </div>
 
-            <table className="receipt-table">
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th style={{ textAlign: 'center' }}>Qty</th>
-                  <th>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cart.map((item) => (
-                  <tr key={item.id}>
-                    <td className="receipt-item-name">{item.name}</td>
-                    <td style={{ textAlign: 'center', fontFamily: 'var(--font-mono)' }}>{item.qty}</td>
-                    <td style={{ fontFamily: 'var(--font-mono)' }}>₱{(item.price * item.qty).toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <div className="receipt-breakdown">
+            <div className="receipt-cost-breakdown">
               <div className="breakdown-row">
                 <span>Items Ordered</span>
                 <span style={{ fontFamily: 'var(--font-mono)' }}>{totalItemCount}</span>
@@ -111,7 +118,6 @@ export default function Checkout({
                 ))}
               </div>
 
-              {/* Minimal QR Code Display for GCash and Maya */}
               {(paymentMethod === 'GCash' || paymentMethod === 'Maya') && (
                 <div className="qr-payment-preview-box">
                   <div className="qr-box-header">
@@ -135,6 +141,7 @@ export default function Checkout({
                 type="button"
                 className="btn-3d-cancel"
                 onClick={onClose}
+                disabled={isSubmitting}
               >
                 Cancel
               </button>
@@ -142,8 +149,9 @@ export default function Checkout({
                 type="button"
                 className="btn-3d-pay"
                 onClick={handlePay}
+                disabled={isSubmitting}
               >
-                Pay ₱{totalAmount.toFixed(2)} with {paymentMethod}
+                {isSubmitting ? 'Verifying Order...' : `Pay ₱${totalAmount.toFixed(2)} with ${paymentMethod}`}
               </button>
             </div>
           </>
@@ -154,6 +162,37 @@ export default function Checkout({
             <p className="success-msg">
               Thank you! Your order has been dispatched to the Barista Kitchen queue for <strong>{tableDisplayLabel}</strong>.
             </p>
+
+            <div className="success-receipt-summary">
+              <div className="success-line">
+                <span className="success-label">Order Reference:</span>
+                <strong className="success-val-order">#{createdOrder?.id || orderNum}</strong>
+              </div>
+              <div className="success-line">
+                <span className="success-label">Destination:</span>
+                <strong className="success-val-dest">{tableDisplayLabel}</strong>
+              </div>
+              <div className="success-line">
+                <span className="success-label">Total Paid:</span>
+                <strong className="success-val-total">₱{totalAmount.toFixed(2)}</strong>
+              </div>
+              {(createdOrder?.accepted_by_name || createdOrder?.completed_by_name) && (
+                <div className="success-staff-block">
+                  {createdOrder?.accepted_by_name && (
+                    <div className="success-line">
+                      <span className="success-label">Crafted by:</span>
+                      <strong className="success-val-staff">{createdOrder.accepted_by_name}</strong>
+                    </div>
+                  )}
+                  {createdOrder?.completed_by_name && (
+                    <div className="success-line">
+                      <span className="success-label">Delivered by:</span>
+                      <strong className="success-val-delivered">{createdOrder.completed_by_name}</strong>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <button className="btn-3d-new-order" onClick={handleFinish}>
               Return to Menu

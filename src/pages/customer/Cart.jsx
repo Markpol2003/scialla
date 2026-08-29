@@ -8,7 +8,8 @@ export default function Cart({
   onUpdateQty,
   onRemoveItem,
   onOpenCheckout,
-  onOpenTableModal
+  onOpenTableModal,
+  onCollapse
 }) {
   return (
     <aside className="scialla-cart-sidebar">
@@ -26,9 +27,22 @@ export default function Cart({
               <span style={{ fontSize: '0.68rem', opacity: 0.7 }}>Edit</span>
             </button>
           </div>
-          <span className="cart-badge-count">
-            {totalItemCount} {totalItemCount === 1 ? 'item' : 'items'}
-          </span>
+          <div className="cart-header-right-actions">
+            <span className="cart-badge-count">
+              {totalItemCount} {totalItemCount === 1 ? 'item' : 'items'}
+            </span>
+            {onCollapse && (
+              <button
+                type="button"
+                className="btn-cart-header-collapse"
+                onClick={onCollapse}
+                title="Collapse order panel"
+              >
+                <span>Hide</span>
+                <span className="collapse-arrow-icon">▸</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="cart-list">

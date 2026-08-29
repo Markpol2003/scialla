@@ -1,14 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import Menu from '../pages/customer/Menu';
 import Cart from '../pages/customer/Cart';
 import Checkout from '../pages/customer/Checkout';
-import LoginPage from '../pages/auth/LoginPage';
-import UserProfileDropdown from '../components/UserProfileDropdown';
+import OrderHistoryModal from '../components/customer/OrderHistoryModal';
+import NotificationDropdown from '../components/customer/NotificationDropdown';
+import { Clock3, Bell } from 'lucide-react';
 import '../CoffeeMenu.css';
 
 export default function CustomerLayout({ onNavigate }) {
-  const { lastCustomerOrder, setLastCustomerOrder, currentUser, orders, toastMessage } = useApp();
+  const {
+    lastCustomerOrder,
+    setLastCustomerOrder,
+    orders,
+    toastMessage,
+    unreadNotificationsCount,
+    markNotificationsAsRead
+  } = useApp();
 
   const occupiedTables = (orders || [])
     .filter((o) => ['new', 'preparing', 'ready'].includes(o.status))
@@ -21,7 +29,27 @@ export default function CustomerLayout({ onNavigate }) {
   const [cart, setCart] = useState([]);
   const [tableNumber, setTableNumber] = useState('4');
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isCartCollapsed, setIsCartCollapsed] = useState(false);
+  const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+  const [cartVisible, setCartVisible] = useState(false);
+  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const prevCartLenRef = useRef(0);
+
+  // Track cart visibility for animation
+  useEffect(() => {
+    if (cart.length > 0 && prevCartLenRef.current === 0) {
+      // First item added — trigger appear animation
+      requestAnimationFrame(() => setCartVisible(true));
+    } else if (cart.length === 0 && prevCartLenRef.current > 0) {
+      // Last item removed — trigger disappear
+      setCartVisible(false);
+      setIsCartCollapsed(false);
+      setIsMobileCartOpen(false);
+    }
+    prevCartLenRef.current = cart.length;
+  }, [cart.length]);
 
   const handleAddToCart = (item, customSize = null, customQty = 1) => {
     const activeSize = item.sizes ? (customSize || item.sizes[0]) : null;
@@ -60,23 +88,39 @@ export default function CustomerLayout({ onNavigate }) {
     ? 'Takeout'
     : `Table #${tableNumber || '01'}`;
 
-  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
-
   return (
     <div className="scialla-container">
       {/* COMPACT SINGLE-ROW HEADER */}
       <header className="scialla-unified-header">
         <div className="header-compact-row">
-          {/* Left: Brand */}
+          {/* Left: Balanced spacer */}
+          <div className="header-side-spacer" />
+
+          {/* Center: Brand */}
           <div className="scialla-customer-brand" title="Scialla Cafe">
             <span className="customer-brand-title">
-              <span className="brand-name">Scialla Cafe</span>
-              <span className="brand-dot">.</span>
+              <span className="brand-name">
+                {'Scialla Cafe'.split('').map((char, index) => (
+                  <span
+                    key={index}
+                    className="brand-char"
+                    style={{ animationDelay: `${index * 35}ms` }}
+                  >
+                    {char === ' ' ? '\u00A0' : char}
+                  </span>
+                ))}
+              </span>
+              <span
+                className="brand-dot"
+                style={{ animationDelay: `${12 * 35}ms` }}
+              >
+                .
+              </span>
             </span>
           </div>
 
-          {/* Center: Clean Interactive Table Badge */}
-          <div className="header-table-center">
+          {/* Right: Clean Interactive Table Badge + History & Bell Icons */}
+          <div className="header-table-right">
             <button
               type="button"
               className="header-table-badge-btn"
@@ -88,32 +132,48 @@ export default function CustomerLayout({ onNavigate }) {
               </span>
               <span className="table-badge-change">Change ▾</span>
             </button>
-          </div>
 
-          {/* Right: Auth / Portal */}
-          <div className="nav-portal-links">
-            {currentUser ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {(currentUser.role === 'staff' || currentUser.role === 'manager') && (
-                  <button
-                    type="button"
-                    className="btn-return-portal"
-                    onClick={() => onNavigate(currentUser.role === 'manager' ? '/manager' : '/staff')}
-                  >
-                    {currentUser.role === 'manager' ? 'Manager' : 'Staff'}
-                  </button>
-                )}
-                <UserProfileDropdown onNavigate={onNavigate} />
-              </div>
-            ) : (
+            {/* ORDER HISTORY ICON */}
+            <button
+              type="button"
+              className={`header-icon-btn ${isHistoryOpen ? 'active' : ''}`}
+              onClick={() => {
+                setIsHistoryOpen(!isHistoryOpen);
+                setIsNotificationsOpen(false);
+              }}
+              title="Order History"
+              aria-label="Order History"
+            >
+              <Clock3 size={17} />
+            </button>
+
+            {/* NOTIFICATION BELL ICON */}
+            <div style={{ position: 'relative' }}>
               <button
                 type="button"
-                className="btn-single-signin"
-                onClick={() => setIsAuthOpen(true)}
+                className={`header-icon-btn ${isNotificationsOpen ? 'active' : ''}`}
+                onClick={() => {
+                  const nextState = !isNotificationsOpen;
+                  setIsNotificationsOpen(nextState);
+                  setIsHistoryOpen(false);
+                  if (nextState && unreadNotificationsCount > 0) {
+                    markNotificationsAsRead();
+                  }
+                }}
+                title="Notifications"
+                aria-label="Notifications"
               >
-                Sign In
+                <Bell size={17} />
+                {unreadNotificationsCount > 0 && (
+                  <span className="header-badge-count">{unreadNotificationsCount}</span>
+                )}
               </button>
-            )}
+
+              <NotificationDropdown
+                isOpen={isNotificationsOpen}
+                onClose={() => setIsNotificationsOpen(false)}
+              />
+            </div>
           </div>
         </div>
       </header>
@@ -275,20 +335,49 @@ export default function CustomerLayout({ onNavigate }) {
         </div>
       )}
 
-      {/* Main Content + Cart Sidebar (2-column grid) */}
-      <div className="scialla-layout">
+      {/* Main Content + Floating Cart Sidebar */}
+      <div className={`scialla-layout ${cart.length === 0 ? 'cart-empty' : ''}`}>
         <Menu onAddToCart={handleAddToCart} cart={cart} />
 
-        <Cart
-          cart={cart}
-          tableDisplayLabel={tableDisplayLabel}
-          totalItemCount={totalItemCount}
-          totalAmount={totalAmount}
-          onUpdateQty={handleUpdateQty}
-          onRemoveItem={handleRemoveItem}
-          onOpenCheckout={() => setIsCheckoutOpen(true)}
-          onOpenTableModal={() => setIsTableModalOpen(true)}
-        />
+        {/* Desktop Floating Cart Panel */}
+        {cart.length > 0 && (
+          <div className={`floating-cart-wrapper ${cartVisible ? 'visible' : ''} ${isCartCollapsed ? 'collapsed' : ''}`}>
+            {!isCartCollapsed ? (
+              <Cart
+                cart={cart}
+                tableDisplayLabel={tableDisplayLabel}
+                totalItemCount={totalItemCount}
+                totalAmount={totalAmount}
+                onUpdateQty={handleUpdateQty}
+                onRemoveItem={handleRemoveItem}
+                onOpenCheckout={() => setIsCheckoutOpen(true)}
+                onOpenTableModal={() => setIsTableModalOpen(true)}
+                onCollapse={() => setIsCartCollapsed(true)}
+              />
+            ) : (
+              <button
+                type="button"
+                className="floating-cart-mini-bar"
+                onClick={() => setIsCartCollapsed(false)}
+                title="Click to view and expand your order panel"
+              >
+                <div className="mini-bar-left">
+                  <div className="mini-bar-cart-icon">🛒</div>
+                  <div className="mini-bar-info">
+                    <span className="mini-bar-heading">Your Order</span>
+                    <span className="mini-bar-count">
+                      {totalItemCount} {totalItemCount === 1 ? 'item' : 'items'} • {tableDisplayLabel}
+                    </span>
+                  </div>
+                </div>
+                <div className="mini-bar-right">
+                  <span className="mini-bar-total">₱{totalAmount.toFixed(2)}</span>
+                  <span className="mini-bar-expand-badge">View Order ◂</span>
+                </div>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Mobile Floating Checkout Bar */}
@@ -311,12 +400,38 @@ export default function CustomerLayout({ onNavigate }) {
           <button
             type="button"
             className="mobile-bar-btn"
-            onClick={() => setIsCheckoutOpen(true)}
+            onClick={() => setIsMobileCartOpen(true)}
           >
-            Checkout →
+            View Order
           </button>
         </div>
       </div>
+
+      {/* Mobile Cart Bottom Sheet */}
+      {isMobileCartOpen && (
+        <div className="mobile-cart-sheet-backdrop" onClick={() => setIsMobileCartOpen(false)}>
+          <div className="mobile-cart-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-cart-sheet-handle" />
+            <Cart
+              cart={cart}
+              tableDisplayLabel={tableDisplayLabel}
+              totalItemCount={totalItemCount}
+              totalAmount={totalAmount}
+              onUpdateQty={handleUpdateQty}
+              onRemoveItem={handleRemoveItem}
+              onOpenCheckout={() => { setIsMobileCartOpen(false); setIsCheckoutOpen(true); }}
+              onOpenTableModal={() => { setIsMobileCartOpen(false); setIsTableModalOpen(true); }}
+            />
+            <button
+              type="button"
+              className="mobile-cart-sheet-close"
+              onClick={() => setIsMobileCartOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Checkout Modal */}
       <Checkout
@@ -329,14 +444,11 @@ export default function CustomerLayout({ onNavigate }) {
         onOrderPlaced={() => setCart([])}
       />
 
-      {/* SIGN IN Auth Portal Modal Overlay */}
-      {isAuthOpen && (
-        <LoginPage
-          targetRole="staff"
-          onNavigate={onNavigate}
-          onClose={() => setIsAuthOpen(false)}
-        />
-      )}
+      {/* Order History Modal */}
+      <OrderHistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+      />
 
       {/* Global In-App Toast Notification */}
       {toastMessage && (

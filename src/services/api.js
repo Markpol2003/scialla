@@ -143,6 +143,47 @@ export const api = {
     }
   },
 
+  // Staff On Duty (Presence & Live Order Counts)
+  async getStaffOnDuty() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/staff/on-duty`, {
+        headers: getAuthHeaders()
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.staff || [];
+    } catch {
+      return [];
+    }
+  },
+
+  // Product Stock Management
+  async getProductStock() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/products/stock`, {
+        headers: getAuthHeaders()
+      });
+      if (!res.ok) return {};
+      const data = await res.json();
+      return data.stock || {};
+    } catch {
+      return {};
+    }
+  },
+
+  async updateProductStock(itemId, inStock, quantity = 50, name = '') {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/products/stock/${itemId}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ inStock, quantity, name })
+      });
+      return await res.json();
+    } catch {
+      return { success: true, item: { itemId, inStock, quantity } };
+    }
+  },
+
   // Anonymous Guest Session Management
   async getOrCreateGuestSession() {
     let currentId = getGuestSessionId();
@@ -217,16 +258,16 @@ export const api = {
     }
   },
 
-  async updateOrderStatus(orderId, status) {
+  async updateOrderStatus(orderId, status, staffName = null) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status, staffName })
       });
       return await res.json();
     } catch {
-      return { success: true, orderId, status };
+      return { success: true, orderId, status, accepted_by_name: staffName, completed_by_name: staffName };
     }
   }
 };

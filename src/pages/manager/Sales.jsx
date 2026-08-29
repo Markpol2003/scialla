@@ -2,19 +2,16 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 
 export default function Sales() {
-  const { topProducts, monthlySalesData } = useApp();
+  const { topProducts, monthlySalesData, orders } = useApp();
 
   const maxRevenue = Math.max(...monthlySalesData.map((d) => d.revenue));
 
-  const weeklySalesData = [
-    { day: 'Mon', sales: 18400, percent: 65 },
-    { day: 'Tue', sales: 21200, percent: 78 },
-    { day: 'Wed', sales: 19800, percent: 72 },
-    { day: 'Thu', sales: 23500, percent: 85 },
-    { day: 'Fri', sales: 28900, percent: 98 },
-    { day: 'Sat', sales: 31400, percent: 100 },
-    { day: 'Sun', sales: 26800, percent: 90 },
-  ];
+  const completedOrdersList = orders.filter((o) => o.status === 'completed');
+  const activeOrdersList = orders.filter((o) => o.status === 'new' || o.status === 'preparing' || o.status === 'ready');
+  const dailyRevenue = orders
+    .filter((o) => o.status === 'completed' || o.status === 'ready' || o.status === 'preparing')
+    .reduce((sum, o) => sum + (o.total || 0), 0);
+  const avgTicket = orders.length > 0 ? (dailyRevenue / orders.length).toFixed(2) : '0.00';
 
   return (
     <div className="sales-tab-container" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -24,7 +21,7 @@ export default function Sales() {
           <div>
             <h2>2026 Monthly Revenue</h2>
           </div>
-          <span className="box-tag">2026</span>
+          <span className="box-tag">2026 Fiscal Year</span>
         </div>
 
         {/* Monthly Bar Chart */}
@@ -48,26 +45,46 @@ export default function Sales() {
       </div>
 
       <div className="manager-two-columns">
-        {/* Weekly Revenue Trend */}
+        {/* Daily Completed Orders & Sales Summary */}
         <div className="manager-box sales-chart-box">
           <div className="box-header">
-            <h2>Weekly Revenue</h2>
-            <span className="box-tag">This Week</span>
+            <h2>Daily Completed Orders</h2>
+            <span className="box-tag">Today</span>
           </div>
 
-          <div className="chart-bars-container">
-            {weeklySalesData.map((d) => (
-              <div key={d.day} className="chart-bar-group">
-                <span className="chart-val-label">₱{(d.sales / 1000).toFixed(1)}k</span>
-                <div className="chart-bar-outer">
-                  <div
-                    className="chart-bar-inner"
-                    style={{ height: `${d.percent}%` }}
-                  ></div>
+          <div style={{ padding: '10px 0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(201, 139, 91, 0.25)', borderRadius: '10px', padding: '14px' }}>
+                <span style={{ fontSize: '0.74rem', color: '#D4C3B3', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Today's Fulfilled</span>
+                <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#4ade80', marginTop: '4px' }}>
+                  {completedOrdersList.length}
                 </div>
-                <span className="chart-day-label">{d.day}</span>
+                <span style={{ fontSize: '0.72rem', color: '#A08070' }}>Completed guest orders</span>
               </div>
-            ))}
+
+              <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(201, 139, 91, 0.25)', borderRadius: '10px', padding: '14px' }}>
+                <span style={{ fontSize: '0.74rem', color: '#D4C3B3', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Active In Kitchen</span>
+                <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#E2B688', marginTop: '4px' }}>
+                  {activeOrdersList.length}
+                </div>
+                <span style={{ fontSize: '0.72rem', color: '#A08070' }}>In-flight orders</span>
+              </div>
+            </div>
+
+            <div style={{ background: 'linear-gradient(135deg, rgba(32, 17, 10, 0.7), rgba(20, 10, 6, 0.8))', border: '1px solid rgba(201, 139, 91, 0.25)', borderRadius: '10px', padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.74rem', color: '#D4C3B3', textTransform: 'uppercase' }}>Daily Revenue Total</span>
+                <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#E2B688', fontFamily: 'var(--font-mono)' }}>
+                  ₱{dailyRevenue.toFixed(2)}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '0.74rem', color: '#D4C3B3', textTransform: 'uppercase' }}>Avg Ticket</span>
+                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#FFFFFF', fontFamily: 'var(--font-mono)' }}>
+                  ₱{avgTicket}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

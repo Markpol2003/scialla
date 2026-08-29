@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useApp } from '../../context/AppContext';
 
 export default function Dashboard() {
@@ -9,14 +9,11 @@ export default function Dashboard() {
     thisMonthRevenue,
     monthlyTargetRevenue,
     monthlyProgressPercent,
-    monthlyOrderCount,
     monthlySalesData,
     orders
   } = useApp();
 
-  const [timeframe, setTimeframe] = useState('monthly'); // 'monthly' | 'weekly'
-  const recentOrders = orders.slice(0, 5);
-
+  const recentOrders = orders.slice(0, 8);
   const maxMonthlyRevenue = Math.max(...monthlySalesData.map((d) => d.revenue));
 
   return (
@@ -34,8 +31,8 @@ export default function Dashboard() {
         </div>
 
         <div className="kpi-card">
-          <span className="kpi-title">MONTHLY ORDERS</span>
-          <div className="kpi-main-val">{monthlyOrderCount.toLocaleString()}</div>
+          <span className="kpi-title">DAILY COMPLETED ORDERS</span>
+          <div className="kpi-main-val">{todayOrderCount.toLocaleString()}</div>
         </div>
 
         <div className="kpi-card">
@@ -48,25 +45,9 @@ export default function Dashboard() {
       <div className="manager-box monthly-sales-overview-box" style={{ marginBottom: '24px' }}>
         <div className="box-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold' }}>Monthly Revenue</h2>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold' }}>Monthly Revenue Overview</h2>
           </div>
-          <div className="timeframe-toggle-pills">
-            <button
-              type="button"
-              className={`toggle-pill-btn ${timeframe === 'monthly' ? 'active' : ''}`}
-              onClick={() => setTimeframe('monthly')}
-            >
-              Monthly
-            </button>
-            <span className="pill-divider">|</span>
-            <button
-              type="button"
-              className={`toggle-pill-btn ${timeframe === 'weekly' ? 'active' : ''}`}
-              onClick={() => setTimeframe('weekly')}
-            >
-              Weekly
-            </button>
-          </div>
+          <span className="box-tag">2026 Fiscal Year</span>
         </div>
 
         {/* Monthly Target Progress Meter */}
@@ -153,9 +134,9 @@ export default function Dashboard() {
 
         {/* Recent Store Orders */}
         <div className="manager-box">
-          <div className="box-header">
-            <h2>Recent Orders</h2>
-            <span className="box-tag">Live</span>
+          <div className="box-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <h2>Recent Store Orders</h2>
+            <span className="box-tag">Live Queue</span>
           </div>
 
           <table className="manager-table">
@@ -168,18 +149,26 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {recentOrders.map((ord) => (
-                <tr key={ord.id}>
-                  <td><strong>#{ord.id}</strong></td>
-                  <td>{ord.table}</td>
-                  <td>₱{ord.total.toFixed(2)}</td>
-                  <td>
-                    <span className={`status-badge badge-${ord.status === 'completed' ? 'ok' : 'warning'}`}>
-                      {ord.status.toUpperCase()}
-                    </span>
+              {recentOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: '#D4C3B3' }}>
+                    No recent orders.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                recentOrders.map((ord) => (
+                  <tr key={ord.id}>
+                    <td><strong>#{ord.id}</strong></td>
+                    <td>{ord.table}</td>
+                    <td>₱{ord.total.toFixed(2)}</td>
+                    <td>
+                      <span className={`status-badge badge-${ord.status === 'completed' ? 'ok' : 'warning'}`}>
+                        {ord.status.toUpperCase()}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
