@@ -523,33 +523,28 @@ export default function CustomerMenuPage() {
         </aside>
       </div>
 
-      {/* Mobile Floating Checkout Bar */}
-      <div className={`mobile-checkout-bar ${cart.length > 0 ? 'active' : ''}`}>
-        <div className="mobile-bar-info">
-          <span className="mobile-bar-count">
-            {totalItemCount} {totalItemCount === 1 ? 'item' : 'items'} • {tableDisplayLabel}
-          </span>
-          <span className="mobile-bar-total">₱{totalAmount.toFixed(2)}</span>
+      {/* Mobile Floating Bottom Order Bar */}
+      {cart.length > 0 && (
+        <div className="mobile-order-bottom-bar">
+          <div className="mobile-order-bar-content">
+            <div className="mobile-order-bar-info">
+              <span className="mobile-order-bar-count">
+                {totalItemCount} {totalItemCount === 1 ? 'item' : 'items'} &bull; {tableDisplayLabel}
+              </span>
+              <span className="mobile-order-bar-total">₱{totalAmount.toFixed(2)}</span>
+            </div>
+            <div className="mobile-order-bar-actions">
+              <button
+                type="button"
+                className="mobile-order-bar-view-btn"
+                onClick={handleOpenCheckout}
+              >
+                Checkout &bull; ₱{totalAmount.toFixed(2)}
+              </button>
+            </div>
+          </div>
         </div>
-
-        <div className="mobile-bar-actions">
-          <button
-            type="button"
-            className="mobile-bar-btn"
-            onClick={handleOpenCheckout}
-          >
-            Checkout →
-          </button>
-          <button
-            type="button"
-            className="mobile-bar-cancel-btn"
-            onClick={() => setCart([])}
-            title="Cancel / Clear cart"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* RECEIPT MODAL */}
       {isReceiptOpen && (

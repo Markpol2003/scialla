@@ -2,17 +2,57 @@ import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import CategoryFilterBar from '../../components/customer/CategoryFilterBar';
 
+const categorySubtitles = {
+  coffee: 'Smooth, bold & handcrafted espresso creations',
+  'non-coffee': 'Creamy matcha, artisanal teas & chocolate blends',
+  soda: 'Crisp, sparkling & fruit-infused thirst quenchers',
+  rice: 'Hearty garlic rice bowls & savory store favorites',
+  waffles: 'Crisp golden waffles with premium toppings & syrup',
+  pasta: 'Rich authentic sauces tossed with fresh pasta',
+  pikapika: 'Shareable cafe bites, crisp fries & finger food',
+  quesadilla: 'Toasted flour tortillas filled with melted savory cheese',
+  sandwiches: 'Artisanal sourdough, loaded subs & gourmet burgers',
+  pizza: 'Hand-stretched thin crust stone-baked cafe pizzas',
+  'drink-addons': 'Espresso shots, sweet foams, syrups & crystal pearls',
+  'food-addons': 'Extra egg, rice, melted cheese & dipping sauces'
+};
+
+const getCategorySubtitle = (id, title) => {
+  const cleanId = String(id || '').toLowerCase();
+  const cleanTitle = String(title || '').toLowerCase();
+  for (const [key, desc] of Object.entries(categorySubtitles)) {
+    if (cleanId.includes(key) || cleanTitle.includes(key)) {
+      return desc;
+    }
+  }
+  return 'Smooth, bold & handcrafted store favorites';
+};
+
 export default function Menu({ onAddToCart, cart }) {
   const { menuCategories } = useApp();
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [toastMsg, setToastMsg] = useState('');
   const [selectedSizes, setSelectedSizes] = useState({});
   const scrollRefs = useRef({});
 
-  // Filter displayed categories based on dropdown/chip selection
-  const displayedCategories = selectedCategory === 'all'
-    ? menuCategories
-    : menuCategories.filter((section) => section.id === selectedCategory || section.category === selectedCategory);
+  const cleanQuery = searchQuery.trim().toLowerCase();
+
+  // Filter displayed categories and items based on dropdown & search query
+  const displayedCategories = menuCategories
+    .filter((section) => {
+      if (selectedCategory === 'all') return true;
+      return section.id === selectedCategory || section.category === selectedCategory;
+    })
+    .map((section) => {
+      if (!cleanQuery) return section;
+      const filteredItems = (section.items || []).filter((it) =>
+        (it.name || '').toLowerCase().includes(cleanQuery) ||
+        (it.description || '').toLowerCase().includes(cleanQuery)
+      );
+      return { ...section, items: filteredItems };
+    })
+    .filter((section) => section.items.length > 0);
 
   // Product Customization Modal State
   const [modalItem, setModalItem] = useState(null);
@@ -69,40 +109,64 @@ export default function Menu({ onAddToCart, cart }) {
         </div>
       )}
 
-      {/* LUXURY CATEGORY FILTER DROPDOWN & QUICK CHIPS */}
+      {/* COMPACT CATEGORY FILTER DROPDOWN & SEARCH INPUT */}
       <CategoryFilterBar
         categories={menuCategories}
         selectedCategory={selectedCategory}
         onSelectCategory={setSelectedCategory}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
       />
+
+      {/* Empty Search Result Feedback */}
+      {displayedCategories.length === 0 && (
+        <div className="menu-search-empty-state">
+          <p className="empty-title">No menu items found</p>
+          <p className="empty-sub">We couldn't find any items matching "{searchQuery}".</p>
+          <button
+            type="button"
+            className="btn-clear-search"
+            onClick={() => { setSearchQuery(''); setSelectedCategory('all'); }}
+          >
+            View Full Menu
+          </button>
+        </div>
+      )}
 
       {/* Every category renders as a horizontal scroll section */}
       {displayedCategories.map((section) => (
-        <section key={section.id} className="category-block">
+        <section key={`${section.id}-${selectedCategory}-${searchQuery}`} className="category-block animate-fade-slide">
           <div className="category-title-bar">
-            <div className="category-heading">
-              <h2>{section.category}</h2>
-            </div>
-            <div className="category-title-actions">
-              <span className="category-count">{section.items.length} items</span>
-              <div className="carousel-arrows">
-                <button
-                  type="button"
-                  className="carousel-arrow-btn"
-                  onClick={() => scrollRow(section.id, 'left')}
-                  aria-label="Scroll left"
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  className="carousel-arrow-btn"
-                  onClick={() => scrollRow(section.id, 'right')}
-                  aria-label="Scroll right"
-                >
-                  ›
-                </button>
+            <div className="category-heading-group">
+              <div className="category-heading-top-line">
+                <h2 className="category-heading-title">{section.category}</h2>
+                <span className="category-count">
+                  {section.items.length} {section.items.length === 1 ? 'item' : 'items'}
+                </span>
               </div>
+              <p className="category-heading-subtitle">
+                {getCategorySubtitle(section.id, section.category)}
+              </p>
+              <div className="category-heading-accent-line" />
+            </div>
+
+            <div className="carousel-arrows">
+              <button
+                type="button"
+                className="carousel-arrow-btn"
+                onClick={() => scrollRow(section.id, 'left')}
+                aria-label="Scroll left"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                className="carousel-arrow-btn"
+                onClick={() => scrollRow(section.id, 'right')}
+                aria-label="Scroll right"
+              >
+                ›
+              </button>
             </div>
           </div>
 

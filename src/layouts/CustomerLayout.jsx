@@ -5,7 +5,7 @@ import Cart from '../pages/customer/Cart';
 import Checkout from '../pages/customer/Checkout';
 import OrderHistoryModal from '../components/customer/OrderHistoryModal';
 import NotificationDropdown from '../components/customer/NotificationDropdown';
-import { Clock3, Bell } from 'lucide-react';
+import { Clock3, Bell, X } from 'lucide-react';
 import '../CoffeeMenu.css';
 
 export default function CustomerLayout({ onNavigate }) {
@@ -31,6 +31,7 @@ export default function CustomerLayout({ onNavigate }) {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isCartCollapsed, setIsCartCollapsed] = useState(false);
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [cartVisible, setCartVisible] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -47,6 +48,7 @@ export default function CustomerLayout({ onNavigate }) {
       setCartVisible(false);
       setIsCartCollapsed(false);
       setIsMobileCartOpen(false);
+      setIsClearConfirmOpen(false);
     }
     prevCartLenRef.current = cart.length;
   }, [cart.length]);
@@ -81,6 +83,14 @@ export default function CustomerLayout({ onNavigate }) {
     setCart((prevCart) => prevCart.filter((item) => item.id !== id));
   };
 
+  const handleClearCartClick = () => {
+    if (cart.length <= 1) {
+      setCart([]);
+    } else {
+      setIsClearConfirmOpen(true);
+    }
+  };
+
   const totalAmount = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const totalItemCount = cart.reduce((sum, item) => sum + item.qty, 0);
 
@@ -96,7 +106,7 @@ export default function CustomerLayout({ onNavigate }) {
           {/* Left: Balanced spacer */}
           <div className="header-side-spacer" />
 
-          {/* Center: Brand */}
+          {/* Center: Brand & Tagline */}
           <div className="scialla-customer-brand" title="Scialla Cafe">
             <span className="customer-brand-title">
               <span className="brand-name">
@@ -117,6 +127,7 @@ export default function CustomerLayout({ onNavigate }) {
                 .
               </span>
             </span>
+            <span className="customer-brand-tagline">Crafted coffee, made for your table.</span>
           </div>
 
           {/* Right: Clean Interactive Table Badge + History & Bell Icons */}
@@ -380,55 +391,138 @@ export default function CustomerLayout({ onNavigate }) {
         )}
       </div>
 
-      {/* Mobile Floating Checkout Bar */}
-      <div className={`mobile-checkout-bar ${cart.length > 0 ? 'active' : ''}`}>
-        <div className="mobile-bar-info">
-          <span className="mobile-bar-count">
-            {totalItemCount} {totalItemCount === 1 ? 'item' : 'items'} • {tableDisplayLabel}
-          </span>
-          <span className="mobile-bar-total">₱{totalAmount.toFixed(2)}</span>
+      {/* Mobile Sticky Bottom Order Bar (Visible when cart has items on mobile) */}
+      {cart.length > 0 && (
+        <div className="mobile-order-bottom-bar">
+          <div className="mobile-order-bar-content">
+            <div className="mobile-order-bar-top-row">
+              <span className="mobile-order-bar-count">
+                {totalItemCount} {totalItemCount === 1 ? 'item' : 'items'} &bull; {tableDisplayLabel}
+              </span>
+              <button
+                type="button"
+                className="mobile-order-bar-close-btn"
+                onClick={handleClearCartClick}
+                title="Clear current order"
+                aria-label="Clear current order"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div className="mobile-order-bar-bottom-row">
+              <span className="mobile-order-bar-total">₱{totalAmount.toFixed(2)}</span>
+              <button
+                type="button"
+                className="mobile-order-bar-view-btn"
+                onClick={() => setIsMobileCartOpen(true)}
+              >
+                View Order &bull; ₱{totalAmount.toFixed(2)}
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="mobile-bar-actions">
-          <button
-            type="button"
-            className="mobile-bar-cancel-btn"
-            onClick={() => setCart([])}
-            title="Cancel / Clear Order"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="mobile-bar-btn"
-            onClick={() => setIsMobileCartOpen(true)}
-          >
-            View Order
-          </button>
-        </div>
-      </div>
+      )}
 
-      {/* Mobile Cart Bottom Sheet */}
-      {isMobileCartOpen && (
+      {/* Mobile Cart Bottom Sheet / Drawer */}
+      {isMobileCartOpen && cart.length > 0 && (
         <div className="mobile-cart-sheet-backdrop" onClick={() => setIsMobileCartOpen(false)}>
-          <div className="mobile-cart-sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="mobile-cart-sheet-container" onClick={(e) => e.stopPropagation()}>
             <div className="mobile-cart-sheet-handle" />
-            <Cart
-              cart={cart}
-              tableDisplayLabel={tableDisplayLabel}
-              totalItemCount={totalItemCount}
-              totalAmount={totalAmount}
-              onUpdateQty={handleUpdateQty}
-              onRemoveItem={handleRemoveItem}
-              onOpenCheckout={() => { setIsMobileCartOpen(false); setIsCheckoutOpen(true); }}
-              onOpenTableModal={() => { setIsMobileCartOpen(false); setIsTableModalOpen(true); }}
-            />
-            <button
-              type="button"
-              className="mobile-cart-sheet-close"
-              onClick={() => setIsMobileCartOpen(false)}
-            >
-              Close
-            </button>
+
+            <div className="mobile-cart-sheet-header">
+              <div className="mobile-cart-sheet-title-group">
+                <h2 className="mobile-cart-sheet-title">Your Order</h2>
+                <button
+                  type="button"
+                  className="mobile-cart-table-pill"
+                  onClick={() => {
+                    setIsMobileCartOpen(false);
+                    setIsTableModalOpen(true);
+                  }}
+                  title="Change Table / Dining Option"
+                >
+                  <span>{tableDisplayLabel}</span>
+                  <span style={{ fontSize: '0.68rem', opacity: 0.8 }}>Change ▾</span>
+                </button>
+              </div>
+              <button
+                type="button"
+                className="mobile-cart-sheet-close-btn"
+                onClick={() => setIsMobileCartOpen(false)}
+                title="Close order drawer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Scrollable Order Items List */}
+            <div className="mobile-cart-items-scroll">
+              {cart.map((item) => (
+                <div key={item.id} className="mobile-cart-item-row">
+                  <div className="mobile-item-details">
+                    <span className="mobile-item-name">{item.rawName || item.name}</span>
+                    {item.size && <span className="mobile-item-size">{item.size}</span>}
+                    <span className="mobile-item-unit-price">₱{item.price.toFixed(2)}</span>
+                  </div>
+
+                  <div className="qty-stepper">
+                    <button
+                      type="button"
+                      className="qty-btn"
+                      onClick={() => handleUpdateQty(item.id, -1)}
+                      title="Decrease quantity"
+                    >
+                      -
+                    </button>
+                    <span className="qty-number">{item.qty}</span>
+                    <button
+                      type="button"
+                      className="qty-btn"
+                      onClick={() => handleUpdateQty(item.id, 1)}
+                      title="Increase quantity"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <span className="mobile-item-total">
+                    ₱{(item.price * item.qty).toFixed(2)}
+                  </span>
+
+                  <button
+                    type="button"
+                    className="btn-remove-item"
+                    onClick={() => handleRemoveItem(item.id)}
+                    title="Remove item"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Sticky Bottom Summary & Always-Accessible Checkout */}
+            <div className="mobile-cart-sheet-footer">
+              <div className="mobile-cart-summary-line">
+                <span>Total Items</span>
+                <span>{totalItemCount}</span>
+              </div>
+              <div className="mobile-cart-summary-line total-line">
+                <span>Total</span>
+                <span className="mobile-cart-total-amount">₱{totalAmount.toFixed(2)}</span>
+              </div>
+
+              <button
+                type="button"
+                className="btn-3d-checkout mobile-sheet-checkout-btn"
+                onClick={() => {
+                  setIsMobileCartOpen(false);
+                  setIsCheckoutOpen(true);
+                }}
+              >
+                Checkout &bull; ₱{totalAmount.toFixed(2)}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -449,6 +543,60 @@ export default function CustomerLayout({ onNavigate }) {
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
       />
+
+      {/* Clear Order Confirmation Modal (Shown when clearing > 1 item) */}
+      {isClearConfirmOpen && (
+        <div className="receipt-modal-backdrop" onClick={() => setIsClearConfirmOpen(false)} style={{ zIndex: 100002 }}>
+          <div className="auth-modal-card" style={{ maxWidth: '340px', padding: '22px 20px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 8px', fontSize: '1.08rem', fontWeight: 800, color: '#1A0C06' }}>
+              Clear your current order?
+            </h3>
+            <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: '#6A584D', lineHeight: 1.4 }}>
+              This will remove all {totalItemCount} items from your unsubmitted order.
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                style={{
+                  flex: 1,
+                  padding: '11px 14px',
+                  borderRadius: '10px',
+                  border: '1.5px solid var(--border-medium)',
+                  background: '#F8F4EE',
+                  color: '#6A584D',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setIsClearConfirmOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                style={{
+                  flex: 1,
+                  padding: '11px 14px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'var(--danger)',
+                  color: '#FFFFFF',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(199, 75, 75, 0.3)'
+                }}
+                onClick={() => {
+                  setCart([]);
+                  setIsClearConfirmOpen(false);
+                }}
+              >
+                Clear Order
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Global In-App Toast Notification */}
       {toastMessage && (

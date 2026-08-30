@@ -50,22 +50,24 @@ export default function Sales() {
         </div>
 
         {/* Monthly Bar Chart */}
-        <div className="chart-bars-container monthly-chart-bars" style={{ height: '220px', marginTop: '10px' }}>
-          {monthlySalesData.map((d) => {
-            const hPct = Math.round((d.revenue / maxRevenue) * 100);
-            return (
-              <div key={d.month} className={`chart-bar-group ${d.isCurrent ? 'current-month-bar' : ''}`}>
-                <span className="chart-val-label">₱{(d.revenue / 1000).toFixed(0)}k</span>
-                <div className="chart-bar-outer">
-                  <div
-                    className="chart-bar-inner"
-                    style={{ height: `${hPct}%` }}
-                  ></div>
+        <div className="chart-scroll-container">
+          <div className="chart-bars-container monthly-chart-bars" style={{ height: '220px', marginTop: '10px' }}>
+            {monthlySalesData.map((d) => {
+              const hPct = Math.round((d.revenue / maxRevenue) * 100);
+              return (
+                <div key={d.month} className={`chart-bar-group ${d.isCurrent ? 'current-month-bar' : ''}`}>
+                  <span className="chart-val-label">₱{(d.revenue / 1000).toFixed(0)}k</span>
+                  <div className="chart-bar-outer">
+                    <div
+                      className="chart-bar-inner"
+                      style={{ height: `${hPct}%` }}
+                    ></div>
+                  </div>
+                  <span className="chart-day-label">{d.month}</span>
                 </div>
-                <span className="chart-day-label">{d.month}</span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 

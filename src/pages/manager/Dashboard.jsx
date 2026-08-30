@@ -52,7 +52,7 @@ export default function Dashboard() {
 
         {/* Monthly Target Progress Meter */}
         <div className="monthly-target-meter-card" style={{ background: 'rgba(0, 0, 0, 0.35)', border: '1px solid rgba(201, 139, 91, 0.25)', borderRadius: '12px', padding: '14px 18px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div className="meter-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', fontSize: '0.86rem' }}>
+          <div className="meter-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', fontSize: '0.86rem', flexWrap: 'wrap' }}>
             <span>August Goal</span>
             <strong style={{ color: 'var(--color-gold)' }}>₱{thisMonthRevenue.toLocaleString()} / ₱{monthlyTargetRevenue.toLocaleString()}</strong>
           </div>
@@ -62,29 +62,31 @@ export default function Dashboard() {
               style={{ width: `${monthlyProgressPercent}%`, height: '100%', background: 'linear-gradient(90deg, #3b82f6, var(--color-gold), #10b981)', borderRadius: '6px', transition: 'width 0.6s ease' }}
             ></div>
           </div>
-          <div className="meter-footer-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+          <div className="meter-footer-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', fontSize: '0.8rem', color: 'var(--color-text-muted)', flexWrap: 'wrap' }}>
             <span>{monthlyProgressPercent}% reached</span>
             <span>₱{(monthlyTargetRevenue - thisMonthRevenue).toLocaleString()} remaining</span>
           </div>
         </div>
 
         {/* Monthly Bar Chart Visualizer */}
-        <div className="chart-bars-container monthly-chart-bars">
-          {monthlySalesData.map((d) => {
-            const heightPercent = Math.round((d.revenue / maxMonthlyRevenue) * 100);
-            return (
-              <div key={d.month} className={`chart-bar-group ${d.isCurrent ? 'current-month-bar' : ''}`}>
-                <span className="chart-val-label">₱{(d.revenue / 1000).toFixed(0)}k</span>
-                <div className="chart-bar-outer">
-                  <div
-                    className="chart-bar-inner"
-                    style={{ height: `${heightPercent}%` }}
-                  ></div>
+        <div className="chart-scroll-container">
+          <div className="chart-bars-container monthly-chart-bars">
+            {monthlySalesData.map((d) => {
+              const heightPercent = Math.round((d.revenue / maxMonthlyRevenue) * 100);
+              return (
+                <div key={d.month} className={`chart-bar-group ${d.isCurrent ? 'current-month-bar' : ''}`}>
+                  <span className="chart-val-label">₱{(d.revenue / 1000).toFixed(0)}k</span>
+                  <div className="chart-bar-outer">
+                    <div
+                      className="chart-bar-inner"
+                      style={{ height: `${heightPercent}%` }}
+                    ></div>
+                  </div>
+                  <span className="chart-day-label">{d.month}</span>
                 </div>
-                <span className="chart-day-label">{d.month}</span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -97,39 +99,41 @@ export default function Dashboard() {
             <span className="box-tag">2026</span>
           </div>
 
-          <table className="manager-table">
-            <thead>
-              <tr>
-                <th>Month</th>
-                <th>Orders</th>
-                <th>Revenue</th>
-                <th>Avg Order</th>
-                <th>Growth</th>
-              </tr>
-            </thead>
-            <tbody>
-              {monthlySalesData.slice().reverse().map((m) => (
-                <tr key={m.month} className={m.isCurrent ? 'row-current-month' : ''}>
-                  <td>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                      <strong>{m.month}</strong>
-                      {m.isCurrent && (
-                        <span className="current-badge" style={{ marginLeft: '6px', padding: '2px 8px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 'bold', background: 'rgba(59, 130, 246, 0.25)', color: '#60a5fa' }}>
-                          Current
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td>{m.orders.toLocaleString()}</td>
-                  <td><strong style={{ color: 'var(--color-gold)' }}>₱{m.revenue.toLocaleString()}</strong></td>
-                  <td>₱{m.avgTicket.toFixed(2)}</td>
-                  <td>
-                    <span className="growth-pill-ok">{m.growth}</span>
-                  </td>
+          <div className="table-scroll-container">
+            <table className="manager-table min-w-table">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Orders</th>
+                  <th>Revenue</th>
+                  <th>Avg Order</th>
+                  <th>Growth</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {monthlySalesData.slice().reverse().map((m) => (
+                  <tr key={m.month} className={m.isCurrent ? 'row-current-month' : ''}>
+                    <td>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                        <strong>{m.month}</strong>
+                        {m.isCurrent && (
+                          <span className="current-badge" style={{ marginLeft: '6px', padding: '2px 8px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 'bold', background: 'rgba(59, 130, 246, 0.25)', color: '#60a5fa' }}>
+                            Current
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td>{m.orders.toLocaleString()}</td>
+                    <td><strong style={{ color: 'var(--color-gold)' }}>₱{m.revenue.toLocaleString()}</strong></td>
+                    <td>₱{m.avgTicket.toFixed(2)}</td>
+                    <td>
+                      <span className="growth-pill-ok">{m.growth}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Recent Store Orders */}
@@ -139,48 +143,50 @@ export default function Dashboard() {
             <span className="box-tag">Live Queue</span>
           </div>
 
-          <table className="manager-table">
-            <thead>
-              <tr>
-                <th>Order Ref</th>
-                <th>Destination</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th>Completed By</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentOrders.length === 0 ? (
+          <div className="table-scroll-container">
+            <table className="manager-table min-w-table">
+              <thead>
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#D4C3B3' }}>
-                    No recent orders.
-                  </td>
+                  <th>Order Ref</th>
+                  <th>Destination</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Completed By</th>
                 </tr>
-              ) : (
-                recentOrders.map((ord) => (
-                  <tr key={ord.id}>
-                    <td><strong>#{ord.id}</strong></td>
-                    <td>{ord.table}</td>
-                    <td>₱{parseFloat(ord.total || 0).toFixed(2)}</td>
-                    <td>
-                      <span className={`status-badge badge-${ord.status === 'completed' ? 'ok' : 'warning'}`}>
-                        {ord.status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td>
-                      {ord.status === 'completed' ? (
-                        <span style={{ color: '#86efac', fontWeight: 600 }}>
-                          {ord.completed_by_name || 'Staff Member'}
-                        </span>
-                      ) : (
-                        <span style={{ color: '#8C7B70' }}>—</span>
-                      )}
+              </thead>
+              <tbody>
+                {recentOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#D4C3B3' }}>
+                      No recent orders.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  recentOrders.map((ord) => (
+                    <tr key={ord.id}>
+                      <td><strong>#{ord.id}</strong></td>
+                      <td>{ord.table}</td>
+                      <td>₱{parseFloat(ord.total || 0).toFixed(2)}</td>
+                      <td>
+                        <span className={`status-badge badge-${ord.status === 'completed' ? 'ok' : 'warning'}`}>
+                          {ord.status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td>
+                        {ord.status === 'completed' ? (
+                          <span style={{ color: '#86efac', fontWeight: 600 }}>
+                            {ord.completed_by_name || 'Staff Member'}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#8C7B70' }}>—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

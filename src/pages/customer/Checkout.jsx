@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Coffee } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export default function Checkout({
@@ -21,13 +22,17 @@ export default function Checkout({
   if (!isOpen) return null;
 
   const now = new Date();
-  const formattedDate = now.toLocaleDateString('en-PH', {
+  const datePart = now.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+    year: 'numeric'
   });
+  const timePart = now.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+  const formattedDate = `${datePart} • ${timePart}`;
   const orderNum = `SC-${Math.floor(1000 + Math.random() * 9000)}`;
 
   const handlePay = async () => {
@@ -60,20 +65,26 @@ export default function Checkout({
     <div className="receipt-modal-backdrop" onClick={() => !isPaid && onClose()} style={{ zIndex: 999999 }}>
       <div className="receipt-3d-card" onClick={(e) => e.stopPropagation()}>
         <div className="receipt-header">
-          <h2 className="receipt-brand-title">SCIAL LA CAFE</h2>
-          <p className="receipt-subtitle">OFFICIAL GUEST RECEIPT</p>
-          <div className="receipt-meta-grid">
-            <div className="receipt-meta-item">
-              <span className="meta-label">DESTINATION</span>
-              <span className="meta-val highlight-table">{tableDisplayLabel}</span>
+          <div className="receipt-brand-badge">
+            <Coffee size={15} className="receipt-brand-icon" />
+            <h2 className="receipt-brand-title">SCIALLA CAFE</h2>
+          </div>
+          <p className="receipt-subtitle">Official Guest Receipt</p>
+          <p className="receipt-tagline">Crafted coffee, served simply.</p>
+          <div className="receipt-header-divider" />
+
+          <div className="receipt-meta-list">
+            <div className="receipt-meta-row">
+              <span className="receipt-meta-label">Destination</span>
+              <span className="receipt-meta-val highlight-destination">{tableDisplayLabel}</span>
             </div>
-            <div className="receipt-meta-item">
-              <span className="meta-label">ORDER REF</span>
-              <span className="meta-val">{createdOrder?.id || orderNum}</span>
+            <div className="receipt-meta-row">
+              <span className="receipt-meta-label">Order Ref</span>
+              <span className="receipt-meta-val font-mono">#{createdOrder?.id || orderNum}</span>
             </div>
-            <div className="receipt-meta-item full-width">
-              <span className="meta-label">DATE & TIME</span>
-              <span className="meta-val">{formattedDate}</span>
+            <div className="receipt-meta-row">
+              <span className="receipt-meta-label">Date & Time</span>
+              <span className="receipt-meta-val font-mono">{formattedDate}</span>
             </div>
           </div>
         </div>
