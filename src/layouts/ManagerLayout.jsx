@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Dashboard from '../pages/manager/Dashboard';
+import Orders from '../pages/manager/Orders';
 import Sales from '../pages/manager/Sales';
 import Products from '../pages/manager/Products';
 import Staff from '../pages/manager/Staff';
@@ -57,6 +58,13 @@ export default function ManagerLayout({ onNavigate }) {
             </button>
             <button
               type="button"
+              className={`sidebar-nav-item ${currentTab === 'orders' ? 'active' : ''}`}
+              onClick={() => handleTabChange('orders')}
+            >
+              Orders
+            </button>
+            <button
+              type="button"
               className={`sidebar-nav-item ${currentTab === 'sales' ? 'active' : ''}`}
               onClick={() => handleTabChange('sales')}
             >
@@ -92,6 +100,7 @@ export default function ManagerLayout({ onNavigate }) {
         {/* Right Main Content */}
         <main className="portal-main-content">
           {currentTab === 'dashboard' && <Dashboard />}
+          {currentTab === 'orders' && <Orders />}
           {currentTab === 'sales' && <Sales />}
           {currentTab === 'products' && <Products />}
           {currentTab === 'staff' && <Staff />}

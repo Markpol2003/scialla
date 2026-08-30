@@ -58,3 +58,20 @@ CREATE TABLE IF NOT EXISTS order_items (
     price NUMERIC(10, 2) NOT NULL
 );
 
+-- Password Reset Verification Codes Table
+CREATE TABLE IF NOT EXISTS password_reset_codes (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    code_hash TEXT NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    attempt_count INTEGER DEFAULT 0,
+    max_attempts INTEGER DEFAULT 5,
+    used_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_reset_codes_email_role ON password_reset_codes (email, role);
+CREATE INDEX IF NOT EXISTS idx_reset_codes_expires_at ON password_reset_codes (expires_at);
+

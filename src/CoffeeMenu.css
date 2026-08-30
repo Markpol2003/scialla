@@ -349,17 +349,19 @@ body {
 }
 
 .user-avatar-badge {
-  width: 24px;
-  height: 24px;
+  min-width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: #D4A373;
   color: #140E0A;
   font-weight: 900;
-  font-size: 0.74rem;
+  font-size: 0.72rem;
+  letter-spacing: -0.2px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  padding: 0 2px;
 }
 
 .user-name-str {

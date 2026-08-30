@@ -1043,11 +1043,29 @@ export function AppProvider({ children }) {
     }
   };
 
-  // Calculate dynamic sales metrics for Manager
-  const completedOrders = orders.filter((o) => o.status === 'completed' || o.status === 'ready' || o.status === 'preparing');
-  const todayRevenue = completedOrders.reduce((sum, o) => sum + o.total, 0) + 12450;
-  const todayOrderCount = completedOrders.length + 38;
-  const avgOrderValue = todayOrderCount > 0 ? (todayRevenue / todayOrderCount).toFixed(2) : 0;
+  // Helper to match Asia/Manila date
+  const isTodayInManila = (dateInput) => {
+    if (!dateInput) return true;
+    try {
+      const orderDate = new Date(dateInput).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+      const todayManila = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+      return orderDate === todayManila;
+    } catch {
+      return true;
+    }
+  };
+
+  // Strictly completed orders for today in Asia/Manila timezone
+  const todayCompletedOrders = orders.filter((o) => {
+    if (o.status !== 'completed') return false;
+    const dateVal = o.completed_at || o.createdAt || o.timestamp || o.created_at;
+    return isTodayInManila(dateVal);
+  });
+
+  const todayRevenue = todayCompletedOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+  const todayOrderCount = todayCompletedOrders.length;
+  const avgOrderValue = todayOrderCount > 0 ? (todayRevenue / todayOrderCount).toFixed(2) : '0.00';
+  const completedOrders = todayCompletedOrders;
 
   // Monthly Revenue & Sales Data Analytics
   const liveOrderTotal = completedOrders.reduce((sum, o) => sum + o.total, 0);

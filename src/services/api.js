@@ -52,6 +52,48 @@ export const api = {
     }
   },
 
+  // Forgot Password: Step 1 - Request 6-digit Code
+  async requestPasswordReset(email, role) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, role })
+      });
+      return await res.json();
+    } catch (err) {
+      return { success: false, message: 'Unable to connect to backend server.' };
+    }
+  },
+
+  // Forgot Password: Step 2 - Verify 6-digit Code
+  async verifyResetCode(email, role, code) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, role, code })
+      });
+      return await res.json();
+    } catch (err) {
+      return { success: false, message: 'Unable to connect to backend server.' };
+    }
+  },
+
+  // Forgot Password: Step 3 - Set New Password
+  async resetPassword(resetToken, newPassword, confirmPassword) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resetToken, newPassword, confirmPassword })
+      });
+      return await res.json();
+    } catch (err) {
+      return { success: false, message: 'Unable to connect to backend server.' };
+    }
+  },
+
   // Logout
   async logout() {
     try {

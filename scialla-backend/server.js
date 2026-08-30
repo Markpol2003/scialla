@@ -10,6 +10,7 @@ const { Server } = require('socket.io');
 require('dotenv').config();
 
 const db = require('./db');
+const emailService = require('./emailService');
 
 const PORT = process.env.PORT || 10000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -28,16 +29,30 @@ const allowedOrigins = [
   FRONTEND_URL,
   FRONTEND_URL && FRONTEND_URL.endsWith('/') ? FRONTEND_URL.slice(0, -1) : (FRONTEND_URL ? `${FRONTEND_URL}/` : ''),
   'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
   'http://localhost:3000',
   'http://localhost:5050',
   'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
   'http://localhost:4173'
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, server-to-server) or matching allowedOrigins
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow requests with no origin (like mobile apps, curl, server-to-server)
+    if (!origin) {
+      return callback(null, true);
+    }
+    // Allow any localhost or 127.0.0.1 origin regardless of port
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    const currentFrontend = process.env.FRONTEND_URL || FRONTEND_URL;
+    if (currentFrontend && (origin === currentFrontend || origin === currentFrontend.replace(/\/$/, ''))) {
+      return callback(null, true);
+    }
+    if (allowedOrigins.includes(origin) || allowedOrigins.some((o) => o && origin.startsWith(o))) {
       return callback(null, true);
     }
     return callback(new Error(`CORS policy violation: Origin ${origin} not allowed.`));
@@ -221,6 +236,24 @@ async function initDatabaseMigrations() {
         quantity INTEGER DEFAULT 50,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+
+    // 7. Password Reset Codes Table
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_codes (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        role VARCHAR(50) NOT NULL,
+        code_hash TEXT NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        attempt_count INTEGER DEFAULT 0,
+        max_attempts INTEGER DEFAULT 5,
+        used_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_reset_codes_email_role ON password_reset_codes (email, role);
+      CREATE INDEX IF NOT EXISTS idx_reset_codes_expires_at ON password_reset_codes (expires_at);
     `);
 
     console.log('✅ PostgreSQL Database schema and tables verified successfully.');
@@ -486,9 +519,48 @@ app.post('/api/auth/staff/login', requireDatabase, async (req, res) => {
 app.get('/api/auth/me', verifyToken, async (req, res) => {
   try {
     if (req.user.role === 'staff' && db.pool) {
-      const result = await db.query('SELECT status FROM staff WHERE id = $1', [req.user.id]);
+      const result = await db.query(
+        'SELECT id, first_name, last_name, email, username, role, status FROM staff WHERE id = $1',
+        [req.user.id]
+      );
       if (result.rows.length === 0 || result.rows[0].status !== 'Active') {
         return res.status(403).json({ success: false, message: 'Your account is no longer active.' });
+      }
+      const s = result.rows[0];
+      return res.json({
+        success: true,
+        user: {
+          id: s.id,
+          first_name: s.first_name,
+          last_name: s.last_name,
+          name: `${s.first_name} ${s.last_name}`,
+          email: s.email,
+          username: s.username,
+          role: 'staff',
+          staffRole: s.role,
+          status: s.status
+        }
+      });
+    }
+    if (req.user.role === 'manager' && db.pool) {
+      const result = await db.query(
+        'SELECT id, first_name, last_name, email, status FROM managers WHERE id = $1',
+        [req.user.id]
+      );
+      if (result.rows.length > 0) {
+        const m = result.rows[0];
+        return res.json({
+          success: true,
+          user: {
+            id: m.id,
+            first_name: m.first_name,
+            last_name: m.last_name,
+            name: `${m.first_name} ${m.last_name}`,
+            email: m.email,
+            role: 'manager',
+            status: m.status
+          }
+        });
       }
     }
     return res.json({ success: true, user: req.user });
@@ -500,6 +572,294 @@ app.get('/api/auth/me', verifyToken, async (req, res) => {
 // Logout endpoint
 app.post('/api/auth/logout', (req, res) => {
   return res.json({ success: true, message: 'Logged out successfully.' });
+});
+
+// ==================== FORGOT PASSWORD (EMAIL VERIFICATION) ====================
+
+// Step 1 & 2: Request 6-Digit Password Reset Verification Code
+app.post('/api/auth/forgot-password/request', requireDatabase, async (req, res) => {
+  const { email, role } = req.body;
+
+  if (!email || !role) {
+    return res.status(400).json({ success: false, message: 'Email address and role are required.' });
+  }
+
+  const cleanRole = (role || '').trim().toLowerCase();
+  if (cleanRole !== 'staff' && cleanRole !== 'manager') {
+    return res.status(400).json({ success: false, message: 'Invalid role specified.' });
+  }
+
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(cleanEmail)) {
+    return res.status(400).json({ success: false, message: 'Please provide a valid email address.' });
+  }
+
+  try {
+    // Enforce 45-second Resend Cooldown
+    const cooldownRes = await db.query(
+      `SELECT created_at FROM password_reset_codes 
+       WHERE LOWER(email) = LOWER($1) AND role = $2 AND created_at > (CURRENT_TIMESTAMP - INTERVAL '45 seconds')
+       ORDER BY created_at DESC LIMIT 1`,
+      [cleanEmail, cleanRole]
+    );
+
+    if (cooldownRes && cooldownRes.rows.length > 0) {
+      return res.status(429).json({
+        success: false,
+        message: 'Please wait before requesting another verification code (45-second cooldown).'
+      });
+    }
+
+    // Lookup user by role and email
+    let user = null;
+    if (cleanRole === 'manager') {
+      const result = await db.query(
+        'SELECT id, first_name, last_name, email, status FROM managers WHERE LOWER(email) = LOWER($1)',
+        [cleanEmail]
+      );
+      if (result && result.rows.length > 0) {
+        user = result.rows[0];
+      }
+    } else if (cleanRole === 'staff') {
+      const result = await db.query(
+        'SELECT id, first_name, last_name, email, username, status FROM staff WHERE LOWER(email) = LOWER($1) AND status = $2',
+        [cleanEmail, 'Active']
+      );
+      if (result && result.rows.length > 0) {
+        user = result.rows[0];
+      }
+    }
+
+    // If account exists, invalidate existing codes, generate secure 6-digit code, store hash, and send email
+    if (user) {
+      // Invalidate previous un-used codes for this account
+      await db.query(
+        'UPDATE password_reset_codes SET used_at = CURRENT_TIMESTAMP WHERE LOWER(email) = LOWER($1) AND role = $2 AND used_at IS NULL',
+        [cleanEmail, cleanRole]
+      );
+
+      // Generate cryptographically secure random 6-digit code
+      const rawCode = crypto.randomInt(100000, 1000000).toString();
+
+      // Store SHA-256 hash of the code
+      const codeHash = crypto.createHash('sha256').update(rawCode).digest('hex');
+
+      // 10 minutes expiration
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      await db.query(
+        `INSERT INTO password_reset_codes (user_id, email, role, code_hash, expires_at, attempt_count, max_attempts)
+         VALUES ($1, $2, $3, $4, $5, 0, 5)`,
+        [user.id, cleanEmail, cleanRole, codeHash, expiresAt]
+      );
+
+      // Dispatch verification email
+      emailService.sendResetCodeEmail({
+        to: user.email,
+        name: user.first_name || (cleanRole === 'manager' ? 'Store Manager' : 'Staff Member'),
+        code: rawCode,
+        role: cleanRole
+      }).catch((err) => {
+        console.error('Password reset email dispatch error:', err);
+      });
+    }
+
+    // Generic response to prevent account enumeration
+    return res.json({
+      success: true,
+      message: 'If an account exists for this email, a verification code has been sent.'
+    });
+  } catch (err) {
+    console.error('Forgot Password Request Error:', err);
+    return res.status(500).json({ success: false, message: 'Server error processing password reset request.' });
+  }
+});
+
+// Step 3 & 4: Verify 6-Digit Reset Code
+app.post('/api/auth/forgot-password/verify', requireDatabase, async (req, res) => {
+  const { email, role, code } = req.body;
+
+  if (!email || !role || !code) {
+    return res.status(400).json({ success: false, message: 'Email, role, and verification code are required.' });
+  }
+
+  const cleanRole = (role || '').trim().toLowerCase();
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const cleanCode = (code || '').toString().trim();
+
+  if (!/^\d{6}$/.test(cleanCode)) {
+    return res.status(400).json({ success: false, message: 'Verification code must be exactly 6 digits.' });
+  }
+
+  try {
+    const codeRes = await db.query(
+      `SELECT * FROM password_reset_codes 
+       WHERE LOWER(email) = LOWER($1) AND role = $2 AND used_at IS NULL 
+       ORDER BY created_at DESC LIMIT 1`,
+      [cleanEmail, cleanRole]
+    );
+
+    if (!codeRes || codeRes.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No active verification code found. Please request a new code.'
+      });
+    }
+
+    const resetRecord = codeRes.rows[0];
+
+    // Check expiration
+    if (new Date(resetRecord.expires_at) < new Date()) {
+      await db.query('UPDATE password_reset_codes SET used_at = CURRENT_TIMESTAMP WHERE id = $1', [resetRecord.id]);
+      return res.status(400).json({
+        success: false,
+        message: 'Verification code has expired (10-minute limit). Please request a new code.'
+      });
+    }
+
+    // Check max attempts
+    if (resetRecord.attempt_count >= resetRecord.max_attempts) {
+      await db.query('UPDATE password_reset_codes SET used_at = CURRENT_TIMESTAMP WHERE id = $1', [resetRecord.id]);
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum verification attempts exceeded. Please request a new code.'
+      });
+    }
+
+    // Timing-safe comparison of code hash
+    const inputHash = crypto.createHash('sha256').update(cleanCode).digest('hex');
+    const isMatch = crypto.timingSafeEqual(
+      Buffer.from(inputHash, 'hex'),
+      Buffer.from(resetRecord.code_hash, 'hex')
+    );
+
+    if (!isMatch) {
+      const newAttempts = resetRecord.attempt_count + 1;
+      await db.query('UPDATE password_reset_codes SET attempt_count = $1 WHERE id = $2', [newAttempts, resetRecord.id]);
+      const remaining = resetRecord.max_attempts - newAttempts;
+
+      if (remaining <= 0) {
+        await db.query('UPDATE password_reset_codes SET used_at = CURRENT_TIMESTAMP WHERE id = $1', [resetRecord.id]);
+        return res.status(400).json({
+          success: false,
+          message: 'Maximum verification attempts exceeded. Please request a new code.'
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: `Invalid verification code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`
+      });
+    }
+
+    // Code is valid: generate short-lived signed Reset Token (JWT, 10-minute validity)
+    const resetToken = jwt.sign(
+      {
+        resetCodeId: resetRecord.id,
+        userId: resetRecord.user_id,
+        email: resetRecord.email,
+        role: resetRecord.role,
+        purpose: 'password_reset'
+      },
+      JWT_SECRET || 'scialla_dev_jwt_secret_key_2026',
+      { expiresIn: '10m' }
+    );
+
+    return res.json({
+      success: true,
+      resetToken,
+      message: 'Verification code accepted.'
+    });
+  } catch (err) {
+    console.error('Verify Reset Code Error:', err);
+    return res.status(500).json({ success: false, message: 'Server error verifying reset code.' });
+  }
+});
+
+// Step 5: Update Password (with verified Reset Token)
+app.post('/api/auth/forgot-password/reset', requireDatabase, async (req, res) => {
+  const { resetToken, newPassword, confirmPassword } = req.body;
+
+  if (!resetToken || !newPassword || !confirmPassword) {
+    return res.status(400).json({ success: false, message: 'Reset token, new password, and confirmation are required.' });
+  }
+
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ success: false, message: 'New password and confirmation do not match.' });
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long.' });
+  }
+
+  try {
+    let decoded;
+    try {
+      decoded = jwt.verify(resetToken, JWT_SECRET || 'scialla_dev_jwt_secret_key_2026');
+    } catch (err) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password reset session has expired or is invalid. Please request a new verification code.'
+      });
+    }
+
+    if (!decoded || decoded.purpose !== 'password_reset' || !decoded.resetCodeId || !decoded.userId || !decoded.role) {
+      return res.status(400).json({ success: false, message: 'Invalid password reset authorization.' });
+    }
+
+    // Verify reset code has not already been used
+    const codeCheck = await db.query(
+      'SELECT * FROM password_reset_codes WHERE id = $1 AND used_at IS NULL',
+      [decoded.resetCodeId]
+    );
+
+    if (!codeCheck || codeCheck.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'This verification code has already been used or invalidated. Please request a new code.'
+      });
+    }
+
+    // Hash new password using bcrypt (matching existing Scialla authentication)
+    const hashedPassword = bcrypt.hashSync(newPassword, 10);
+
+    // Update password in the correct table based on role
+    if (decoded.role === 'manager') {
+      const updateRes = await db.query(
+        'UPDATE managers SET password_hash = $1 WHERE id = $2 RETURNING id, email',
+        [hashedPassword, decoded.userId]
+      );
+      if (updateRes.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Manager account not found.' });
+      }
+    } else if (decoded.role === 'staff') {
+      const updateRes = await db.query(
+        'UPDATE staff SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, email',
+        [hashedPassword, decoded.userId]
+      );
+      if (updateRes.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Staff account not found.' });
+      }
+    }
+
+    // Invalidate reset code immediately to prevent replay
+    await db.query(
+      'UPDATE password_reset_codes SET used_at = CURRENT_TIMESTAMP WHERE id = $1',
+      [decoded.resetCodeId]
+    );
+
+    console.log(`🔐 [Auth] Successfully reset password for ${decoded.role} (User ID: ${decoded.userId}, Email: ${decoded.email})`);
+
+    return res.json({
+      success: true,
+      role: decoded.role,
+      message: 'Your password has been changed successfully.'
+    });
+  } catch (err) {
+    console.error('Reset Password Error:', err);
+    return res.status(500).json({ success: false, message: 'Server error updating password.' });
+  }
 });
 
 // ==================== STAFF MANAGEMENT ROUTES (MANAGER-ONLY) ====================
@@ -1138,12 +1498,20 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
       let authenticatedStaffName = null;
 
       if (authenticatedStaffId) {
-        // Query database to retrieve exact registered full name
+        // Query database to retrieve exact registered full display name
         try {
-          const stRes = await db.query('SELECT first_name, last_name, username FROM staff WHERE id = $1', [authenticatedStaffId]);
-          if (stRes.rows.length > 0) {
-            const stRow = stRes.rows[0];
-            authenticatedStaffName = `${stRow.first_name || ''} ${stRow.last_name || ''}`.trim() || stRow.username;
+          if (req.user && req.user.role === 'manager') {
+            const mgRes = await db.query('SELECT first_name, last_name FROM managers WHERE id = $1', [authenticatedStaffId]);
+            if (mgRes.rows.length > 0) {
+              const mgRow = mgRes.rows[0];
+              authenticatedStaffName = `${mgRow.first_name || ''} ${mgRow.last_name || ''}`.trim();
+            }
+          } else {
+            const stRes = await db.query('SELECT first_name, last_name, username FROM staff WHERE id = $1', [authenticatedStaffId]);
+            if (stRes.rows.length > 0) {
+              const stRow = stRes.rows[0];
+              authenticatedStaffName = `${stRow.first_name || ''} ${stRow.last_name || ''}`.trim() || stRow.username;
+            }
           }
         } catch {}
       }

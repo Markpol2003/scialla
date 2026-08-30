@@ -146,12 +146,13 @@ export default function Dashboard() {
                 <th>Destination</th>
                 <th>Total</th>
                 <th>Status</th>
+                <th>Completed By</th>
               </tr>
             </thead>
             <tbody>
               {recentOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: '#D4C3B3' }}>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#D4C3B3' }}>
                     No recent orders.
                   </td>
                 </tr>
@@ -160,11 +161,20 @@ export default function Dashboard() {
                   <tr key={ord.id}>
                     <td><strong>#{ord.id}</strong></td>
                     <td>{ord.table}</td>
-                    <td>₱{ord.total.toFixed(2)}</td>
+                    <td>₱{parseFloat(ord.total || 0).toFixed(2)}</td>
                     <td>
                       <span className={`status-badge badge-${ord.status === 'completed' ? 'ok' : 'warning'}`}>
                         {ord.status.toUpperCase()}
                       </span>
+                    </td>
+                    <td>
+                      {ord.status === 'completed' ? (
+                        <span style={{ color: '#86efac', fontWeight: 600 }}>
+                          {ord.completed_by_name || 'Staff Member'}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#8C7B70' }}>—</span>
+                      )}
                     </td>
                   </tr>
                 ))

@@ -1,17 +1,42 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 
+// Helper to check if an order timestamp is today in Asia/Manila timezone
+function isTodayInManila(dateInput) {
+  if (!dateInput) return true;
+  try {
+    const orderDate = new Date(dateInput).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+    const todayManila = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+    return orderDate === todayManila;
+  } catch {
+    return true;
+  }
+}
+
 export default function Sales() {
   const { topProducts, monthlySalesData, orders } = useApp();
 
   const maxRevenue = Math.max(...monthlySalesData.map((d) => d.revenue));
 
-  const completedOrdersList = orders.filter((o) => o.status === 'completed');
-  const activeOrdersList = orders.filter((o) => o.status === 'new' || o.status === 'preparing' || o.status === 'ready');
-  const dailyRevenue = orders
-    .filter((o) => o.status === 'completed' || o.status === 'ready' || o.status === 'preparing')
-    .reduce((sum, o) => sum + (o.total || 0), 0);
-  const avgTicket = orders.length > 0 ? (dailyRevenue / orders.length).toFixed(2) : '0.00';
+  // Single consistent set of today's completed orders
+  const completedOrdersList = orders.filter((o) => {
+    if (o.status !== 'completed') return false;
+    const dateVal = o.completed_at || o.createdAt || o.timestamp || o.created_at;
+    return isTodayInManila(dateVal);
+  });
+
+  const activeOrdersList = orders.filter((o) => {
+    if (o.status !== 'new' && o.status !== 'preparing' && o.status !== 'ready') return false;
+    const dateVal = o.createdAt || o.timestamp || o.created_at;
+    return isTodayInManila(dateVal);
+  });
+
+  // Daily Revenue Total = Sum of completed orders revenue ONLY
+  const dailyRevenue = completedOrdersList.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+
+  // Avg Ticket = Today's completed order revenue / Today's completed order count
+  const completedCount = completedOrdersList.length;
+  const avgTicket = completedCount > 0 ? (dailyRevenue / completedCount).toFixed(2) : '0.00';
 
   return (
     <div className="sales-tab-container" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
