@@ -6,28 +6,19 @@ export default function Dashboard() {
     todayRevenue,
     todayOrderCount,
     avgOrderValue,
-    thisMonthRevenue,
-    monthlyTargetRevenue,
-    monthlyProgressPercent,
     monthlySalesData,
     orders
   } = useApp();
 
   const recentOrders = orders.slice(0, 8);
-  const maxMonthlyRevenue = Math.max(...monthlySalesData.map((d) => d.revenue));
 
   return (
     <div className="manager-dashboard-overview">
       {/* KPI Cards Row */}
       <div className="kpi-cards-row">
         <div className="kpi-card highlight-revenue">
-          <span className="kpi-title">TODAY'S REVENUE</span>
+          <span className="kpi-title">TODAY'S SALES</span>
           <div className="kpi-main-val">₱{todayRevenue.toLocaleString()}</div>
-        </div>
-
-        <div className="kpi-card highlight-revenue-monthly">
-          <span className="kpi-title">THIS MONTH'S REVENUE</span>
-          <div className="kpi-main-val">₱{thisMonthRevenue.toLocaleString()}</div>
         </div>
 
         <div className="kpi-card">
@@ -41,58 +32,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* MONTHLY REVENUE CHART */}
-      <div className="manager-box monthly-sales-overview-box" style={{ marginBottom: '24px' }}>
-        <div className="box-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold' }}>Monthly Revenue Overview</h2>
-          </div>
-          <span className="box-tag">2026 Fiscal Year</span>
-        </div>
-
-        {/* Monthly Target Progress Meter */}
-        <div className="monthly-target-meter-card" style={{ background: 'rgba(0, 0, 0, 0.35)', border: '1px solid rgba(201, 139, 91, 0.25)', borderRadius: '12px', padding: '14px 18px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div className="meter-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', fontSize: '0.86rem', flexWrap: 'wrap' }}>
-            <span>August Goal</span>
-            <strong style={{ color: 'var(--color-gold)' }}>₱{thisMonthRevenue.toLocaleString()} / ₱{monthlyTargetRevenue.toLocaleString()}</strong>
-          </div>
-          <div className="meter-progress-track" style={{ width: '100%', height: '10px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '6px', overflow: 'hidden' }}>
-            <div
-              className="meter-progress-fill"
-              style={{ width: `${monthlyProgressPercent}%`, height: '100%', background: 'linear-gradient(90deg, #3b82f6, var(--color-gold), #10b981)', borderRadius: '6px', transition: 'width 0.6s ease' }}
-            ></div>
-          </div>
-          <div className="meter-footer-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', fontSize: '0.8rem', color: 'var(--color-text-muted)', flexWrap: 'wrap' }}>
-            <span>{monthlyProgressPercent}% reached</span>
-            <span>₱{(monthlyTargetRevenue - thisMonthRevenue).toLocaleString()} remaining</span>
-          </div>
-        </div>
-
-        {/* Monthly Bar Chart Visualizer */}
-        <div className="chart-scroll-container">
-          <div className="chart-bars-container monthly-chart-bars">
-            {monthlySalesData.map((d) => {
-              const heightPercent = Math.round((d.revenue / maxMonthlyRevenue) * 100);
-              return (
-                <div key={d.month} className={`chart-bar-group ${d.isCurrent ? 'current-month-bar' : ''}`}>
-                  <span className="chart-val-label">₱{(d.revenue / 1000).toFixed(0)}k</span>
-                  <div className="chart-bar-outer">
-                    <div
-                      className="chart-bar-inner"
-                      style={{ height: `${heightPercent}%` }}
-                    ></div>
-                  </div>
-                  <span className="chart-day-label">{d.month}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* REVENUE BREAKDOWN & RECENT ORDERS */}
+      {/* SALES BREAKDOWN & RECENT ORDERS */}
       <div className="manager-two-columns">
-        {/* Monthly Revenue Breakdown Table */}
+        {/* Monthly Sales Breakdown Table */}
         <div className="manager-box">
           <div className="box-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <h2>Monthly Breakdown</h2>
@@ -105,7 +47,7 @@ export default function Dashboard() {
                 <tr>
                   <th>Month</th>
                   <th>Orders</th>
-                  <th>Revenue</th>
+                  <th>Sales</th>
                   <th>Avg Order</th>
                   <th>Growth</th>
                 </tr>

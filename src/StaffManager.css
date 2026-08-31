@@ -1671,7 +1671,9 @@
   background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  overflow: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
 }
 
 .login-card-3d {
@@ -2011,12 +2013,26 @@
 
 .portal-sidebar {
   width: 220px;
-  background: rgba(20, 15, 12, 0.8);
+  min-width: 220px;
+  background: rgba(20, 15, 12, 0.9);
   border-right: 1px solid rgba(201, 139, 91, 0.2);
   padding: 20px 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+  box-sizing: border-box;
+}
+
+.portal-sidebar.collapsed {
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border-right: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+  visibility: hidden;
 }
 
 .sidebar-nav-item {
@@ -3562,15 +3578,22 @@
 .forgot-password-card-v2 {
   width: 100%;
   max-width: 440px;
+  box-sizing: border-box;
   background: linear-gradient(145deg, #1C0E07 0%, #120703 100%);
   border: 1.5px solid rgba(201, 139, 91, 0.45);
   border-radius: 20px;
-  padding: 28px 26px;
+  padding: 24px 16px;
   color: #FFFFFF;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 30px rgba(201, 139, 91, 0.15);
   position: relative;
   overflow: visible;
   margin: auto;
+}
+
+@media (min-width: 640px) {
+  .forgot-password-card-v2 {
+    padding: 28px 26px;
+  }
 }
 
 .forgot-password-card-v2::before {
@@ -3789,27 +3812,48 @@
   width: 100%;
 }
 
-/* 6-Digit Code Input Boxes */
+/* 6-Digit Code Input Boxes - Responsive 6-column grid */
 .fp-code-inputs-group {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 20px 0 14px 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  max-width: 330px;
+  margin: 20px auto 14px auto;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .fp-code-inputs-group {
+    gap: 8px;
+  }
 }
 
 .fp-code-digit {
-  width: 48px;
-  height: 58px;
+  width: 100%;
+  min-width: 0;
+  max-width: 48px;
+  aspect-ratio: 1 / 1;
+  height: auto;
+  margin: 0 auto;
   text-align: center;
-  font-size: 1.6rem;
+  font-size: 1.25rem;
   font-weight: 800;
   font-family: var(--font-mono, monospace);
   background: rgba(0, 0, 0, 0.45) !important;
   border: 1.5px solid rgba(201, 139, 91, 0.4) !important;
-  border-radius: 12px !important;
+  border-radius: 10px !important;
   color: #FFDFBA !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   padding: 0 !important;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .fp-code-digit {
+    font-size: 1.5rem;
+    border-radius: 12px !important;
+  }
 }
 
 .fp-code-digit:focus {
@@ -4815,5 +4859,753 @@
     width: 94vw;
     max-width: 94vw;
     padding: 18px 14px;
+  }
+}
+
+/* ==========================================================================
+   MANAGER RESPONSIVE MOBILE SUITE STYLES (Orders, Navigation, Cards)
+   ========================================================================== */
+
+/* Desktop defaults */
+.manager-orders-header-box {
+  padding: 20px;
+}
+
+.orders-header-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.orders-page-title {
+  margin: 0 0 4px;
+  font-size: 1.2rem;
+  color: #FFDFBA;
+}
+
+.orders-page-subtitle {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #D4C3B3;
+}
+
+.orders-metrics-grid {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.order-metric-card {
+  border-radius: 8px;
+  padding: 6px 14px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 80px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.order-metric-card.live-queue {
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.order-metric-card.live-queue .metric-label {
+  font-size: 0.7rem;
+  color: #93c5fd;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+}
+
+.order-metric-card.live-queue .metric-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #bfdbfe;
+  font-family: var(--font-mono, monospace);
+  display: block;
+}
+
+.order-metric-card.fulfilled {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.order-metric-card.fulfilled .metric-label {
+  font-size: 0.7rem;
+  color: #86efac;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+}
+
+.order-metric-card.fulfilled .metric-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #4ade80;
+  font-family: var(--font-mono, monospace);
+  display: block;
+}
+
+.orders-filter-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.orders-tab-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.orders-controls-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.orders-search-input {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(201, 139, 91, 0.3);
+  border-radius: 8px;
+  padding: 7px 12px;
+  color: #FFF;
+  font-size: 0.82rem;
+  min-width: 220px;
+}
+
+.orders-desktop-sort-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.orders-mobile-sort-select {
+  display: none;
+}
+
+.orders-desktop-table-container {
+  display: block;
+  overflow-x: auto;
+}
+
+.orders-mobile-cards-list {
+  display: none;
+}
+
+.catalog-desktop-table-container {
+  display: block;
+}
+
+.catalog-mobile-cards-list {
+  display: none;
+}
+
+/* ==========================================================================
+   EDGE ARROW TOGGLE & SIDE DRAWER NAVIGATION STYLES
+   ========================================================================== */
+
+/* Fixed Edge Arrow Tab (›) on Left Edge of Screen */
+.btn-edge-toggle {
+  position: fixed;
+  left: 0;
+  top: 130px;
+  z-index: 9990;
+  width: 26px;
+  height: 44px;
+  background: linear-gradient(135deg, rgba(35, 20, 14, 0.96), rgba(20, 10, 6, 0.98));
+  border: 1.5px solid rgba(201, 139, 91, 0.45);
+  border-left: none;
+  border-radius: 0 10px 10px 0;
+  color: #FFDFBA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 4px 2px 16px rgba(0, 0, 0, 0.6);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-edge-toggle:hover,
+.btn-edge-toggle:active {
+  background: #C98B5B;
+  color: #120D0A;
+  width: 32px;
+  box-shadow: 6px 2px 20px rgba(201, 139, 91, 0.4);
+}
+
+.btn-edge-toggle-mobile {
+  display: none;
+}
+
+.btn-edge-toggle-desktop {
+  display: flex;
+}
+
+/* Mobile Drawer Header with Close Arrow (‹) */
+.drawer-header-mobile {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(201, 139, 91, 0.2);
+}
+
+.drawer-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-drawer-close {
+  background: rgba(201, 139, 91, 0.15);
+  border: 1px solid rgba(201, 139, 91, 0.35);
+  border-radius: 8px;
+  color: #FFDFBA;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-drawer-close:hover,
+.btn-drawer-close:active {
+  background: rgba(201, 139, 91, 0.35);
+  color: #FFF;
+  transform: scale(1.05);
+}
+
+/* Desktop Collapse Arrow Button inside sidebar (‹) */
+.btn-sidebar-collapse-toggle {
+  background: rgba(201, 139, 91, 0.15);
+  border: 1px solid rgba(201, 139, 91, 0.3);
+  border-radius: 6px;
+  color: #E2B688;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.btn-sidebar-collapse-toggle:hover {
+  background: rgba(201, 139, 91, 0.35);
+  color: #FFF;
+  border-color: #E2B688;
+  transform: scale(1.05);
+}
+
+/* Backdrop Overlay for Mobile Drawer */
+.portal-drawer-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 9998;
+  animation: backdropFadeIn 0.2s ease;
+}
+
+@keyframes backdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Desktop Main Content Expanded */
+.portal-main-content.content-expanded {
+  padding-left: 32px;
+  padding-right: 32px;
+}
+
+/* ==========================================================================
+   MOBILE BREAKPOINT (< 768px)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Show Mobile Edge Tab Arrow (›) */
+  .btn-edge-toggle-mobile {
+    display: flex !important;
+  }
+
+  .btn-edge-toggle-desktop {
+    display: none !important;
+  }
+
+  /* Show Drawer Header inside Mobile Sidebar */
+  .drawer-header-mobile {
+    display: flex !important;
+  }
+
+  /* Desktop Collapse Arrow is hidden on mobile */
+  .btn-sidebar-collapse-toggle {
+    display: none !important;
+  }
+
+  /* Mobile Off-Canvas Drawer */
+  .portal-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 260px !important;
+    max-width: 82vw !important;
+    z-index: 10000 !important;
+    background: linear-gradient(145deg, #1C110A, #120904) !important;
+    border-right: 1.5px solid rgba(201, 139, 91, 0.35) !important;
+    padding: 18px 14px !important;
+    box-shadow: 12px 0 40px rgba(0, 0, 0, 0.9) !important;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  .portal-sidebar.mobile-open {
+    transform: translateX(0) !important;
+  }
+
+  /* Main content layout on mobile (Full Width) */
+  .portal-main-content {
+    padding: 14px 12px !important;
+    padding-bottom: 28px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Hide Desktop Tables on Mobile */
+  .orders-desktop-table-container,
+  .catalog-desktop-table-container {
+    display: none !important;
+  }
+
+  /* Show Mobile Cards on Mobile */
+  .orders-mobile-cards-list {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .catalog-mobile-cards-list {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+
+  /* Orders Page Header on Mobile */
+  .manager-orders-header-box {
+    padding: 14px !important;
+  }
+
+  .orders-header-title-row {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .orders-page-title {
+    font-size: 1.1rem !important;
+    margin: 0 0 2px !important;
+  }
+
+  .orders-page-subtitle {
+    font-size: 0.76rem !important;
+    color: #A08070 !important;
+    margin: 0 !important;
+  }
+
+  .orders-metrics-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .order-metric-card {
+    border-radius: 10px;
+    padding: 8px 12px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .order-metric-card.live-queue {
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+  }
+
+  .order-metric-card.live-queue .metric-label {
+    font-size: 0.68rem;
+    color: #93c5fd;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .order-metric-card.live-queue .metric-val {
+    font-size: 1.3rem;
+    color: #bfdbfe;
+  }
+
+  .order-metric-card.fulfilled {
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid rgba(34, 197, 94, 0.35);
+  }
+
+  .order-metric-card.fulfilled .metric-label {
+    font-size: 0.68rem;
+    color: #86efac;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .order-metric-card.fulfilled .metric-val {
+    font-size: 1.3rem;
+    color: #4ade80;
+  }
+
+  /* Filter toolbar on Mobile */
+  .orders-filter-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+    width: 100%;
+  }
+
+  .orders-tab-toggle {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .orders-tab-toggle::-webkit-scrollbar {
+    display: none;
+  }
+
+  .orders-tab-toggle .role-chip-btn {
+    padding: 7px 12px !important;
+    font-size: 0.76rem !important;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .orders-controls-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .orders-search-input {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(201, 139, 91, 0.3);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #FFF;
+    font-size: 0.82rem;
+  }
+
+  .orders-desktop-sort-group {
+    display: none !important;
+  }
+
+  .orders-mobile-sort-select {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box;
+    background: #1A0D08;
+    border: 1px solid rgba(201, 139, 91, 0.3);
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: #E2B688;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+
+  .manager-orders-list-box {
+    padding: 12px !important;
+  }
+
+  /* Mobile Order Card */
+  .manager-order-mobile-card {
+    background: linear-gradient(145deg, rgba(28, 14, 8, 0.95), rgba(18, 9, 5, 0.98));
+    border: 1px solid rgba(201, 139, 91, 0.25);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  }
+
+  .manager-order-mobile-card:active {
+    transform: scale(0.99);
+    border-color: var(--color-gold);
+  }
+
+  .order-card-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .order-card-ref {
+    font-family: var(--font-mono);
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #E2B688;
+    letter-spacing: 0.5px;
+  }
+
+  .order-card-second-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.84rem;
+  }
+
+  .order-card-dest {
+    color: #FFFFFF;
+    font-weight: 600;
+  }
+
+  .order-card-time {
+    color: #A08070;
+    font-size: 0.78rem;
+  }
+
+  .order-card-total-row {
+    padding: 2px 0;
+  }
+
+  .order-card-total {
+    font-size: 1.35rem;
+    font-weight: 900;
+    color: #FFDFBA;
+    font-family: var(--font-mono);
+    letter-spacing: 0.5px;
+  }
+
+  .order-card-completed-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid rgba(201, 139, 91, 0.15);
+    padding-top: 8px;
+    font-size: 0.8rem;
+  }
+
+  .order-card-completed-label {
+    color: #8C7B70;
+  }
+
+  .order-card-completed-val {
+    color: #8C7B70;
+    font-weight: 600;
+  }
+
+  .order-card-completed-val.is-completed {
+    color: #86efac;
+  }
+
+  .order-card-audit-row {
+    display: flex;
+    justify-content: flex-end;
+    border-top: 1px dashed rgba(201, 139, 91, 0.15);
+    padding-top: 8px;
+  }
+
+  .btn-order-card-audit {
+    background: rgba(201, 139, 91, 0.12);
+    border: 1px solid rgba(201, 139, 91, 0.35);
+    border-radius: 8px;
+    color: #E2B688;
+    padding: 6px 14px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .btn-order-card-audit:hover {
+    background: rgba(201, 139, 91, 0.25);
+    color: #FFDFBA;
+  }
+
+  /* Product Mobile Cards */
+  .product-mobile-card {
+    background: linear-gradient(145deg, rgba(28, 14, 8, 0.95), rgba(18, 9, 5, 0.98));
+    border: 1px solid rgba(201, 139, 91, 0.25);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .product-mobile-card.card-out-of-stock {
+    opacity: 0.65;
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  .pmc-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .pmc-identity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .pmc-name {
+    font-size: 0.95rem;
+    color: #FFFFFF;
+  }
+
+  .pmc-desc {
+    margin: 0;
+    font-size: 0.78rem;
+    color: #A08070;
+    line-height: 1.35;
+  }
+
+  .pmc-bottom-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid rgba(201, 139, 91, 0.15);
+    padding-top: 10px;
+    margin-top: 2px;
+  }
+
+  .pmc-price-main {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #E2B688;
+    font-family: var(--font-mono);
+  }
+
+  .pmc-sizes-sub {
+    display: block;
+    font-size: 0.7rem;
+    color: #8C7B70;
+    margin-top: 2px;
+    font-family: var(--font-mono);
+  }
+
+  .catalog-hero {
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 14px !important;
+  }
+
+  .catalog-hero-stats {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .hero-stat {
+    padding: 8px !important;
+  }
+
+  .hero-stat-value {
+    font-size: 1.2rem !important;
+  }
+
+  .hero-stat-label {
+    font-size: 0.65rem !important;
+  }
+
+  .catalog-toolbar {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .catalog-filter-chips {
+    width: 100% !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    padding-bottom: 4px !important;
+    scrollbar-width: none;
+  }
+  .catalog-filter-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-chip {
+    flex-shrink: 0 !important;
+    padding: 6px 12px !important;
+    font-size: 0.76rem !important;
+  }
+
+  /* Staff Roster & Duty responsive layout */
+  .staff-roster-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    margin-top: 16px !important;
+  }
+
+  .staff-id-badge-card {
+    padding: 14px !important;
+    gap: 12px !important;
+  }
+
+  .badge-actions-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .badge-btn {
+    padding: 8px 6px !important;
+    font-size: 0.74rem !important;
   }
 }

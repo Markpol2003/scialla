@@ -7,6 +7,7 @@ export default function Cart({
   totalAmount,
   onUpdateQty,
   onRemoveItem,
+  onOpenAddonsModal,
   onOpenCheckout,
   onOpenTableModal,
   onCollapse
@@ -53,13 +54,37 @@ export default function Cart({
             </div>
           ) : (
             cart.map((item) => (
-              <div key={item.id} className="cart-item-row">
+              <div key={item.id} className="cart-item-row" style={{ alignItems: 'flex-start' }}>
                 <div className="item-info">
                   <div className="item-row-name">{item.rawName || item.name}</div>
                   {item.size && (
                     <div className="item-row-size">
                       {item.size}
                     </div>
+                  )}
+
+                  {/* Display selected add-ons if any */}
+                  {Array.isArray(item.addons) && item.addons.length > 0 && (
+                    <div className="cart-item-addons-list">
+                      {item.addons.map((a, aIdx) => (
+                        <div key={a.id || aIdx} className="cart-item-addon-line">
+                          <span>+ {a.name}</span>
+                          <span className="cart-item-addon-price">₱{parseFloat(a.price).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Proper secondary action: [ + Add-ons ] / [ Edit Add-ons ] */}
+                  {onOpenAddonsModal && !String(item.id || '').startsWith('da') && !String(item.id || '').startsWith('fa') && (
+                    <button
+                      type="button"
+                      className={`btn-cart-addon-pill ${item.addons && item.addons.length > 0 ? 'is-edit' : ''}`}
+                      onClick={() => onOpenAddonsModal(item)}
+                      title={item.addons && item.addons.length > 0 ? 'Edit add-ons for this item' : 'Customize add-ons for this item'}
+                    >
+                      {item.addons && item.addons.length > 0 ? 'Edit Add-ons' : '+ Add-ons'}
+                    </button>
                   )}
                 </div>
 

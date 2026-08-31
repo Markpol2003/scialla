@@ -256,6 +256,24 @@ async function initDatabaseMigrations() {
       CREATE INDEX IF NOT EXISTS idx_reset_codes_expires_at ON password_reset_codes (expires_at);
     `);
 
+    // 8. Customer Notifications Table for persistent order lifecycle updates
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS customer_notifications (
+        id SERIAL PRIMARY KEY,
+        order_id VARCHAR(50) REFERENCES orders(id) ON DELETE CASCADE,
+        guest_session_id VARCHAR(64),
+        user_id INTEGER,
+        status VARCHAR(50) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT unique_order_status_notification UNIQUE (order_id, status)
+      );
+      CREATE INDEX IF NOT EXISTS idx_customer_notifs_guest ON customer_notifications (guest_session_id);
+      CREATE INDEX IF NOT EXISTS idx_customer_notifs_order ON customer_notifications (order_id);
+    `);
+
     console.log('✅ PostgreSQL Database schema and tables verified successfully.');
   } catch (err) {
     console.error('⚠️ Database migration error:', err);
@@ -410,7 +428,7 @@ app.post('/api/auth/manager/login', requireDatabase, async (req, res) => {
   }
 
   try {
-    const result = await db.query('SELECT * FROM managers WHERE LOWER(email) = LOWER($1)', [email.trim()]);
+    const result = await db.query('SELECT * FROM managers WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))', [email]);
     if (!result || result.rows.length === 0) {
       return res.status(401).json({ success: false, message: 'Invalid email or password.' });
     }
@@ -458,7 +476,7 @@ app.post('/api/auth/staff/login', requireDatabase, async (req, res) => {
 
   try {
     const result = await db.query(
-      'SELECT * FROM staff WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($1)',
+      'SELECT * FROM staff WHERE LOWER(TRIM(username)) = LOWER(TRIM($1)) OR LOWER(TRIM(email)) = LOWER(TRIM($1))',
       [loginIdentifier]
     );
 
@@ -596,26 +614,14 @@ app.post('/api/auth/forgot-password/request', requireDatabase, async (req, res) 
   }
 
   try {
-    // Enforce 45-second Resend Cooldown
-    const cooldownRes = await db.query(
-      `SELECT created_at FROM password_reset_codes 
-       WHERE LOWER(email) = LOWER($1) AND role = $2 AND created_at > (CURRENT_TIMESTAMP - INTERVAL '45 seconds')
-       ORDER BY created_at DESC LIMIT 1`,
-      [cleanEmail, cleanRole]
-    );
-
-    if (cooldownRes && cooldownRes.rows.length > 0) {
-      return res.status(429).json({
-        success: false,
-        message: 'Please wait before requesting another verification code (45-second cooldown).'
-      });
-    }
-
-    // Lookup user by role and email
+    // Lookup user fresh from PostgreSQL by role and email
     let user = null;
     if (cleanRole === 'manager') {
       const result = await db.query(
-        'SELECT id, first_name, last_name, email, status FROM managers WHERE LOWER(email) = LOWER($1)',
+        `SELECT id, first_name, last_name, email, status 
+         FROM managers 
+         WHERE LOWER(TRIM(email)) = LOWER(TRIM($1)) 
+           AND (status = 'Active' OR status IS NULL)`,
         [cleanEmail]
       );
       if (result && result.rows.length > 0) {
@@ -623,20 +629,40 @@ app.post('/api/auth/forgot-password/request', requireDatabase, async (req, res) 
       }
     } else if (cleanRole === 'staff') {
       const result = await db.query(
-        'SELECT id, first_name, last_name, email, username, status FROM staff WHERE LOWER(email) = LOWER($1) AND status = $2',
-        [cleanEmail, 'Active']
+        `SELECT id, first_name, last_name, email, username, status 
+         FROM staff 
+         WHERE LOWER(TRIM(email)) = LOWER(TRIM($1)) 
+           AND status = 'Active'`,
+        [cleanEmail]
       );
       if (result && result.rows.length > 0) {
         user = result.rows[0];
       }
     }
 
-    // If account exists, invalidate existing codes, generate secure 6-digit code, store hash, and send email
+    // If account exists, check cooldown, invalidate previous codes, and send code to CURRENT email
     if (user) {
-      // Invalidate previous un-used codes for this account
+      // Enforce 45-second Resend Cooldown on this account
+      const cooldownRes = await db.query(
+        `SELECT created_at FROM password_reset_codes 
+         WHERE user_id = $1 AND role = $2 AND created_at > (CURRENT_TIMESTAMP - INTERVAL '45 seconds')
+         ORDER BY created_at DESC LIMIT 1`,
+        [user.id, cleanRole]
+      );
+
+      if (cooldownRes && cooldownRes.rows.length > 0) {
+        return res.status(429).json({
+          success: false,
+          message: 'Please wait before requesting another verification code (45-second cooldown).'
+        });
+      }
+
+      // Invalidate any previous un-used codes for this account ID
       await db.query(
-        'UPDATE password_reset_codes SET used_at = CURRENT_TIMESTAMP WHERE LOWER(email) = LOWER($1) AND role = $2 AND used_at IS NULL',
-        [cleanEmail, cleanRole]
+        `UPDATE password_reset_codes 
+         SET used_at = CURRENT_TIMESTAMP 
+         WHERE user_id = $1 AND role = $2 AND used_at IS NULL`,
+        [user.id, cleanRole]
       );
 
       // Generate cryptographically secure random 6-digit code
@@ -648,20 +674,24 @@ app.post('/api/auth/forgot-password/request', requireDatabase, async (req, res) 
       // 10 minutes expiration
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
+      // Store using current user email from DB
       await db.query(
         `INSERT INTO password_reset_codes (user_id, email, role, code_hash, expires_at, attempt_count, max_attempts)
          VALUES ($1, $2, $3, $4, $5, 0, 5)`,
-        [user.id, cleanEmail, cleanRole, codeHash, expiresAt]
+        [user.id, user.email.trim(), cleanRole, codeHash, expiresAt]
       );
 
-      // Dispatch verification email
+      // Dispatch verification email dynamically to the user's CURRENT registered email
+      const targetEmail = user.email.trim();
       emailService.sendResetCodeEmail({
-        to: user.email,
+        to: targetEmail,
         name: user.first_name || (cleanRole === 'manager' ? 'Store Manager' : 'Staff Member'),
         code: rawCode,
         role: cleanRole
+      }).then(() => {
+        console.log(`[Password Reset] Verification email sent to ${emailService.maskEmail(targetEmail)} (${cleanRole})`);
       }).catch((err) => {
-        console.error('Password reset email dispatch error:', err);
+        console.error('[Password Reset] Email dispatch error:', err.message || err);
       });
     }
 
@@ -693,11 +723,45 @@ app.post('/api/auth/forgot-password/verify', requireDatabase, async (req, res) =
   }
 
   try {
+    // Lookup user fresh from PostgreSQL by role and current email
+    let user = null;
+    if (cleanRole === 'manager') {
+      const result = await db.query(
+        `SELECT id, first_name, last_name, email, status 
+         FROM managers 
+         WHERE LOWER(TRIM(email)) = LOWER(TRIM($1)) 
+           AND (status = 'Active' OR status IS NULL)`,
+        [cleanEmail]
+      );
+      if (result && result.rows.length > 0) {
+        user = result.rows[0];
+      }
+    } else if (cleanRole === 'staff') {
+      const result = await db.query(
+        `SELECT id, first_name, last_name, email, username, status 
+         FROM staff 
+         WHERE LOWER(TRIM(email)) = LOWER(TRIM($1)) 
+           AND status = 'Active'`,
+        [cleanEmail]
+      );
+      if (result && result.rows.length > 0) {
+        user = result.rows[0];
+      }
+    }
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired verification code.'
+      });
+    }
+
+    // Retrieve active reset code by account user_id
     const codeRes = await db.query(
       `SELECT * FROM password_reset_codes 
-       WHERE LOWER(email) = LOWER($1) AND role = $2 AND used_at IS NULL 
+       WHERE user_id = $1 AND role = $2 AND used_at IS NULL 
        ORDER BY created_at DESC LIMIT 1`,
-      [cleanEmail, cleanRole]
+      [user.id, cleanRole]
     );
 
     if (!codeRes || codeRes.rows.length === 0) {
@@ -757,9 +821,9 @@ app.post('/api/auth/forgot-password/verify', requireDatabase, async (req, res) =
     const resetToken = jwt.sign(
       {
         resetCodeId: resetRecord.id,
-        userId: resetRecord.user_id,
-        email: resetRecord.email,
-        role: resetRecord.role,
+        userId: user.id,
+        email: user.email.trim(),
+        role: cleanRole,
         purpose: 'password_reset'
       },
       JWT_SECRET || 'scialla_dev_jwt_secret_key_2026',
@@ -810,8 +874,8 @@ app.post('/api/auth/forgot-password/reset', requireDatabase, async (req, res) =>
 
     // Verify reset code has not already been used
     const codeCheck = await db.query(
-      'SELECT * FROM password_reset_codes WHERE id = $1 AND used_at IS NULL',
-      [decoded.resetCodeId]
+      'SELECT * FROM password_reset_codes WHERE id = $1 AND user_id = $2 AND role = $3 AND used_at IS NULL',
+      [decoded.resetCodeId, decoded.userId, decoded.role]
     );
 
     if (!codeCheck || codeCheck.rows.length === 0) {
@@ -849,7 +913,13 @@ app.post('/api/auth/forgot-password/reset', requireDatabase, async (req, res) =>
       [decoded.resetCodeId]
     );
 
-    console.log(`🔐 [Auth] Successfully reset password for ${decoded.role} (User ID: ${decoded.userId}, Email: ${decoded.email})`);
+    // Invalidate any other pending codes for this user
+    await db.query(
+      'UPDATE password_reset_codes SET used_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND role = $2 AND used_at IS NULL',
+      [decoded.userId, decoded.role]
+    );
+
+    console.log(`🔐 [Auth] Successfully reset password for ${decoded.role} (User ID: ${decoded.userId})`);
 
     return res.json({
       success: true,
@@ -881,24 +951,35 @@ app.get('/api/staff', requireDatabase, verifyToken, verifyManager, async (req, r
 app.post('/api/staff', requireDatabase, verifyToken, verifyManager, async (req, res) => {
   const { first_name, last_name, email, username, role, password } = req.body;
 
-  if (!first_name || !last_name || !email || !username || !password) {
+  const cleanFirstName = (first_name || '').toString().trim();
+  const cleanLastName = (last_name || '').toString().trim();
+  const cleanEmail = (email || '').toString().trim();
+  const cleanUsername = (username || '').toString().trim();
+  const staffRole = (role || 'Staff').toString().trim();
+
+  if (!cleanFirstName || !cleanLastName || !cleanEmail || !cleanUsername || !password) {
     return res.status(400).json({ success: false, message: 'All fields (first_name, last_name, email, username, password) are required.' });
   }
 
   const hashedPassword = bcrypt.hashSync(password, 10);
-  const staffRole = role || 'Staff';
 
   try {
-    const dupCheck = await db.query('SELECT * FROM staff WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($2)', [email, username]);
+    // Unique check against both staff and managers
+    const dupCheck = await db.query(
+      `SELECT id FROM staff WHERE LOWER(TRIM(email)) = LOWER(TRIM($1)) OR LOWER(TRIM(username)) = LOWER(TRIM($2))
+       UNION
+       SELECT id FROM managers WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))`,
+      [cleanEmail, cleanUsername]
+    );
     if (dupCheck.rows.length > 0) {
-      return res.status(400).json({ success: false, message: 'Email or username is already in use.' });
+      return res.status(400).json({ success: false, message: 'Email or username is already in use by another account.' });
     }
 
     const insertRes = await db.query(
       `INSERT INTO staff (first_name, last_name, email, username, password_hash, role, status, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, 'Active', $7)
        RETURNING id, first_name, last_name, email, username, role, status, created_at`,
-      [first_name, last_name, email, username, hashedPassword, staffRole, req.user.id || 1]
+      [cleanFirstName, cleanLastName, cleanEmail, cleanUsername, hashedPassword, staffRole, req.user.id || 1]
     );
     return res.status(201).json({ success: true, staff: insertRes.rows[0] });
   } catch (err) {
@@ -912,7 +993,34 @@ app.put('/api/staff/:id', requireDatabase, verifyToken, verifyManager, async (re
   const staffId = parseInt(req.params.id, 10);
   const { first_name, last_name, email, username, role } = req.body;
 
+  if (isNaN(staffId)) {
+    return res.status(400).json({ success: false, message: 'Invalid staff ID.' });
+  }
+
+  const cleanFirstName = first_name !== undefined && first_name !== null ? first_name.toString().trim() : null;
+  const cleanLastName = last_name !== undefined && last_name !== null ? last_name.toString().trim() : null;
+  const cleanEmail = email !== undefined && email !== null ? email.toString().trim() : null;
+  const cleanUsername = username !== undefined && username !== null ? username.toString().trim() : null;
+  const cleanRole = role !== undefined && role !== null ? role.toString().trim() : null;
+
   try {
+    // Unique check against other staff accounts and managers
+    if (cleanEmail || cleanUsername) {
+      const dupCheck = await db.query(
+        `SELECT id FROM staff 
+         WHERE id != $1 
+           AND ((LOWER(TRIM(email)) = LOWER(TRIM(COALESCE($2, ''))) AND $2 IS NOT NULL AND $2 != '')
+             OR (LOWER(TRIM(username)) = LOWER(TRIM(COALESCE($3, ''))) AND $3 IS NOT NULL AND $3 != ''))
+         UNION
+         SELECT id FROM managers 
+         WHERE (LOWER(TRIM(email)) = LOWER(TRIM(COALESCE($2, ''))) AND $2 IS NOT NULL AND $2 != '')`,
+        [staffId, cleanEmail, cleanUsername]
+      );
+      if (dupCheck.rows.length > 0) {
+        return res.status(400).json({ success: false, message: 'Email or username is already in use by another account.' });
+      }
+    }
+
     const updateRes = await db.query(
       `UPDATE staff 
        SET first_name = COALESCE($1, first_name),
@@ -923,11 +1031,19 @@ app.put('/api/staff/:id', requireDatabase, verifyToken, verifyManager, async (re
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $6
        RETURNING id, first_name, last_name, email, username, role, status, created_at, updated_at`,
-      [first_name, last_name, email, username, role, staffId]
+      [cleanFirstName, cleanLastName, cleanEmail, cleanUsername, cleanRole, staffId]
     );
+
     if (updateRes.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Staff member not found.' });
     }
+
+    // Invalidate previous unused reset codes for this staff account
+    await db.query(
+      'UPDATE password_reset_codes SET used_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND role = $2 AND used_at IS NULL',
+      [staffId, 'staff']
+    );
+
     return res.json({ success: true, staff: updateRes.rows[0] });
   } catch (err) {
     console.error('Update Staff Error:', err);
@@ -1107,15 +1223,35 @@ app.patch('/api/products/stock/:id', requireDatabase, optionalAuth, async (req, 
 
 // ==================== REAL-TIME ORDERS ROUTES & HELPERS ====================
 
+// Master Add-on Price Definitions for Server-side Verification
+const ADDON_PRICES = {
+  da1: { id: 'da1', name: 'Sweetener Syrup', price: 10 },
+  da2: { id: 'da2', name: '1 Shot Espresso', price: 10 },
+  da3: { id: 'da3', name: 'Strawberry Flavor', price: 10 },
+  da4: { id: 'da4', name: 'Blueberry Flavor', price: 10 },
+  da5: { id: 'da5', name: 'Almond Syrup', price: 10 },
+  da6: { id: 'da6', name: 'Oreo Crumbles', price: 10 },
+  da7: { id: 'da7', name: 'Caramel Drizzle', price: 10 },
+  da8: { id: 'da8', name: 'Chocolate Drizzle', price: 15 },
+  da9: { id: 'da9', name: 'Boba Pearls', price: 20 },
+  da10: { id: 'da10', name: 'Nata de Coco', price: 20 },
+  da11: { id: 'da11', name: 'Coffee Jelly', price: 20 },
+  fa1: { id: 'fa1', name: 'Extra Egg', price: 20 },
+  fa2: { id: 'fa2', name: 'Extra Lettuce', price: 20 },
+  fa3: { id: 'fa3', name: 'Extra Cheese', price: 20 },
+  fa4: { id: 'fa4', name: 'Extra Mayonnaise', price: 25 }
+};
+
 // Helper: Save & Format Order in PostgreSQL with Ownership and Audit Trail
 async function saveOrderToDatabase(orderData, userId = null, guestSessionId = null) {
   const orderId = orderData.id || orderData.orderNum || `SC-${Math.floor(1000 + Math.random() * 9000)}`;
   const tableName = orderData.table || orderData.table_name || 'Table 1';
   const timestamp = orderData.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const total = parseFloat(orderData.total) || 0;
+  const items = orderData.items || [];
+  const calculatedTotal = items.reduce((acc, it) => acc + (parseFloat(it.price) || 0) * (parseInt(it.qty || it.quantity || 1, 10) || 1), 0);
+  const total = orderData.total !== undefined && orderData.total !== null ? (parseFloat(orderData.total) || 0) : calculatedTotal;
   const paymentMethod = orderData.paymentMethod || orderData.payment_method || 'Cash';
   const status = orderData.status || 'new';
-  const items = orderData.items || [];
   const assignedUserId = userId || orderData.user_id || null;
   const assignedGuestId = guestSessionId || orderData.guest_session_id || orderData.guestSessionId || null;
   const acceptedById = orderData.accepted_by_id || null;
@@ -1136,6 +1272,21 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
     const itemPrice = parseFloat(item.price || 0) || 0;
     const itemId = String(item.id || item.item_id || item.originalId || '');
 
+    // Authoritative add-on sanitation
+    const itemAddons = (Array.isArray(item.addons) ? item.addons : [])
+      .map((a) => {
+        const addonId = typeof a === 'string' ? a : (a.id || a.addon_id);
+        const master = ADDON_PRICES[addonId];
+        if (master) {
+          return { id: master.id, name: master.name, price: master.price };
+        }
+        if (typeof a === 'object' && a.name && typeof a.price === 'number') {
+          return { id: a.id || 'addon', name: a.name, price: a.price };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
     return {
       id: itemId,
       item_id: itemId,
@@ -1147,7 +1298,8 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
       size: itemSize,
       qty: itemQty,
       quantity: itemQty,
-      price: itemPrice
+      price: itemPrice,
+      addons: itemAddons
     };
   });
 
@@ -1291,14 +1443,17 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
     });
 
     const formattedOrders = ordersRes.rows.map((o) => {
-      let orderItems = itemsByOrderId[o.id] || [];
-      if (orderItems.length === 0 && o.items_json) {
+      let orderItems = [];
+      if (o.items_json) {
         try {
           const parsed = JSON.parse(o.items_json);
           if (Array.isArray(parsed) && parsed.length > 0) {
             orderItems = parsed;
           }
         } catch {}
+      }
+      if (orderItems.length === 0) {
+        orderItems = itemsByOrderId[o.id] || [];
       }
 
       return {
@@ -1323,61 +1478,50 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
       };
     });
 
-    return res.json(formattedOrders);
+    return res.json({ success: true, orders: formattedOrders });
   } catch (err) {
     console.error('Get Orders Error:', err);
     return res.status(500).json({ success: false, message: 'Failed to fetch orders.' });
   }
 });
 
-// Get Single Order by ID (Validates Ownership & Returns Staff Audit Info)
+// Get Single Order Details by ID
 app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
-  const orderId = req.params.id;
-  const guestSessionId = req.headers['x-guest-session'] || req.query.guestSessionId;
-  const isStaffOrManager = req.user && (req.user.role === 'staff' || req.user.role === 'manager');
-
   try {
-    const ordersRes = await db.query('SELECT * FROM orders WHERE id = $1', [orderId]);
-    if (ordersRes.rows.length === 0) {
+    const orderId = req.params.id;
+    const orderRes = await db.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+
+    if (orderRes.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Order not found.' });
     }
 
-    const orderRow = ordersRes.rows[0];
-
-    // Ownership Verification
-    const isOwner = isStaffOrManager ||
-      (orderRow.user_id && req.user && orderRow.user_id === req.user.id) ||
-      (orderRow.guest_session_id && guestSessionId && orderRow.guest_session_id === guestSessionId) ||
-      (!orderRow.user_id && !orderRow.guest_session_id);
-
-    if (!isOwner) {
-      return res.status(403).json({ success: false, message: 'You are not authorized to view this order.' });
-    }
-
+    const orderRow = orderRes.rows[0];
     let formattedItems = [];
-    try {
-      const itemsRes = await db.query('SELECT * FROM order_items WHERE order_id = $1 ORDER BY id ASC', [orderId]);
-      formattedItems = itemsRes.rows.map((item) => ({
-        id: item.item_id || item.id,
-        item_id: item.item_id || item.id,
-        name: item.name || 'Item',
-        product_name: item.name || 'Item',
-        productName: item.name || 'Item',
-        item_name: item.name || 'Item',
-        displayName: item.name || 'Item',
-        size: item.size || '',
-        qty: parseInt(item.qty, 10) || 1,
-        quantity: parseInt(item.qty, 10) || 1,
-        price: parseFloat(item.price) || 0
-      }));
-    } catch {}
-
-    if (formattedItems.length === 0 && orderRow.items_json) {
+    if (orderRow.items_json) {
       try {
         const parsed = JSON.parse(orderRow.items_json);
         if (Array.isArray(parsed) && parsed.length > 0) {
           formattedItems = parsed;
         }
+      } catch {}
+    }
+
+    if (formattedItems.length === 0) {
+      try {
+        const itemsRes = await db.query('SELECT * FROM order_items WHERE order_id = $1 ORDER BY id ASC', [orderId]);
+        formattedItems = itemsRes.rows.map((item) => ({
+          id: item.item_id || item.id,
+          item_id: item.item_id || item.id,
+          name: item.name || 'Item',
+          product_name: item.name || 'Item',
+          productName: item.name || 'Item',
+          item_name: item.name || 'Item',
+          displayName: item.name || 'Item',
+          size: item.size || '',
+          qty: parseInt(item.qty, 10) || 1,
+          quantity: parseInt(item.qty, 10) || 1,
+          price: parseFloat(item.price) || 0
+        }));
       } catch {}
     }
 
@@ -1455,6 +1599,9 @@ app.post('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
 
     console.log(`📡 [Socket] Targeted emission for new order ${fullOrder.id} (Staff + Owner)`);
 
+    // Emit initial lifecycle notification
+    await createAndEmitOrderNotification(fullOrder.id, 'new', fullOrder);
+
     return res.status(201).json({ success: true, order: fullOrder });
   } catch (err) {
     console.error('Create Order Error:', err);
@@ -1485,7 +1632,7 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
       const currentOrder = currentRes.rows[0];
 
       // Multi-Staff Concurrency Check: If staff tries to accept an order already handled
-      if (status === 'preparing' && currentOrder.status !== 'new' && currentOrder.status !== 'preparing') {
+      if (status === 'preparing' && currentOrder.status !== 'new' && currentOrder.status !== 'accepted' && currentOrder.status !== 'preparing') {
         return res.status(409).json({
           success: false,
           message: `Order #${orderId} has already been accepted and is currently in status "${currentOrder.status}" (Handled by ${currentOrder.accepted_by_name || 'another team member'}).`,
@@ -1555,6 +1702,8 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
           table: row.table_name,
           total: parseFloat(row.total),
           paymentMethod: row.payment_method,
+          guest_session_id: row.guest_session_id,
+          user_id: row.user_id,
           accepted_by_id: row.accepted_by_id,
           accepted_by_name: row.accepted_by_name,
           accepted_at: row.accepted_at,
@@ -1583,6 +1732,9 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
       io.emit('staff:presence', list);
     });
 
+    // 4. Create and emit persistent lifecycle notification
+    await createAndEmitOrderNotification(orderId, status, payload);
+
     return res.json({ success: true, order: payload });
   } catch (err) {
     console.error('Update Order Status Error:', err);
@@ -1602,6 +1754,230 @@ const io = new Server(server, {
     },
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
     credentials: true
+  }
+});
+
+// ==================== REAL-TIME NOTIFICATIONS HELPER ====================
+async function createAndEmitOrderNotification(orderId, status, extraData = {}) {
+  if (!orderId || !status) return null;
+
+  try {
+    let order = null;
+    let guestSessionId = extraData.guest_session_id || extraData.guestSessionId || null;
+    let userId = extraData.user_id || extraData.userId || null;
+
+    if (db.pool) {
+      const ordRes = await db.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+      if (ordRes.rows.length > 0) {
+        order = ordRes.rows[0];
+        guestSessionId = order.guest_session_id || guestSessionId;
+        userId = order.user_id || userId;
+      }
+    }
+
+    const cleanId = String(orderId).replace(/^#/, '');
+    let title = 'Order Update';
+    let message = `Order #${cleanId} status is now ${status}.`;
+
+    switch (status) {
+      case 'new':
+      case 'received':
+        title = 'Order Received';
+        message = `Order #${cleanId} has been received.`;
+        break;
+      case 'accepted':
+        title = 'Order Accepted';
+        message = `Order #${cleanId} has been accepted.`;
+        break;
+      case 'preparing':
+        title = 'Order Preparing';
+        message = `Your order #${cleanId} is being prepared.`;
+        break;
+      case 'ready':
+        title = 'Your order is ready!';
+        message = `Your order #${cleanId} is ready!`;
+        break;
+      case 'completed':
+        title = 'Order Completed';
+        message = `Order #${cleanId} has been completed. Thank you!`;
+        break;
+      case 'cancelled':
+        title = 'Order Cancelled';
+        message = `Order #${cleanId} was cancelled.`;
+        break;
+    }
+
+    let notificationRecord = null;
+    if (db.pool) {
+      try {
+        const notifRes = await db.query(
+          `INSERT INTO customer_notifications (order_id, guest_session_id, user_id, status, title, message, is_read, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, FALSE, CURRENT_TIMESTAMP)
+           ON CONFLICT (order_id, status) DO NOTHING
+           RETURNING *`,
+          [orderId, guestSessionId, userId, status, title, message]
+        );
+
+        if (notifRes.rows.length > 0) {
+          const row = notifRes.rows[0];
+          notificationRecord = {
+            id: String(row.id),
+            key: `${orderId}-${status}`,
+            orderId,
+            status,
+            title: row.title,
+            message: row.message,
+            read: row.is_read,
+            timestamp: new Date(row.created_at).toISOString(),
+            accepted_by_name: extraData.accepted_by_name || (order ? order.accepted_by_name : null),
+            completed_by_name: extraData.completed_by_name || (order ? order.completed_by_name : null)
+          };
+        }
+      } catch (err) {
+        console.warn('Note on customer_notifications insert:', err.message);
+      }
+    }
+
+    if (!notificationRecord) {
+      notificationRecord = {
+        id: `${orderId}-${status}`,
+        key: `${orderId}-${status}`,
+        orderId,
+        status,
+        title,
+        message,
+        read: false,
+        timestamp: new Date().toISOString(),
+        accepted_by_name: extraData.accepted_by_name || (order ? order.accepted_by_name : null),
+        completed_by_name: extraData.completed_by_name || (order ? order.completed_by_name : null)
+      };
+    }
+
+    // Emit strictly to the private order room and private guest/user room
+    io.to(`order:${orderId}`).emit('notification:new', notificationRecord);
+    if (guestSessionId) {
+      io.to(`guest:${guestSessionId}`).emit('notification:new', notificationRecord);
+    }
+    if (userId) {
+      io.to(`user:${userId}`).emit('notification:new', notificationRecord);
+    }
+
+    console.log(`🔔 [Notification] Emitted "${status}" for Order #${orderId} to private rooms`);
+    return notificationRecord;
+  } catch (err) {
+    console.error('Error in createAndEmitOrderNotification:', err);
+    return null;
+  }
+}
+
+// ==================== CUSTOMER NOTIFICATIONS REST API ====================
+
+// GET /api/notifications - Fetch persistent customer notifications
+app.get('/api/notifications', requireDatabase, optionalAuth, async (req, res) => {
+  try {
+    const guestSessionId = req.headers['x-guest-session'] || req.query.guestSessionId;
+    const userId = req.user ? req.user.id : null;
+
+    if (!userId && !guestSessionId) {
+      return res.json([]);
+    }
+
+    let query = '';
+    let params = [];
+
+    if (userId && guestSessionId) {
+      query = `SELECT id, order_id as "orderId", status, title, message, is_read as "read", created_at as "timestamp"
+               FROM customer_notifications
+               WHERE user_id = $1 OR guest_session_id = $2
+               ORDER BY created_at DESC LIMIT 50`;
+      params = [userId, guestSessionId];
+    } else if (userId) {
+      query = `SELECT id, order_id as "orderId", status, title, message, is_read as "read", created_at as "timestamp"
+               FROM customer_notifications
+               WHERE user_id = $1
+               ORDER BY created_at DESC LIMIT 50`;
+      params = [userId];
+    } else {
+      query = `SELECT id, order_id as "orderId", status, title, message, is_read as "read", created_at as "timestamp"
+               FROM customer_notifications
+               WHERE guest_session_id = $1
+               ORDER BY created_at DESC LIMIT 50`;
+      params = [guestSessionId];
+    }
+
+    const result = await db.query(query, params);
+    const notifications = result.rows.map((row) => ({
+      id: String(row.id),
+      key: `${row.orderId}-${row.status}`,
+      orderId: row.orderId,
+      status: row.status,
+      title: row.title,
+      message: row.message,
+      read: Boolean(row.read),
+      timestamp: new Date(row.timestamp).toISOString()
+    }));
+
+    return res.json(notifications);
+  } catch (err) {
+    console.error('Get Notifications Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch notifications.' });
+  }
+});
+
+// PATCH /api/notifications/:id/read - Mark single notification as read
+app.patch('/api/notifications/:id/read', requireDatabase, optionalAuth, async (req, res) => {
+  try {
+    const notifId = req.params.id;
+    if (notifId.includes('-')) {
+      const [orderId, status] = notifId.split('-');
+      await db.query('UPDATE customer_notifications SET is_read = TRUE WHERE order_id = $1 AND status = $2', [orderId, status]);
+    } else {
+      await db.query('UPDATE customer_notifications SET is_read = TRUE WHERE id = $1', [notifId]);
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Mark Notification Read Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to mark notification as read.' });
+  }
+});
+
+// PATCH /api/notifications/read-all - Mark all notifications as read
+app.patch('/api/notifications/read-all', requireDatabase, optionalAuth, async (req, res) => {
+  try {
+    const guestSessionId = req.headers['x-guest-session'] || req.body?.guestSessionId;
+    const userId = req.user ? req.user.id : null;
+
+    if (userId) {
+      await db.query('UPDATE customer_notifications SET is_read = TRUE WHERE user_id = $1', [userId]);
+    }
+    if (guestSessionId) {
+      await db.query('UPDATE customer_notifications SET is_read = TRUE WHERE guest_session_id = $1', [guestSessionId]);
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Mark All Notifications Read Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to mark all as read.' });
+  }
+});
+
+// DELETE /api/notifications - Clear notifications for customer
+app.delete('/api/notifications', requireDatabase, optionalAuth, async (req, res) => {
+  try {
+    const guestSessionId = req.headers['x-guest-session'] || req.query.guestSessionId;
+    const userId = req.user ? req.user.id : null;
+
+    if (userId) {
+      await db.query('DELETE FROM customer_notifications WHERE user_id = $1', [userId]);
+    }
+    if (guestSessionId) {
+      await db.query('DELETE FROM customer_notifications WHERE guest_session_id = $1', [guestSessionId]);
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Clear Notifications Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to clear notifications.' });
   }
 });
 
@@ -1711,6 +2087,11 @@ io.on('connection', (socket) => {
         io.to(`guest:${guestSessionId}`).emit('order:created', fullOrder);
       }
       console.log(`📡 [Socket Event] Created & emitted targeted order:created for ${fullOrder.id}`);
+
+      // Emit initial lifecycle notification
+      createAndEmitOrderNotification(fullOrder.id, 'new', fullOrder).catch((e) => {
+        console.warn('Error emitting initial socket order notification:', e.message);
+      });
     } catch (err) {
       console.error('Error processing order:create socket event:', err);
     }
@@ -1770,6 +2151,8 @@ io.on('connection', (socket) => {
             table: row.table_name,
             total: parseFloat(row.total),
             paymentMethod: row.payment_method,
+            guest_session_id: row.guest_session_id,
+            user_id: row.user_id,
             accepted_by_id: row.accepted_by_id,
             accepted_by_name: row.accepted_by_name,
             accepted_at: row.accepted_at,
@@ -1793,6 +2176,11 @@ io.on('connection', (socket) => {
       io.to(`order:${id}`).to('staff:orders').emit('order:status_updated', payload);
       io.emit('order:updated', payload);
       console.log(`📡 [Socket Event] Targeted order:status_updated for ${id} -> ${status}`);
+
+      // Emit lifecycle notification
+      createAndEmitOrderNotification(id, status, payload).catch((e) => {
+        console.warn('Error emitting socket order status notification:', e.message);
+      });
     } catch (err) {
       console.error('Error processing order:update_status socket event:', err);
     }

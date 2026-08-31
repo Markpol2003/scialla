@@ -55,13 +55,8 @@ export default function ManagerDashboardPage() {
         <div className="manager-content-grid">
           <div className="kpi-cards-row">
             <div className="kpi-card highlight-revenue">
-              <span className="kpi-title">TODAY'S REVENUE</span>
+              <span className="kpi-title">TODAY'S SALES</span>
               <div className="kpi-main-val">₱{todayRevenue.toLocaleString()}</div>
-            </div>
-
-            <div className="kpi-card highlight-revenue-monthly">
-              <span className="kpi-title">THIS MONTH'S REVENUE</span>
-              <div className="kpi-main-val">₱{thisMonthRevenue.toLocaleString()}</div>
             </div>
 
             <div className="kpi-card">
@@ -78,7 +73,7 @@ export default function ManagerDashboardPage() {
           <div className="manager-two-columns">
             <div className="manager-box sales-chart-box">
               <div className="box-header">
-                <h2>Weekly Revenue Trend (₱)</h2>
+                <h2>Weekly Sales Trend (₱)</h2>
                 <span className="box-tag">Live POS Stream</span>
               </div>
 

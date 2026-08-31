@@ -90,88 +90,103 @@ export default function ManagerOrders() {
   return (
     <div className="manager-orders-page" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Top Header & Overview Bar */}
-      <div className="manager-box" style={{ padding: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+      <div className="manager-box manager-orders-header-box">
+        <div className="orders-header-title-row">
           <div>
-            <h2 style={{ margin: '0 0 4px', fontSize: '1.2rem', color: '#FFDFBA' }}>Store Orders & Fulfillment Audit</h2>
-            <p style={{ margin: 0, fontSize: '0.82rem', color: '#D4C3B3' }}>
-              Real-time audit log of active kitchen orders and staff fulfillment history
+            <h2 className="orders-page-title">Store Orders & Fulfillment Audit</h2>
+            <p className="orders-page-subtitle">
+              Real-time kitchen & staff activity
             </p>
           </div>
 
-          {/* Quick Metrics Badges */}
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <div style={{ background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '8px', padding: '6px 12px', textAlign: 'center' }}>
-              <span style={{ fontSize: '0.7rem', color: '#93c5fd', textTransform: 'uppercase', display: 'block' }}>Live Queue</span>
-              <strong style={{ fontSize: '1.1rem', color: '#bfdbfe' }}>{liveOrdersCount}</strong>
+          {/* Quick Metrics Badges (Live Queue & Fulfilled side-by-side on mobile) */}
+          <div className="orders-metrics-grid">
+            <div className="order-metric-card live-queue">
+              <span className="metric-label">LIVE QUEUE</span>
+              <strong className="metric-val">{liveOrdersCount}</strong>
             </div>
-            <div style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: '8px', padding: '6px 12px', textAlign: 'center' }}>
-              <span style={{ fontSize: '0.7rem', color: '#86efac', textTransform: 'uppercase', display: 'block' }}>Fulfilled</span>
-              <strong style={{ fontSize: '1.1rem', color: '#4ade80' }}>{completedOrdersCount}</strong>
+            <div className="order-metric-card fulfilled">
+              <span className="metric-label">FULFILLED</span>
+              <strong className="metric-val">{completedOrdersCount}</strong>
             </div>
           </div>
         </div>
 
         {/* Filter Toolbar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginTop: '18px' }}>
+        <div className="orders-filter-toolbar">
           {/* Status Filter Tabs */}
-          <div className="orders-tab-toggle" style={{ display: 'flex', gap: '6px' }}>
+          <div className="orders-tab-toggle">
             <button
               type="button"
               className={`role-chip-btn ${activeTab === 'all' ? 'active' : ''}`}
               onClick={() => setActiveTab('all')}
-              style={{ padding: '6px 14px', fontSize: '0.8rem' }}
             >
-              All Orders ({orders.length})
+              All ({orders.length})
             </button>
             <button
               type="button"
               className={`role-chip-btn ${activeTab === 'live' ? 'active' : ''}`}
               onClick={() => setActiveTab('live')}
-              style={{ padding: '6px 14px', fontSize: '0.8rem' }}
             >
-              Live Kitchen ({liveOrdersCount})
+              Live ({liveOrdersCount})
             </button>
             <button
               type="button"
               className={`role-chip-btn ${activeTab === 'completed' ? 'active' : ''}`}
               onClick={() => setActiveTab('completed')}
-              style={{ padding: '6px 14px', fontSize: '0.8rem' }}
             >
               Completed ({completedOrdersCount})
             </button>
           </div>
 
           {/* Search & Sort Controls */}
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="orders-controls-group">
             <input
               type="text"
+              className="orders-search-input"
               placeholder="Search by order #, table, staff..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                background: 'rgba(0,0,0,0.4)',
-                border: '1px solid rgba(201, 139, 91, 0.3)',
-                borderRadius: '8px',
-                padding: '7px 12px',
-                color: '#FFF',
-                fontSize: '0.82rem',
-                minWidth: '220px'
-              }}
             />
 
+            {/* Desktop Sort Buttons (Hidden on mobile via CSS) */}
+            <div className="orders-desktop-sort-group">
+              <button
+                type="button"
+                className={`role-chip-btn ${sortBy === 'newest' ? 'active' : ''}`}
+                onClick={() => setSortBy('newest')}
+              >
+                Newest First
+              </button>
+              <button
+                type="button"
+                className={`role-chip-btn ${sortBy === 'oldest' ? 'active' : ''}`}
+                onClick={() => setSortBy('oldest')}
+              >
+                Oldest First
+              </button>
+              <button
+                type="button"
+                className={`role-chip-btn ${sortBy === 'highest' ? 'active' : ''}`}
+                onClick={() => setSortBy('highest')}
+              >
+                Highest Amount
+              </button>
+              <button
+                type="button"
+                className={`role-chip-btn ${sortBy === 'lowest' ? 'active' : ''}`}
+                onClick={() => setSortBy('lowest')}
+              >
+                Lowest Amount
+              </button>
+            </div>
+
+            {/* Mobile Sort Dropdown (Visible only on mobile via CSS) */}
             <select
+              className="orders-mobile-sort-select"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              style={{
-                background: '#1A0D08',
-                border: '1px solid rgba(201, 139, 91, 0.3)',
-                borderRadius: '8px',
-                padding: '7px 10px',
-                color: '#E2B688',
-                fontSize: '0.82rem',
-                cursor: 'pointer'
-              }}
+              aria-label="Sort Orders"
             >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
@@ -182,110 +197,172 @@ export default function ManagerOrders() {
         </div>
       </div>
 
-      {/* Main Orders Table */}
-      <div className="manager-box" style={{ padding: '16px 20px' }}>
+      {/* Main Orders Content Container */}
+      <div className="manager-box manager-orders-list-box">
         {filteredOrders.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '50px 20px', color: '#D4C3B3' }}>
             <p style={{ margin: 0, fontSize: '0.92rem' }}>No orders matching the current filter criteria.</p>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="manager-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left', padding: '10px 12px' }}>Order Ref</th>
-                  <th style={{ textAlign: 'left', padding: '10px 12px' }}>Destination</th>
-                  <th style={{ textAlign: 'left', padding: '10px 12px' }}>Total</th>
-                  <th style={{ textAlign: 'left', padding: '10px 12px' }}>Status</th>
-                  <th style={{ textAlign: 'left', padding: '10px 12px' }}>Completed By</th>
-                  <th style={{ textAlign: 'left', padding: '10px 12px' }}>Date/Time</th>
-                  <th style={{ textAlign: 'center', padding: '10px 12px' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOrders.map((ord) => {
-                  const isCompleted = ord.status === 'completed';
-                  const completedByDisplay = isCompleted
-                    ? (ord.completed_by_name || 'Staff Member')
-                    : '—';
+          <>
+            {/* Desktop Table View (Hidden on mobile via CSS) */}
+            <div className="orders-desktop-table-container">
+              <table className="manager-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '10px 12px' }}>Order Ref</th>
+                    <th style={{ textAlign: 'left', padding: '10px 12px' }}>Destination</th>
+                    <th style={{ textAlign: 'left', padding: '10px 12px' }}>Total</th>
+                    <th style={{ textAlign: 'left', padding: '10px 12px' }}>Status</th>
+                    <th style={{ textAlign: 'left', padding: '10px 12px' }}>Completed By</th>
+                    <th style={{ textAlign: 'left', padding: '10px 12px' }}>Date/Time</th>
+                    <th style={{ textAlign: 'center', padding: '10px 12px' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders.map((ord) => {
+                    const isCompleted = ord.status === 'completed';
+                    const completedByDisplay = isCompleted
+                      ? (ord.completed_by_name || 'Staff Member')
+                      : '—';
 
-                  return (
-                    <tr
-                      key={ord.id}
-                      onClick={() => setSelectedOrder(ord)}
-                      style={{ cursor: 'pointer', transition: 'background 0.15s ease' }}
-                    >
-                      <td style={{ padding: '12px' }}>
-                        <strong style={{ color: '#E2B688', fontFamily: 'var(--font-mono)' }}>
-                          #{ord.id}
-                        </strong>
-                      </td>
-                      <td style={{ padding: '12px', color: '#FFFFFF' }}>
-                        {ord.table || 'Counter Pickup'}
-                      </td>
-                      <td style={{ padding: '12px', fontWeight: 700, color: '#E2B688', fontFamily: 'var(--font-mono)' }}>
-                        ₱{parseFloat(ord.total || 0).toFixed(2)}
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <span className={`status-pill pill-${ord.status}`}>
-                          {ord.status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        {isCompleted ? (
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{
-                              width: '20px',
-                              height: '20px',
-                              borderRadius: '50%',
-                              background: 'rgba(34, 197, 94, 0.2)',
-                              color: '#86efac',
-                              fontSize: '0.65rem',
-                              fontWeight: 900,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}>
-                              ✓
-                            </span>
-                            <span style={{ fontWeight: 600, color: '#F5EDE6' }}>
-                              {completedByDisplay}
-                            </span>
-                          </div>
-                        ) : (
-                          <span style={{ color: '#8C7B70' }}>—</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '12px', color: '#D4C3B3', fontSize: '0.82rem' }}>
-                        {formatOrderTime(ord)}
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="btn-action-small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedOrder(ord);
-                          }}
-                          style={{
-                            background: 'rgba(201, 139, 91, 0.15)',
-                            border: '1px solid rgba(201, 139, 91, 0.3)',
-                            borderRadius: '6px',
-                            color: '#E2B688',
-                            padding: '4px 10px',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          View Audit
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    return (
+                      <tr
+                        key={ord.id}
+                        onClick={() => setSelectedOrder(ord)}
+                        style={{ cursor: 'pointer', transition: 'background 0.15s ease' }}
+                      >
+                        <td style={{ padding: '12px' }}>
+                          <strong style={{ color: '#E2B688', fontFamily: 'var(--font-mono)' }}>
+                            #{ord.id}
+                          </strong>
+                        </td>
+                        <td style={{ padding: '12px', color: '#FFFFFF' }}>
+                          {ord.table || 'Counter Pickup'}
+                        </td>
+                        <td style={{ padding: '12px', fontWeight: 700, color: '#E2B688', fontFamily: 'var(--font-mono)' }}>
+                          ₱{parseFloat(ord.total || 0).toFixed(2)}
+                        </td>
+                        <td style={{ padding: '12px' }}>
+                          <span className={`status-pill pill-${ord.status}`}>
+                            {ord.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px' }}>
+                          {isCompleted ? (
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{
+                                width: '20px',
+                                height: '20px',
+                                borderRadius: '50%',
+                                background: 'rgba(34, 197, 94, 0.2)',
+                                color: '#86efac',
+                                fontSize: '0.65rem',
+                                fontWeight: 900,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}>
+                                ✓
+                              </span>
+                              <span style={{ fontWeight: 600, color: '#F5EDE6' }}>
+                                {completedByDisplay}
+                              </span>
+                            </div>
+                          ) : (
+                            <span style={{ color: '#8C7B70' }}>—</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '12px', color: '#D4C3B3', fontSize: '0.82rem' }}>
+                          {formatOrderTime(ord)}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn-action-small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedOrder(ord);
+                            }}
+                            style={{
+                              background: 'rgba(201, 139, 91, 0.15)',
+                              border: '1px solid rgba(201, 139, 91, 0.3)',
+                              borderRadius: '6px',
+                              color: '#E2B688',
+                              padding: '4px 10px',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            View Audit
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Responsive Order Cards View (Visible only on mobile via CSS) */}
+            <div className="orders-mobile-cards-list">
+              {filteredOrders.map((ord) => {
+                const isCompleted = ord.status === 'completed';
+                const completedByDisplay = isCompleted
+                  ? (ord.completed_by_name || 'Staff Member')
+                  : '—';
+
+                return (
+                  <div
+                    key={ord.id}
+                    className="manager-order-mobile-card"
+                    onClick={() => setSelectedOrder(ord)}
+                  >
+                    {/* Top Row: Order reference (left) + Status badge (right) */}
+                    <div className="order-card-top-row">
+                      <strong className="order-card-ref">#{ord.id}</strong>
+                      <span className={`status-pill pill-${ord.status}`}>
+                        {ord.status.toUpperCase()}
+                      </span>
+                    </div>
+
+                    {/* Second Row: Destination (left) + Time (right) */}
+                    <div className="order-card-second-row">
+                      <span className="order-card-dest">{ord.table || 'Counter Pickup'}</span>
+                      <span className="order-card-time">{formatOrderTime(ord)}</span>
+                    </div>
+
+                    {/* Large/clear Total */}
+                    <div className="order-card-total-row">
+                      <span className="order-card-total">₱{parseFloat(ord.total || 0).toFixed(2)}</span>
+                    </div>
+
+                    {/* Completed by row */}
+                    <div className="order-card-completed-row">
+                      <span className="order-card-completed-label">Completed by:</span>
+                      <span className={`order-card-completed-val ${isCompleted ? 'is-completed' : ''}`}>
+                        {completedByDisplay}
+                      </span>
+                    </div>
+
+                    {/* Bottom: View Audit trigger */}
+                    <div className="order-card-audit-row">
+                      <button
+                        type="button"
+                        className="btn-order-card-audit"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedOrder(ord);
+                        }}
+                      >
+                        View Audit ›
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 
@@ -371,26 +448,43 @@ export default function ManagerOrders() {
                 Ordered Items
               </span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
-                {(selectedOrder.items || []).map((it, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      background: 'rgba(255,255,255,0.03)',
-                      padding: '8px 10px',
-                      borderRadius: '6px'
-                    }}
-                  >
-                    <span style={{ fontSize: '0.82rem', color: '#F5EDE6' }}>
-                      <strong style={{ color: '#E2B688' }}>{it.qty || it.quantity || 1}x</strong> {it.name || it.product_name || it.item_name || 'Item'} {it.size ? `(${it.size})` : ''}
-                    </span>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E2B688', fontFamily: 'var(--font-mono)' }}>
-                      ₱{((parseFloat(it.price) || 0) * (it.qty || it.quantity || 1)).toFixed(2)}
-                    </span>
-                  </div>
-                ))}
+                {(selectedOrder.items || []).map((it, idx) => {
+                  let itAddons = it.addons || [];
+                  if (typeof itAddons === 'string') {
+                    try { itAddons = JSON.parse(itAddons); } catch {}
+                  }
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        background: 'rgba(255,255,255,0.03)',
+                        padding: '8px 10px',
+                        borderRadius: '6px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.82rem', color: '#F5EDE6' }}>
+                          <strong style={{ color: '#E2B688' }}>{it.qty || it.quantity || 1}x</strong> {it.rawName || it.name || it.product_name || it.item_name || 'Item'} {it.size ? `(${it.size})` : ''}
+                        </span>
+                        {Array.isArray(itAddons) && itAddons.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', paddingLeft: '16px', marginTop: '2px' }}>
+                            {itAddons.map((a, aIdx) => (
+                              <span key={a.id || aIdx} style={{ fontSize: '0.72rem', color: '#A08070' }}>
+                                + {a.name} <span style={{ color: '#E2B688' }}>(₱{parseFloat(a.price).toFixed(2)})</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E2B688', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                        ₱{((parseFloat(it.price) || 0) * (it.qty || it.quantity || 1)).toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

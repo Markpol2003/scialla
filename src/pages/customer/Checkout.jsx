@@ -92,15 +92,30 @@ export default function Checkout({
         {!isPaid ? (
           <>
             <div className="receipt-items-scroll">
-              {cart.map((item, idx) => (
-                <div key={idx} className="receipt-item-row">
-                  <div className="item-name-qty">
-                    <span className="item-qty">{item.qty}×</span>
-                    <span className="item-title">{item.name}</span>
+              {cart.map((item, idx) => {
+                const hasAddons = Array.isArray(item.addons) && item.addons.length > 0;
+                return (
+                  <div key={idx} className="receipt-item-row" style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingBottom: hasAddons ? '6px' : '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                      <div className="item-name-qty">
+                        <span className="item-qty">{item.qty}×</span>
+                        <span className="item-title">{item.rawName || item.name} {item.size ? `(${item.size})` : ''}</span>
+                      </div>
+                      <span className="item-price">₱{(item.price * item.qty).toFixed(2)}</span>
+                    </div>
+                    {hasAddons && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', paddingLeft: '22px' }}>
+                        {item.addons.map((a, aIdx) => (
+                          <div key={aIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#D4A373' }}>
+                            <span>+ {a.name}</span>
+                            <span style={{ color: '#E2B688', fontFamily: 'var(--font-mono)' }}>₱{parseFloat(a.price).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <span className="item-price">₱{(item.price * item.qty).toFixed(2)}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="receipt-cost-breakdown">

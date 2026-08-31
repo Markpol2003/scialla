@@ -201,7 +201,7 @@ export default function ForgotPasswordModal({ initialRole = 'staff', onClose, on
 
   return (
     <div
-      className="forgot-password-card-v2"
+      className="forgot-password-card-v2 w-full max-w-md px-4 sm:px-6 mx-auto"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header with Title & Close Button */}
@@ -325,7 +325,7 @@ export default function ForgotPasswordModal({ initialRole = 'staff', onClose, on
           </div>
 
           {/* 6 Digit Input Group */}
-          <div className="fp-code-inputs-group">
+          <div className="fp-code-inputs-group grid grid-cols-6 gap-1.5 sm:gap-2 w-full max-w-sm mx-auto">
             {codeDigits.map((digit, idx) => (
               <input
                 key={idx}
@@ -333,7 +333,7 @@ export default function ForgotPasswordModal({ initialRole = 'staff', onClose, on
                 type="text"
                 inputMode="numeric"
                 maxLength={6}
-                className="fp-code-digit"
+                className="fp-code-digit w-full min-w-0 aspect-square max-w-[48px] mx-auto text-center"
                 value={digit}
                 onChange={(e) => handleDigitChange(idx, e.target.value)}
                 onKeyDown={(e) => handleDigitKeyDown(idx, e)}

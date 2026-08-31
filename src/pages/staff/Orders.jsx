@@ -127,18 +127,24 @@ export default function Orders() {
         displayName: nameOnly,
         size: sizeVal,
         qty: itemQty,
-        price: itemPrice
+        price: itemPrice,
+        addons: Array.isArray(item.addons) ? item.addons : []
       });
     });
 
     const map = new Map();
     result.forEach((it) => {
-      const key = `${it.displayName}-${it.size}-${it.price}`;
+      let addonList = it.addons || [];
+      if (typeof addonList === 'string') {
+        try { addonList = JSON.parse(addonList); } catch {}
+      }
+      const addonKey = Array.isArray(addonList) ? addonList.map((a) => a.id || a.name).sort().join('_') : '';
+      const key = `${it.displayName}-${it.size}-${it.price}-${addonKey}`;
       if (map.has(key)) {
         const existing = map.get(key);
         map.set(key, { ...existing, qty: existing.qty + it.qty });
       } else {
-        map.set(key, it);
+        map.set(key, { ...it, addons: Array.isArray(addonList) ? addonList : [] });
       }
     });
 
@@ -176,6 +182,16 @@ export default function Orders() {
           <span className="item-size-badge" style={{ color: '#D4A373', fontSize: '0.78rem', fontWeight: 700, marginLeft: '26px', marginTop: '2px' }}>
             {item.size}
           </span>
+        )}
+        {Array.isArray(item.addons) && item.addons.length > 0 && (
+          <div style={{ marginLeft: '26px', marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+            <span style={{ fontSize: '0.74rem', color: '#A08070', fontWeight: 600 }}>Add-ons:</span>
+            {item.addons.map((a, aIdx) => (
+              <span key={a.id || aIdx} style={{ fontSize: '0.74rem', color: '#E2B688', fontWeight: 600, paddingLeft: '4px' }}>
+                • {a.name}
+              </span>
+            ))}
+          </div>
         )}
       </div>
     ));

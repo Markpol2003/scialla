@@ -247,5 +247,6 @@ Scialla Cafe`;
 }
 
 module.exports = {
-  sendResetCodeEmail
+  sendResetCodeEmail,
+  maskEmail
 };

@@ -5,6 +5,7 @@ import Cart from '../pages/customer/Cart';
 import Checkout from '../pages/customer/Checkout';
 import OrderHistoryModal from '../components/customer/OrderHistoryModal';
 import NotificationDropdown from '../components/customer/NotificationDropdown';
+import ItemAddonsModal from '../components/customer/ItemAddonsModal';
 import { Clock3, Bell, X } from 'lucide-react';
 import '../CoffeeMenu.css';
 
@@ -15,6 +16,7 @@ export default function CustomerLayout({ onNavigate }) {
     orders,
     toastMessage,
     unreadNotificationsCount,
+    hasNewNotifPulse,
     markNotificationsAsRead
   } = useApp();
 
@@ -36,6 +38,7 @@ export default function CustomerLayout({ onNavigate }) {
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [addonModalItem, setAddonModalItem] = useState(null);
   const prevCartLenRef = useRef(0);
 
   // Track cart visibility for animation
@@ -61,14 +64,46 @@ export default function CustomerLayout({ onNavigate }) {
     const itemPrice = activeSize ? activeSize.price : item.price;
 
     setCart((prevCart) => {
-      const idx = prevCart.findIndex((c) => c.id === cartItemId);
+      const idx = prevCart.findIndex((c) => c.id === cartItemId && (!c.addons || c.addons.length === 0));
       if (idx > -1) {
         const updated = [...prevCart];
         updated[idx] = { ...updated[idx], qty: updated[idx].qty + customQty };
         return updated;
       }
-      return [...prevCart, { id: cartItemId, name: cartItemName, rawName: item.name, size: sizeLabel, price: itemPrice, qty: customQty, originalId: item.id }];
+      return [
+        ...prevCart,
+        {
+          id: cartItemId,
+          name: cartItemName,
+          rawName: item.name,
+          size: sizeLabel,
+          basePrice: itemPrice,
+          price: itemPrice,
+          qty: customQty,
+          originalId: item.id,
+          category: item.category,
+          addons: []
+        }
+      ];
     });
+  };
+
+  const handleSaveItemAddons = (cartItemId, chosenAddons) => {
+    setCart((prevCart) =>
+      prevCart.map((item) => {
+        if (item.id === cartItemId) {
+          const basePrice = item.basePrice || item.price;
+          const addonsTotal = (chosenAddons || []).reduce((sum, a) => sum + (parseFloat(a.price) || 0), 0);
+          return {
+            ...item,
+            basePrice: basePrice,
+            price: basePrice + addonsTotal,
+            addons: chosenAddons || []
+          };
+        }
+        return item;
+      })
+    );
   };
 
   const handleUpdateQty = (id, delta) => {
@@ -162,14 +197,11 @@ export default function CustomerLayout({ onNavigate }) {
             <div style={{ position: 'relative' }}>
               <button
                 type="button"
-                className={`header-icon-btn ${isNotificationsOpen ? 'active' : ''}`}
+                className={`header-icon-btn ${isNotificationsOpen ? 'active' : ''} ${hasNewNotifPulse ? 'notif-pulse' : ''}`}
                 onClick={() => {
                   const nextState = !isNotificationsOpen;
                   setIsNotificationsOpen(nextState);
                   setIsHistoryOpen(false);
-                  if (nextState && unreadNotificationsCount > 0) {
-                    markNotificationsAsRead();
-                  }
                 }}
                 title="Notifications"
                 aria-label="Notifications"
@@ -361,6 +393,7 @@ export default function CustomerLayout({ onNavigate }) {
                 totalAmount={totalAmount}
                 onUpdateQty={handleUpdateQty}
                 onRemoveItem={handleRemoveItem}
+                onOpenAddonsModal={setAddonModalItem}
                 onOpenCheckout={() => setIsCheckoutOpen(true)}
                 onOpenTableModal={() => setIsTableModalOpen(true)}
                 onCollapse={() => setIsCartCollapsed(true)}
@@ -458,14 +491,43 @@ export default function CustomerLayout({ onNavigate }) {
             {/* Scrollable Order Items List */}
             <div className="mobile-cart-items-scroll">
               {cart.map((item) => (
-                <div key={item.id} className="mobile-cart-item-row">
+                <div key={item.id} className="mobile-cart-item-row" style={{ alignItems: 'flex-start' }}>
                   <div className="mobile-item-details">
                     <span className="mobile-item-name">{item.rawName || item.name}</span>
                     {item.size && <span className="mobile-item-size">{item.size}</span>}
-                    <span className="mobile-item-unit-price">₱{item.price.toFixed(2)}</span>
+
+                    {/* Display selected add-ons if any */}
+                    {Array.isArray(item.addons) && item.addons.length > 0 && (
+                      <div className="cart-item-addons-list" style={{ margin: '3px 0' }}>
+                        {item.addons.map((a, aIdx) => (
+                          <div key={a.id || aIdx} className="cart-item-addon-line">
+                            <span>+ {a.name}</span>
+                            <span className="cart-item-addon-price">₱{parseFloat(a.price).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Secondary action: [ + Add-ons ] / [ Edit Add-ons ] */}
+                    {!String(item.id || '').startsWith('da') && !String(item.id || '').startsWith('fa') && (
+                      <button
+                        type="button"
+                        className={`btn-cart-addon-pill ${item.addons && item.addons.length > 0 ? 'is-edit' : ''}`}
+                        onClick={() => {
+                          setIsMobileCartOpen(false);
+                          setAddonModalItem(item);
+                        }}
+                        style={{ height: '34px', margin: '4px 0 2px' }}
+                        title={item.addons && item.addons.length > 0 ? 'Edit add-ons for this item' : 'Customize add-ons for this item'}
+                      >
+                        {item.addons && item.addons.length > 0 ? 'Edit Add-ons' : '+ Add-ons'}
+                      </button>
+                    )}
+
+                    <span className="mobile-item-unit-price" style={{ marginTop: '3px', display: 'block' }}>₱{item.price.toFixed(2)}</span>
                   </div>
 
-                  <div className="qty-stepper">
+                  <div className="qty-stepper" style={{ marginTop: '2px' }}>
                     <button
                       type="button"
                       className="qty-btn"
@@ -485,7 +547,7 @@ export default function CustomerLayout({ onNavigate }) {
                     </button>
                   </div>
 
-                  <span className="mobile-item-total">
+                  <span className="mobile-item-total" style={{ marginTop: '3px' }}>
                     ₱{(item.price * item.qty).toFixed(2)}
                   </span>
 
@@ -494,6 +556,7 @@ export default function CustomerLayout({ onNavigate }) {
                     className="btn-remove-item"
                     onClick={() => handleRemoveItem(item.id)}
                     title="Remove item"
+                    style={{ marginTop: '3px' }}
                   >
                     ✕
                   </button>
@@ -525,6 +588,16 @@ export default function CustomerLayout({ onNavigate }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Item Add-ons Customization Modal */}
+      {addonModalItem && (
+        <ItemAddonsModal
+          isOpen={!!addonModalItem}
+          item={addonModalItem}
+          onClose={() => setAddonModalItem(null)}
+          onSave={handleSaveItemAddons}
+        />
       )}
 
       {/* Checkout Modal */}

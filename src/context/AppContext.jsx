@@ -317,27 +317,27 @@ const initialCategories = [
     id: 'drinkaddons',
     category: 'Drink Add-ons',
     items: [
-      { id: 'da1', name: 'Sweetener Syrup', description: 'Extra liquid cane sugar or vanilla sweetener', price: 10, tag: 'Add-on', inStock: true, image: '/images/products/caramelmacc.png' },
-      { id: 'da2', name: '1 Shot Espresso', description: 'Extra shot of rich single-origin espresso', price: 10, tag: 'Coffee', inStock: true, image: '/images/products/spanish.png' },
-      { id: 'da3', name: 'Strawberry Flavor', description: 'Extra organic strawberry syrup shot', price: 10, tag: 'Fruity', inStock: true, image: '/images/products/strawberry.png' },
-      { id: 'da4', name: 'Blueberry Flavor', description: 'Extra organic blueberry syrup shot', price: 10, tag: 'Fruity', inStock: true, image: '/images/products/blueberrysoda.png' },
-      { id: 'da5', name: 'Almond Syrup', description: 'Nutty almond syrup shot', price: 10, tag: 'Nutty', inStock: true, image: '/images/products/caramelmacc.png' },
-      { id: 'da6', name: 'Oreo Crumbles', description: 'Extra crunchy crushed Oreo cookies', price: 10, tag: 'Topping', inStock: true, image: '/images/products/oreodalgona.png' },
-      { id: 'da7', name: 'Caramel Drizzle', description: 'Rich caramel sauce swirl', price: 10, tag: 'Topping', inStock: true, image: '/images/products/icemocha.png' },
-      { id: 'da8', name: 'Chocolate Drizzle', description: 'Rich Dutch cocoa chocolate sauce drizzle', price: 15, tag: 'Topping', inStock: true, image: '/images/products/cocoadream.png' },
-      { id: 'da9', name: 'Bobba Pearls', description: 'Chewy tapioca boba pearls', price: 20, tag: 'Chewy', inStock: true, image: '/images/products/tarocream.png' },
-      { id: 'da10', name: 'Nata de Coco', description: 'Sweet chewy coconut nata cubes', price: 20, tag: 'Chewy', inStock: true, image: '/images/products/strawberrysoda.png' },
-      { id: 'da11', name: 'Coffee Jelly', description: 'Handcrafted espresso coffee jelly cubes', price: 20, tag: 'Jelly', inStock: true, image: '/images/products/spanish.png' }
+      { id: 'da1', name: 'Sweetener Syrup', description: 'Extra liquid cane sugar or vanilla sweetener', price: 10, tag: 'Add-on', inStock: true, image: '/images/products/addons/sweetener-syrup.png' },
+      { id: 'da2', name: '1 Shot Espresso', description: 'Extra shot of rich single-origin espresso', price: 10, tag: 'Coffee', inStock: true, image: '/images/products/addons/espresso-shot.png' },
+      { id: 'da3', name: 'Strawberry Flavor', description: 'Extra organic strawberry syrup shot', price: 10, tag: 'Fruity', inStock: true, image: '/images/products/addons/strawberry-flavor.png' },
+      { id: 'da4', name: 'Blueberry Flavor', description: 'Extra organic blueberry syrup shot', price: 10, tag: 'Fruity', inStock: true, image: '/images/products/addons/blueberry-flavor.png' },
+      { id: 'da5', name: 'Almond Syrup', description: 'Nutty almond syrup shot', price: 10, tag: 'Nutty', inStock: true, image: '/images/products/addons/almond-syrup.png' },
+      { id: 'da6', name: 'Oreo Crumbles', description: 'Extra crunchy crushed Oreo cookies', price: 10, tag: 'Topping', inStock: true, image: '/images/products/addons/oreo-crumbles.png' },
+      { id: 'da7', name: 'Caramel Drizzle', description: 'Rich caramel sauce swirl', price: 10, tag: 'Topping', inStock: true, image: '/images/products/addons/caramel-drizzle.png' },
+      { id: 'da8', name: 'Chocolate Drizzle', description: 'Rich Dutch cocoa chocolate sauce drizzle', price: 15, tag: 'Topping', inStock: true, image: '/images/products/addons/chocolate-drizzle.png' },
+      { id: 'da9', name: 'Boba Pearls', description: 'Chewy tapioca boba pearls', price: 20, tag: 'Chewy', inStock: true, image: '/images/products/addons/boba-pearls.png' },
+      { id: 'da10', name: 'Nata de Coco', description: 'Sweet chewy coconut nata cubes', price: 20, tag: 'Chewy', inStock: true, image: '/images/products/addons/nata-de-coco.png' },
+      { id: 'da11', name: 'Coffee Jelly', description: 'Handcrafted espresso coffee jelly cubes', price: 20, tag: 'Jelly', inStock: true, image: '/images/products/addons/coffee-jelly.png' }
     ]
   },
   {
     id: 'foodaddons',
     category: 'Food Add-ons',
     items: [
-      { id: 'fa1', name: 'Extra Egg', description: 'Fried sunny-side up or poached egg', price: 20, tag: 'Side', inStock: true, image: '/images/products/hungarian.png' },
-      { id: 'fa2', name: 'Extra Lettuce', description: 'Fresh green leaf lettuce portion', price: 20, tag: 'Fresh', inStock: true, image: '/images/products/crispybelly.png' },
-      { id: 'fa3', name: 'Extra Cheese', description: 'Melted cheddar or mozzarella cheese slice', price: 20, tag: 'Cheesy', inStock: true, image: '/images/products/whitecheddar.png' },
-      { id: 'fa4', name: 'Extra Mayonnaise', description: 'Creamy garlic mayo dip portion', price: 25, tag: 'Sauce', inStock: true, image: '/images/products/garlicparmesan.png' }
+      { id: 'fa1', name: 'Extra Egg', description: 'Fried sunny-side up or poached egg', price: 20, tag: 'Side', inStock: true, image: '/images/products/addons/extra-egg.png' },
+      { id: 'fa2', name: 'Extra Lettuce', description: 'Fresh green leaf lettuce portion', price: 20, tag: 'Fresh', inStock: true, image: '/images/products/addons/extra-lettuce.png' },
+      { id: 'fa3', name: 'Extra Cheese', description: 'Melted cheddar or mozzarella cheese slice', price: 20, tag: 'Cheesy', inStock: true, image: '/images/products/addons/extra-cheese.png' },
+      { id: 'fa4', name: 'Extra Mayonnaise', description: 'Creamy garlic mayo dip portion', price: 25, tag: 'Sauce', inStock: true, image: '/images/products/addons/extra-mayonnaise.png' }
     ]
   }
 ];
@@ -436,21 +436,54 @@ export function AppProvider({ children }) {
     }
   }, [customerNotifications]);
 
+  const [hasNewNotifPulse, setHasNewNotifPulse] = useState(false);
+
   const addCustomerNotification = (notif) => {
-    const dedupKey = notif.key || `${notif.orderId || 'gen'}-${notif.status || ''}-${notif.title || ''}`;
+    const cleanId = String(notif.orderId || 'gen').replace(/^#/, '');
+    const status = notif.status || 'update';
+    const dedupKey = notif.key || `${cleanId}-${status}`;
+    
+    let defaultTitle = notif.title || 'Order Update';
+    let defaultMessage = notif.message || `Order #${cleanId} status is now ${status}.`;
+
+    if (status === 'new' || status === 'received') {
+      defaultTitle = 'Order Received';
+      defaultMessage = `Order #${cleanId} has been received.`;
+    } else if (status === 'accepted') {
+      defaultTitle = 'Order Accepted';
+      defaultMessage = `Order #${cleanId} has been accepted.`;
+    } else if (status === 'preparing') {
+      defaultTitle = 'Order Preparing';
+      defaultMessage = `Your order #${cleanId} is being prepared.`;
+    } else if (status === 'ready') {
+      defaultTitle = 'Your order is ready!';
+      defaultMessage = `Your order #${cleanId} is ready!`;
+    } else if (status === 'completed') {
+      defaultTitle = 'Order Completed';
+      defaultMessage = `Order #${cleanId} has been completed. Thank you!`;
+    } else if (status === 'cancelled') {
+      defaultTitle = 'Order Cancelled';
+      defaultMessage = `Order #${cleanId} was cancelled.`;
+    }
+
     const newEntry = {
-      id: `${dedupKey}`,
+      id: notif.id ? String(notif.id) : dedupKey,
       key: dedupKey,
-      read: false,
-      timestamp: new Date().toISOString(),
-      ...notif
+      orderId: cleanId,
+      status,
+      title: notif.title || defaultTitle,
+      message: notif.message || defaultMessage,
+      read: notif.read || false,
+      timestamp: notif.timestamp || new Date().toISOString(),
+      accepted_by_name: notif.accepted_by_name || null,
+      completed_by_name: notif.completed_by_name || null
     };
 
     setCustomerNotifications((prev) => {
       // Find if notification for this exact order & status transition already exists
       const existsIndex = prev.findIndex(
         (n) => (n.key && n.key === dedupKey) ||
-               (n.orderId && n.orderId === notif.orderId && n.status && n.status === notif.status)
+               (n.orderId && String(n.orderId).replace(/^#/, '') === cleanId && n.status && n.status === status)
       );
 
       if (existsIndex > -1) {
@@ -460,16 +493,55 @@ export function AppProvider({ children }) {
         return updated;
       }
 
-      return [newEntry, ...prev].slice(0, 40);
+      // Trigger one-time subtle pulse on the notification bell
+      setHasNewNotifPulse(true);
+      setTimeout(() => setHasNewNotifPulse(false), 800);
+
+      return [newEntry, ...prev].slice(0, 50);
     });
+  };
+
+  const refreshCustomerNotifications = async () => {
+    try {
+      const dbNotifs = await api.getNotifications();
+      if (Array.isArray(dbNotifs) && dbNotifs.length > 0) {
+        setCustomerNotifications((prev) => {
+          const map = new Map();
+          dbNotifs.forEach((n) => {
+            const cleanId = String(n.orderId || '').replace(/^#/, '');
+            const key = n.key || `${cleanId}-${n.status}`;
+            map.set(key, { ...n, key, id: String(n.id || key), orderId: cleanId });
+          });
+          prev.forEach((n) => {
+            const cleanId = String(n.orderId || '').replace(/^#/, '');
+            const key = n.key || `${cleanId}-${n.status}`;
+            if (!map.has(key)) {
+              map.set(key, n);
+            }
+          });
+          return Array.from(map.values()).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to refresh customer notifications:', e);
+    }
   };
 
   const markNotificationsAsRead = () => {
     setCustomerNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    api.markAllNotificationsAsRead().catch(() => {});
+  };
+
+  const markSingleNotificationAsRead = (id) => {
+    setCustomerNotifications((prev) =>
+      prev.map((n) => (n.id === id || n.key === id ? { ...n, read: true } : n))
+    );
+    api.markNotificationAsRead(id).catch(() => {});
   };
 
   const clearNotifications = () => {
     setCustomerNotifications([]);
+    api.clearNotifications().catch(() => {});
   };
 
   const unreadNotificationsCount = customerNotifications.filter((n) => !n.read).length;
@@ -633,6 +705,7 @@ export function AppProvider({ children }) {
     fetchOrdersFromApi();
     refreshStaffOnDuty();
     syncProductStock();
+    refreshCustomerNotifications();
 
     const pollInterval = setInterval(() => {
       fetchOrdersFromApi();
@@ -656,17 +729,26 @@ export function AppProvider({ children }) {
       console.log(`⚡ Scialla Real-Time Socket.IO connected (${socketInstance.id}) on ${WS_URL}`);
       setIsConnected(true);
 
-      // Re-join active order room if customer has an active order
-      const activeOrd = localStorage.getItem('scialla_active_order');
-      if (activeOrd) {
-        try {
-          const ordObj = JSON.parse(activeOrd);
-          if (ordObj && ordObj.id) {
-            socketInstance.emit('join:order', ordObj.id);
-            console.log(`📌 Re-joined order room on socket connect: order:${ordObj.id}`);
+      // Re-join all active order rooms for this customer across refresh/reconnect
+      try {
+        const savedIds = localStorage.getItem('scialla_customer_order_ids');
+        const parsedIds = savedIds ? JSON.parse(savedIds) : [];
+        const activeOrd = localStorage.getItem('scialla_active_order');
+        const ordObj = activeOrd ? JSON.parse(activeOrd) : null;
+        const allIds = Array.from(new Set([...(parsedIds || []), ...(ordObj?.id ? [ordObj.id] : [])]));
+
+        allIds.forEach((ordId) => {
+          if (ordId) {
+            socketInstance.emit('join:order', ordId);
+            console.log(`📌 Re-joined order room on socket connect: order:${ordId}`);
           }
-        } catch {}
+        });
+      } catch (err) {
+        console.warn('Re-joining order rooms error:', err);
       }
+
+      // Re-fetch persisted notifications from database upon reconnection
+      refreshCustomerNotifications();
     });
 
     socketInstance.on('disconnect', () => {
@@ -690,10 +772,24 @@ export function AppProvider({ children }) {
       refreshStaffOnDuty();
     });
 
+    // Targeted real-time customer notification event from server
+    socketInstance.on('notification:new', (notifData) => {
+      console.log('🔔 Received targeted notification:new:', notifData);
+      addCustomerNotification(notifData);
+      if (notifData.status === 'ready') {
+        triggerToast('Your order is ready!');
+      } else if (notifData.status === 'completed') {
+        triggerToast('Order completed. Thank you!');
+      } else if (notifData.status === 'cancelled') {
+        triggerToast('Order was cancelled.');
+      }
+    });
+
     // Targeted status update handler
     socketInstance.on('order:status_updated', (data) => {
       console.log('📡 Received targeted order:status_updated:', data);
       const targetOrderId = data.id || data.orderId;
+      const cleanId = String(targetOrderId).replace(/^#/, '');
 
       // Update staff dashboard orders queue
       setOrders((prev) =>
@@ -701,40 +797,36 @@ export function AppProvider({ children }) {
       );
 
       // Check if this order belongs to current customer
-      const isCustomerOrder = (lastCustomerOrder && lastCustomerOrder.id === targetOrderId) || customerOrderIds.includes(targetOrderId);
+      const isCustomerOrder = (lastCustomerOrder && (lastCustomerOrder.id === targetOrderId || String(lastCustomerOrder.id).replace(/^#/, '') === cleanId)) ||
+        customerOrderIds.some((id) => id === targetOrderId || String(id).replace(/^#/, '') === cleanId);
 
       if (isCustomerOrder) {
         let title = 'Order Update';
-        let message = `Order #${targetOrderId} status is now ${data.status}.`;
+        let message = `Order #${cleanId} status is now ${data.status}.`;
 
-        if (data.status === 'preparing') {
-          title = 'Order is being prepared';
-          message = `Barista ${data.accepted_by_name ? `(${data.accepted_by_name}) ` : ''}is preparing order #${targetOrderId}.`;
-          triggerToast(`Your order has been accepted${data.accepted_by_name ? ' by ' + data.accepted_by_name : ''} and is being prepared!`);
+        if (data.status === 'accepted') {
+          title = 'Order Accepted';
+          message = `Order #${cleanId} has been accepted.`;
+        } else if (data.status === 'preparing') {
+          title = 'Order Preparing';
+          message = `Your order #${cleanId} is being prepared.`;
         } else if (data.status === 'ready') {
-          const isTakeout = (data.table || (lastCustomerOrder && lastCustomerOrder.table) || '').toLowerCase().includes('takeout');
           title = 'Your order is ready!';
-          message = isTakeout
-            ? `Ready for Counter Pickup! Present Order #${targetOrderId}`
-            : `Your order is ready! Serving to ${data.table || (lastCustomerOrder && lastCustomerOrder.table) || 'Table'}${data.accepted_by_name ? ` (Crafted by ${data.accepted_by_name})` : ''}`;
-          triggerToast(
-            isTakeout
-              ? `Ready for Counter Pickup! Order #${targetOrderId}`
-              : `Your order is ready! Serving to ${data.table || (lastCustomerOrder && lastCustomerOrder.table) || 'Table'}`
-          );
+          message = `Your order #${cleanId} is ready!`;
+          triggerToast('Your order is ready!');
         } else if (data.status === 'completed') {
           title = 'Order Completed';
-          message = `Order #${targetOrderId} completed and delivered${data.completed_by_name ? ` by ${data.completed_by_name}` : ''}. Thank you for visiting Scialla!`;
-          triggerToast('Order completed. Thank you for visiting Scialla!');
+          message = `Order #${cleanId} has been completed. Thank you!`;
+          triggerToast('Order completed. Thank you!');
         } else if (data.status === 'cancelled') {
           title = 'Order Cancelled';
-          message = `Order #${targetOrderId} was cancelled.`;
+          message = `Order #${cleanId} was cancelled.`;
           triggerToast('Your order was cancelled.');
         }
 
         addCustomerNotification({
-          key: `${targetOrderId}-${data.status}`,
-          orderId: targetOrderId,
+          key: `${cleanId}-${data.status}`,
+          orderId: cleanId,
           title,
           message,
           status: data.status,
@@ -745,7 +837,7 @@ export function AppProvider({ children }) {
 
       // Update customer live tracking if it matches this device's active order
       setLastCustomerOrder((prev) => {
-        if (prev && prev.id === targetOrderId) {
+        if (prev && (prev.id === targetOrderId || String(prev.id).replace(/^#/, '') === cleanId)) {
           return { ...prev, ...data };
         }
         return prev;
@@ -889,10 +981,11 @@ export function AppProvider({ children }) {
     });
     setLastCustomerOrder(newOrder);
 
+    const cleanTargetId = String(targetId).replace(/^#/, '');
     addCustomerNotification({
-      orderId: targetId,
+      orderId: cleanTargetId,
       title: 'Order Received',
-      message: `Order #${targetId} for ${orderData.table || 'Table'} has been sent to the kitchen.`,
+      message: `Order #${cleanTargetId} has been received.`,
       status: 'new'
     });
 
@@ -1173,7 +1266,10 @@ export function AppProvider({ children }) {
         customerOrderHistory,
         customerNotifications,
         unreadNotificationsCount,
+        hasNewNotifPulse,
         markNotificationsAsRead,
+        markSingleNotificationAsRead,
+        refreshCustomerNotifications,
         clearNotifications,
         addCustomerNotification,
         staffList,

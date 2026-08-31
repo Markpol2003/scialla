@@ -117,47 +117,98 @@ export default function Products() {
             )}
           </div>
         ) : (
-          <table className="catalog-data-table">
-            <thead>
-              <tr>
-                <th style={{ width: '42%' }}>Item & Description</th>
-                <th style={{ width: '22%' }}>Category</th>
-                <th style={{ width: '16%' }}>Price</th>
-                <th style={{ width: '20%', textAlign: 'right' }}>Availability</th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            {/* Desktop Table View (Hidden on mobile via CSS) */}
+            <div className="catalog-desktop-table-container">
+              <table className="catalog-data-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '42%' }}>Item & Description</th>
+                    <th style={{ width: '22%' }}>Category</th>
+                    <th style={{ width: '16%' }}>Price</th>
+                    <th style={{ width: '20%', textAlign: 'right' }}>Availability</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProducts.map((item) => (
+                    <tr key={item.id} className={!item.inStock ? 'row-out-of-stock' : ''}>
+                      <td>
+                        <div className="tbl-item-cell">
+                          <div className="tbl-name-row">
+                            <strong className="tbl-item-name">{item.name}</strong>
+                            {item.tag && <span className="product-tag">{item.tag}</span>}
+                          </div>
+                          <p className="tbl-item-desc">{item.description}</p>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="tbl-cat-badge">{item.categoryName}</span>
+                      </td>
+                      <td>
+                        <div className="tbl-price-cell">
+                          {item.sizes ? (
+                            <div>
+                              <strong className="tbl-price-val">
+                                ₱{item.sizes[0].price} – ₱{item.sizes[item.sizes.length - 1].price}
+                              </strong>
+                              <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                                {item.sizes.map((s) => `${s.size}: ₱${s.price}`).join(' | ')}
+                              </span>
+                            </div>
+                          ) : (
+                            <strong className="tbl-price-val">₱{item.price.toFixed(2)}</strong>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button
+                          type="button"
+                          className={`stock-switch ${item.inStock ? 'is-stock' : 'is-out'}`}
+                          onClick={() => toggleItemStock(item.id)}
+                          title={item.inStock ? 'Mark as sold out' : 'Mark as in stock'}
+                        >
+                          <span className="switch-knob" />
+                          <span className="switch-label">
+                            {item.inStock ? 'In Stock' : 'Sold Out'}
+                          </span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Product Cards View (Visible only on mobile via CSS) */}
+            <div className="catalog-mobile-cards-list">
               {filteredProducts.map((item) => (
-                <tr key={item.id} className={!item.inStock ? 'row-out-of-stock' : ''}>
-                  <td>
-                    <div className="tbl-item-cell">
-                      <div className="tbl-name-row">
-                        <strong className="tbl-item-name">{item.name}</strong>
-                        {item.tag && <span className="product-tag">{item.tag}</span>}
-                      </div>
-                      <p className="tbl-item-desc">{item.description}</p>
+                <div key={item.id} className={`product-mobile-card ${!item.inStock ? 'card-out-of-stock' : ''}`}>
+                  <div className="pmc-top-row">
+                    <div className="pmc-identity">
+                      <strong className="pmc-name">{item.name}</strong>
+                      {item.tag && <span className="product-tag">{item.tag}</span>}
                     </div>
-                  </td>
-                  <td>
                     <span className="tbl-cat-badge">{item.categoryName}</span>
-                  </td>
-                  <td>
-                    <div className="tbl-price-cell">
+                  </div>
+
+                  <p className="pmc-desc">{item.description}</p>
+
+                  <div className="pmc-bottom-row">
+                    <div className="pmc-price-box">
                       {item.sizes ? (
                         <div>
-                          <strong className="tbl-price-val">
+                          <strong className="pmc-price-main">
                             ₱{item.sizes[0].price} – ₱{item.sizes[item.sizes.length - 1].price}
                           </strong>
-                          <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                            {item.sizes.map((s) => `${s.size}: ₱${s.price}`).join(' | ')}
+                          <span className="pmc-sizes-sub">
+                            {item.sizes.map((s) => `${s.size}: ₱${s.price}`).join(' · ')}
                           </span>
                         </div>
                       ) : (
-                        <strong className="tbl-price-val">₱{item.price.toFixed(2)}</strong>
+                        <strong className="pmc-price-main">₱{item.price.toFixed(2)}</strong>
                       )}
                     </div>
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
+
                     <button
                       type="button"
                       className={`stock-switch ${item.inStock ? 'is-stock' : 'is-out'}`}
@@ -169,11 +220,11 @@ export default function Products() {
                         {item.inStock ? 'In Stock' : 'Sold Out'}
                       </span>
                     </button>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </div>
     </div>

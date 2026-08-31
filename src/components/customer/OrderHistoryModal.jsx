@@ -146,7 +146,7 @@ export default function OrderHistoryModal({ isOpen, onClose }) {
                       style={{
                         display: 'flex',
                         justifyContent: 'space-between',
-                        alignItems: 'center',
+                        alignItems: 'flex-start',
                         fontSize: '0.84rem',
                         borderBottom: idx < (selectedOrder.items || []).length - 1 ? '1px solid rgba(201, 139, 91, 0.1)' : 'none',
                         paddingBottom: idx < (selectedOrder.items || []).length - 1 ? '8px' : 0
@@ -154,15 +154,24 @@ export default function OrderHistoryModal({ isOpen, onClose }) {
                     >
                       <div>
                         <div style={{ fontWeight: 700, color: '#FFFFFF' }}>
-                          {it.qty || 1}× {it.name}
+                          {it.qty || 1}× {it.rawName || it.name}
                         </div>
                         {it.size && (
-                          <div style={{ fontSize: '0.72rem', color: '#D4A373' }}>
+                          <div style={{ fontSize: '0.72rem', color: '#D4A373', marginTop: '1px' }}>
                             Size: {it.size}
                           </div>
                         )}
+                        {Array.isArray(it.addons) && it.addons.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', marginTop: '2px' }}>
+                            {it.addons.map((a, aIdx) => (
+                              <span key={a.id || aIdx} style={{ fontSize: '0.72rem', color: '#A08070' }}>
+                                + {a.name} <span style={{ color: '#E2B688' }}>(₱{parseFloat(a.price).toFixed(2)})</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div style={{ fontWeight: 800, color: '#E2B688', fontFamily: 'var(--font-mono)' }}>
+                      <div style={{ fontWeight: 800, color: '#E2B688', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
                         ₱{(parseFloat(it.price || 0) * (it.qty || 1)).toFixed(2)}
                       </div>
                     </div>

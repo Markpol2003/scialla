@@ -16,8 +16,6 @@ function isTodayInManila(dateInput) {
 export default function Sales() {
   const { topProducts, monthlySalesData, orders } = useApp();
 
-  const maxRevenue = Math.max(...monthlySalesData.map((d) => d.revenue));
-
   // Single consistent set of today's completed orders
   const completedOrdersList = orders.filter((o) => {
     if (o.status !== 'completed') return false;
@@ -40,37 +38,6 @@ export default function Sales() {
 
   return (
     <div className="sales-tab-container" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Monthly Overview */}
-      <div className="manager-box monthly-summary-header-box">
-        <div className="box-header">
-          <div>
-            <h2>2026 Monthly Revenue</h2>
-          </div>
-          <span className="box-tag">2026 Fiscal Year</span>
-        </div>
-
-        {/* Monthly Bar Chart */}
-        <div className="chart-scroll-container">
-          <div className="chart-bars-container monthly-chart-bars" style={{ height: '220px', marginTop: '10px' }}>
-            {monthlySalesData.map((d) => {
-              const hPct = Math.round((d.revenue / maxRevenue) * 100);
-              return (
-                <div key={d.month} className={`chart-bar-group ${d.isCurrent ? 'current-month-bar' : ''}`}>
-                  <span className="chart-val-label">₱{(d.revenue / 1000).toFixed(0)}k</span>
-                  <div className="chart-bar-outer">
-                    <div
-                      className="chart-bar-inner"
-                      style={{ height: `${hPct}%` }}
-                    ></div>
-                  </div>
-                  <span className="chart-day-label">{d.month}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
       <div className="manager-two-columns">
         {/* Daily Completed Orders & Sales Summary */}
         <div className="manager-box sales-chart-box">
@@ -100,7 +67,7 @@ export default function Sales() {
 
             <div style={{ background: 'linear-gradient(135deg, rgba(32, 17, 10, 0.7), rgba(20, 10, 6, 0.8))', border: '1px solid rgba(201, 139, 91, 0.25)', borderRadius: '10px', padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <span style={{ fontSize: '0.74rem', color: '#D4C3B3', textTransform: 'uppercase' }}>Daily Revenue Total</span>
+                <span style={{ fontSize: '0.74rem', color: '#D4C3B3', textTransform: 'uppercase' }}>Daily Sales Total</span>
                 <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#E2B688', fontFamily: 'var(--font-mono)' }}>
                   ₱{dailyRevenue.toFixed(2)}
                 </div>
@@ -137,6 +104,50 @@ export default function Sales() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Monthly Sales Breakdown Table */}
+      <div className="manager-box">
+        <div className="box-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <h2>Monthly Breakdown</h2>
+          <span className="box-tag">2026</span>
+        </div>
+
+        <div className="table-scroll-container">
+          <table className="manager-table min-w-table">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>Orders</th>
+                <th>Sales</th>
+                <th>Avg Order</th>
+                <th>Growth</th>
+              </tr>
+            </thead>
+            <tbody>
+              {monthlySalesData.slice().reverse().map((m) => (
+                <tr key={m.month} className={m.isCurrent ? 'row-current-month' : ''}>
+                  <td>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <strong>{m.month}</strong>
+                      {m.isCurrent && (
+                        <span className="current-badge" style={{ marginLeft: '6px', padding: '2px 8px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 'bold', background: 'rgba(59, 130, 246, 0.25)', color: '#60a5fa' }}>
+                          Current
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td>{m.orders.toLocaleString()}</td>
+                  <td><strong style={{ color: 'var(--color-gold)' }}>₱{m.revenue.toLocaleString()}</strong></td>
+                  <td>₱{m.avgTicket.toFixed(2)}</td>
+                  <td>
+                    <span className="growth-pill-ok">{m.growth}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

@@ -311,5 +311,45 @@ export const api = {
     } catch {
       return { success: true, orderId, status, accepted_by_name: staffName, completed_by_name: staffName };
     }
+  },
+
+  // Customer Notifications API
+  async getNotifications() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/notifications`, {
+        headers: getAuthHeaders()
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async markNotificationAsRead(id) {
+    try {
+      await fetch(`${API_BASE_URL}/api/notifications/${encodeURIComponent(id)}/read`, {
+        method: 'PATCH',
+        headers: getAuthHeaders()
+      });
+    } catch {}
+  },
+
+  async markAllNotificationsAsRead() {
+    try {
+      await fetch(`${API_BASE_URL}/api/notifications/read-all`, {
+        method: 'PATCH',
+        headers: getAuthHeaders()
+      });
+    } catch {}
+  },
+
+  async clearNotifications() {
+    try {
+      await fetch(`${API_BASE_URL}/api/notifications`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+    } catch {}
   }
 };

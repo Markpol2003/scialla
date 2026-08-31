@@ -1,33 +1,52 @@
 import React, { useState } from 'react';
 import Dashboard from '../pages/manager/Dashboard';
-import Orders from '../pages/manager/Orders';
 import Sales from '../pages/manager/Sales';
+import Orders from '../pages/manager/Orders';
 import Products from '../pages/manager/Products';
 import Staff from '../pages/manager/Staff';
 import UserProfileDropdown from '../components/UserProfileDropdown';
 
 export default function ManagerLayout({ onNavigate }) {
   const [currentTab, setCurrentTab] = useState('dashboard');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+
+  // Desktop sidebar collapse state (persisted in localStorage)
+  const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('managerNavCollapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleDesktopCollapse = () => {
+    setIsDesktopCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('managerNavCollapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   const handleTabChange = (tab) => {
     setCurrentTab(tab);
-    setIsSidebarOpen(false); // Auto collapse sidebar on mobile selection
+    setIsMobileDrawerOpen(false); // Auto-close drawer on mobile when tab is selected
   };
+
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'sales', label: 'Sales' },
+    { id: 'orders', label: 'Orders' },
+    { id: 'products', label: 'Products' },
+    { id: 'staff', label: 'Staff' }
+  ];
 
   return (
     <div className="portal-layout-container">
-      {/* Top Header Bar */}
+      {/* Top Header Bar (Clean: Only Branding & Profile) */}
       <header className="portal-top-bar">
         <div className="portal-brand-title">
-          <button
-            type="button"
-            className="btn-sidebar-toggle"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            title="Toggle Sidebar Navigation"
-          >
-            {isSidebarOpen ? '✕' : '☰'}
-          </button>
           <span className="brand-bold">SCIALLA</span>
           <span className="portal-tag tag-manager">MANAGER</span>
         </div>
@@ -36,72 +55,108 @@ export default function ManagerLayout({ onNavigate }) {
         <UserProfileDropdown onNavigate={onNavigate} />
       </header>
 
-      {/* Main Two-Column Layout (Sidebar + Content) */}
-      <div className="portal-body-wrapper">
-        {/* Mobile Backdrop Overlay */}
-        {isSidebarOpen && (
-          <div
-            className="portal-sidebar-backdrop"
-            onClick={() => setIsSidebarOpen(false)}
-          ></div>
-        )}
+      {/* Edge Arrow Tab (Visible when sidebar is closed on mobile or collapsed on desktop) */}
+      {/* Mobile edge tab */}
+      {!isMobileDrawerOpen && (
+        <button
+          type="button"
+          className="btn-edge-toggle btn-edge-toggle-mobile"
+          onClick={() => setIsMobileDrawerOpen(true)}
+          title="Open navigation"
+          aria-label="Open navigation"
+        >
+          ›
+        </button>
+      )}
 
-        {/* Left Sidebar Navigation */}
-        <aside className={`portal-sidebar ${isSidebarOpen ? 'mobile-open' : ''}`}>
-          <div className="sidebar-nav-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      {/* Desktop edge tab */}
+      {isDesktopCollapsed && (
+        <button
+          type="button"
+          className="btn-edge-toggle btn-edge-toggle-desktop"
+          onClick={toggleDesktopCollapse}
+          title="Expand navigation"
+          aria-label="Expand navigation"
+        >
+          ›
+        </button>
+      )}
+
+      {/* Mobile Backdrop Overlay */}
+      {isMobileDrawerOpen && (
+        <div
+          className="portal-drawer-backdrop"
+          onClick={() => setIsMobileDrawerOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Main Two-Column Layout (Sidebar + Content) */}
+      <div className={`portal-body-wrapper ${isDesktopCollapsed ? 'desktop-collapsed' : ''}`}>
+        {/* Left Sidebar Navigation (Off-canvas drawer on mobile, collapsible sidebar on desktop) */}
+        <aside className={`portal-sidebar ${isMobileDrawerOpen ? 'mobile-open' : ''} ${isDesktopCollapsed ? 'collapsed' : ''}`}>
+          {/* Mobile Drawer Header with Close Arrow */}
+          <div className="drawer-header-mobile">
+            <div className="drawer-brand">
+              <span className="brand-bold">SCIALLA</span>
+              <span className="portal-tag tag-manager">MANAGER</span>
+            </div>
             <button
               type="button"
-              className={`sidebar-nav-item ${currentTab === 'dashboard' ? 'active' : ''}`}
-              onClick={() => handleTabChange('dashboard')}
+              className="btn-drawer-close"
+              onClick={() => setIsMobileDrawerOpen(false)}
+              title="Close navigation"
+              aria-label="Close navigation"
             >
-              Dashboard
-            </button>
-            <button
-              type="button"
-              className={`sidebar-nav-item ${currentTab === 'orders' ? 'active' : ''}`}
-              onClick={() => handleTabChange('orders')}
-            >
-              Orders
-            </button>
-            <button
-              type="button"
-              className={`sidebar-nav-item ${currentTab === 'sales' ? 'active' : ''}`}
-              onClick={() => handleTabChange('sales')}
-            >
-              Sales
-            </button>
-            <button
-              type="button"
-              className={`sidebar-nav-item ${currentTab === 'products' ? 'active' : ''}`}
-              onClick={() => handleTabChange('products')}
-            >
-              Products
-            </button>
-            <button
-              type="button"
-              className={`sidebar-nav-item ${currentTab === 'staff' ? 'active' : ''}`}
-              onClick={() => handleTabChange('staff')}
-            >
-              Staff
+              ‹
             </button>
           </div>
 
-          <div className="sidebar-footer-link" style={{ marginTop: 'auto', paddingTop: '16px' }}>
+          {/* Navigation Items List */}
+          <div className="sidebar-nav-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`sidebar-nav-item ${currentTab === item.id ? 'active' : ''}`}
+                onClick={() => handleTabChange(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Sidebar Footer Link & Desktop Collapse Arrow */}
+          <div className="sidebar-footer-link" style={{ marginTop: 'auto', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <button
               type="button"
               className="btn-menu-link"
-              onClick={() => onNavigate && onNavigate('/')}
+              onClick={() => {
+                setIsMobileDrawerOpen(false);
+                if (onNavigate) onNavigate('/');
+              }}
             >
               ← Public Menu (/)
+            </button>
+
+            {/* Desktop Collapse Arrow Button */}
+            <button
+              type="button"
+              className="btn-sidebar-collapse-toggle"
+              onClick={toggleDesktopCollapse}
+              title="Collapse navigation"
+              aria-label="Collapse navigation"
+            >
+              ‹
             </button>
           </div>
         </aside>
 
-        {/* Right Main Content */}
-        <main className="portal-main-content">
+        {/* Right Main Content (Expands to full available width when sidebar is hidden) */}
+        <main className={`portal-main-content ${isDesktopCollapsed ? 'content-expanded' : ''}`}>
           {currentTab === 'dashboard' && <Dashboard />}
-          {currentTab === 'orders' && <Orders />}
           {currentTab === 'sales' && <Sales />}
+          {currentTab === 'orders' && <Orders />}
           {currentTab === 'products' && <Products />}
           {currentTab === 'staff' && <Staff />}
         </main>

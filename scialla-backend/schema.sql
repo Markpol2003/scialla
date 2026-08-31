@@ -72,6 +72,24 @@ CREATE TABLE IF NOT EXISTS password_reset_codes (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_reset_codes_user_role ON password_reset_codes (user_id, role);
 CREATE INDEX IF NOT EXISTS idx_reset_codes_email_role ON password_reset_codes (email, role);
 CREATE INDEX IF NOT EXISTS idx_reset_codes_expires_at ON password_reset_codes (expires_at);
+
+-- Customer Notifications Table
+CREATE TABLE IF NOT EXISTS customer_notifications (
+    id SERIAL PRIMARY KEY,
+    order_id VARCHAR(50) REFERENCES orders(id) ON DELETE CASCADE,
+    guest_session_id VARCHAR(64),
+    user_id INTEGER,
+    status VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_order_status_notification UNIQUE (order_id, status)
+);
+
+CREATE INDEX IF NOT EXISTS idx_customer_notifs_guest ON customer_notifications (guest_session_id);
+CREATE INDEX IF NOT EXISTS idx_customer_notifs_order ON customer_notifications (order_id);
 
