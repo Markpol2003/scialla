@@ -15,6 +15,7 @@ export default function Cart({
   return (
     <aside className="scialla-cart-sidebar">
       <div className="cart-card-3d">
+        {/* Header with clean action spacing */}
         <div className="cart-header">
           <div className="cart-title-wrapper">
             <h2 className="cart-title">Your Order</h2>
@@ -24,8 +25,8 @@ export default function Cart({
               onClick={onOpenTableModal}
               title="Click to change Table / Dining Option"
             >
-              <span>{tableDisplayLabel}</span>
-              <span style={{ fontSize: '0.68rem', opacity: 0.7 }}>Edit</span>
+              <span className="table-label-text">{tableDisplayLabel}</span>
+              <span className="table-edit-badge">Edit</span>
             </button>
           </div>
           <div className="cart-header-right-actions">
@@ -46,93 +47,115 @@ export default function Cart({
           </div>
         </div>
 
+        {/* Scrollable Cart Items List */}
         <div className="cart-list">
           {cart.length === 0 ? (
             <div className="cart-empty-state">
-              <p>Your order is empty.</p>
-              <p style={{ marginTop: '4px', fontSize: '0.8rem' }}>Select coffee to start ordering.</p>
+              <p className="empty-title">Your order is empty.</p>
+              <p className="empty-sub">Select coffee to start ordering.</p>
             </div>
           ) : (
-            cart.map((item) => (
-              <div key={item.id} className="cart-item-row" style={{ alignItems: 'flex-start' }}>
-                <div className="item-info">
-                  <div className="item-row-name">{item.rawName || item.name}</div>
-                  {item.size && (
-                    <div className="item-row-size">
-                      {item.size}
-                    </div>
-                  )}
+            cart.map((item) => {
+              const hasAddons = Array.isArray(item.addons) && item.addons.length > 0;
+              const canHaveAddons = onOpenAddonsModal && !String(item.id || '').startsWith('da') && !String(item.id || '').startsWith('fa');
+              const itemTotalPrice = (item.price * item.qty).toFixed(2);
 
-                  {/* Display selected add-ons if any */}
-                  {Array.isArray(item.addons) && item.addons.length > 0 && (
-                    <div className="cart-item-addons-list">
-                      {item.addons.map((a, aIdx) => (
-                        <div key={a.id || aIdx} className="cart-item-addon-line">
-                          <span>+ {a.name}</span>
-                          <span className="cart-item-addon-price">₱{parseFloat(a.price).toFixed(2)}</span>
-                        </div>
-                      ))}
+              return (
+                <div key={item.id} className="cart-item-card">
+                  {/* Top Row: Product Name on Left, Remove Button on Right */}
+                  <div className="cart-item-top-row">
+                    <div className="cart-item-title-block">
+                      <span className="cart-item-name">{item.rawName || item.name}</span>
+                      {item.size && <span className="cart-item-size">{item.size}</span>}
                     </div>
-                  )}
-
-                  {/* Proper secondary action: [ + Add-ons ] / [ Edit Add-ons ] */}
-                  {onOpenAddonsModal && !String(item.id || '').startsWith('da') && !String(item.id || '').startsWith('fa') && (
                     <button
                       type="button"
-                      className={`btn-cart-addon-pill ${item.addons && item.addons.length > 0 ? 'is-edit' : ''}`}
-                      onClick={() => onOpenAddonsModal(item)}
-                      title={item.addons && item.addons.length > 0 ? 'Edit add-ons for this item' : 'Customize add-ons for this item'}
+                      className="btn-cart-item-remove"
+                      onClick={() => onRemoveItem(item.id)}
+                      title="Remove item"
+                      aria-label="Remove item"
                     >
-                      {item.addons && item.addons.length > 0 ? 'Edit Add-ons' : '+ Add-ons'}
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* Selected Add-ons Nested Section */}
+                  {hasAddons && (
+                    <div className="cart-addons-nested-box">
+                      <span className="cart-addons-header-label">Add-ons</span>
+                      <div className="cart-addons-items-list">
+                        {item.addons.map((a, aIdx) => (
+                          <div key={a.id || aIdx} className="cart-addon-row">
+                            <span className="cart-addon-name">• {a.name}</span>
+                            <span className="cart-addon-price">+₱{parseFloat(a.price).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Secondary Action: [ + Add-ons ] / [ Edit Add-ons ] */}
+                  {canHaveAddons && (
+                    <button
+                      type="button"
+                      className={`btn-cart-addon-action ${hasAddons ? 'is-edit' : ''}`}
+                      onClick={() => onOpenAddonsModal(item)}
+                      title={hasAddons ? 'Edit add-ons for this item' : 'Customize add-ons for this item'}
+                    >
+                      {hasAddons ? 'Edit Add-ons' : '+ Add-ons'}
                     </button>
                   )}
-                </div>
 
-                <div className="qty-stepper">
-                  <button
-                    className="qty-btn"
-                    onClick={() => onUpdateQty(item.id, -1)}
-                    title="Decrease quantity"
-                  >
-                    -
-                  </button>
-                  <span className="qty-number">{item.qty}</span>
-                  <button
-                    className="qty-btn"
-                    onClick={() => onUpdateQty(item.id, 1)}
-                    title="Increase quantity"
-                  >
-                    +
-                  </button>
-                </div>
+                  {/* Bottom Row: Quantity Stepper on Left, Item Total on Right */}
+                  <div className="cart-item-bottom-row">
+                    <div className="cart-qty-wrapper">
+                      <span className="cart-qty-label">Qty</span>
+                      <div className="qty-stepper">
+                        <button
+                          type="button"
+                          className="qty-btn"
+                          onClick={() => onUpdateQty(item.id, -1)}
+                          title="Decrease quantity"
+                          aria-label="Decrease quantity"
+                        >
+                          −
+                        </button>
+                        <span className="qty-number">{item.qty}</span>
+                        <button
+                          type="button"
+                          className="qty-btn"
+                          onClick={() => onUpdateQty(item.id, 1)}
+                          title="Increase quantity"
+                          aria-label="Increase quantity"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
 
-                <div className="item-row-total">
-                  ₱{(item.price * item.qty).toFixed(2)}
+                    <div className="cart-item-total-price">
+                      ₱{itemTotalPrice}
+                    </div>
+                  </div>
                 </div>
-
-                <button
-                  className="btn-remove-item"
-                  onClick={() => onRemoveItem(item.id)}
-                  title="Remove item"
-                >
-                  ✕
-                </button>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
+        {/* Totals Section */}
         <div className="cart-summary">
           <div className="summary-line">
-            <span>Total Items</span>
-            <span>{totalItemCount}</span>
+            <span className="summary-label">Total Items</span>
+            <span className="summary-value">{totalItemCount}</span>
           </div>
           <div className="summary-line total-line">
-            <span>Total</span>
+            <span className="total-label">Total</span>
             <span className="total-amount">₱{totalAmount.toFixed(2)}</span>
           </div>
 
           <button
+            type="button"
             className="btn-3d-checkout"
             disabled={cart.length === 0}
             onClick={onOpenCheckout}

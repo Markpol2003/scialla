@@ -1,6 +1,29 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check, Search, X, ArrowLeft } from 'lucide-react';
 
+const SHORT_DESKTOP_LABELS = {
+  coffee: 'Coffee',
+  'Coffee Drinks': 'Coffee',
+  noncoffee: 'Non-Coffee',
+  'Non-Coffee Drinks': 'Non-Coffee',
+  soda: 'Refreshers',
+  'Soda & Refreshers': 'Refreshers',
+  ricemeals: 'Rice Meals',
+  'Rice Meals': 'Rice Meals',
+  waffles: 'Waffles',
+  pasta: 'Pasta',
+  pikapika: 'Snacks',
+  'Pika-Pika (Snacks)': 'Snacks',
+  pizza: 'Pizza'
+};
+
+const getDesktopLabel = (cat) => {
+  return SHORT_DESKTOP_LABELS[cat.id] || SHORT_DESKTOP_LABELS[cat.category] || cat.category;
+};
+
+// Categories moved into More ▾ dropdown on desktop
+const MORE_CATEGORY_IDS = new Set(['quesadilla', 'sandwiches', 'drinkaddons', 'foodaddons']);
+
 export default function CategoryFilterBar({
   categories,
   selectedCategory,
@@ -9,8 +32,10 @@ export default function CategoryFilterBar({
   onSearchChange
 }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMoreDropdownOpen, setIsMoreDropdownOpen] = useState(false);
   const [isMobileSearchActive, setIsMobileSearchActive] = useState(Boolean(searchQuery));
   const dropdownRef = useRef(null);
+  const moreDropdownRef = useRef(null);
   const searchInputRef = useRef(null);
 
   // Focus search input when mobile search is activated
@@ -20,18 +45,31 @@ export default function CategoryFilterBar({
     }
   }, [isMobileSearchActive]);
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click and Escape key
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setIsDropdownOpen(false);
       }
+      if (moreDropdownRef.current && !moreDropdownRef.current.contains(e.target)) {
+        setIsMoreDropdownOpen(false);
+      }
     };
-    if (isDropdownOpen) {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsDropdownOpen(false);
+        setIsMoreDropdownOpen(false);
+      }
+    };
+    if (isDropdownOpen || isMoreDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isDropdownOpen]);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isDropdownOpen, isMoreDropdownOpen]);
 
   const activeCategoryObj = categories.find(
     (c) => c.id === selectedCategory || c.category === selectedCategory
@@ -40,6 +78,18 @@ export default function CategoryFilterBar({
   const selectedLabel = selectedCategory === 'all'
     ? 'All Categories'
     : activeCategoryObj?.category || 'Category';
+
+  const directCategories = categories.filter(
+    (cat) => !MORE_CATEGORY_IDS.has(String(cat.id || '').toLowerCase())
+  );
+
+  const moreCategories = categories.filter(
+    (cat) => MORE_CATEGORY_IDS.has(String(cat.id || '').toLowerCase())
+  );
+
+  const selectedInMore = moreCategories.find(
+    (cat) => cat.id === selectedCategory || cat.category === selectedCategory
+  );
 
   return (
     <div className="scialla-category-nav-wrapper">
@@ -85,7 +135,7 @@ export default function CategoryFilterBar({
       ) : (
         /* NORMAL TOOLBAR ROW (Desktop Category Chips & Mobile Dropdown) */
         <div className="scialla-toolbar-row">
-          {/* DESKTOP DIRECT CATEGORY NAVIGATION CHIPS */}
+          {/* DESKTOP DIRECT CATEGORY NAVIGATION CHIPS (SINGLE ROW + MORE) */}
           <div className="desktop-category-nav-list" role="tablist" aria-label="Menu categories">
             <button
               type="button"
@@ -96,7 +146,7 @@ export default function CategoryFilterBar({
             >
               All
             </button>
-            {categories.map((cat) => {
+            {directCategories.map((cat) => {
               const isSelected = selectedCategory === cat.id || selectedCategory === cat.category;
               return (
                 <button
@@ -107,10 +157,56 @@ export default function CategoryFilterBar({
                   className={`desktop-cat-btn ${isSelected ? 'active' : ''}`}
                   onClick={() => onSelectCategory(cat.id)}
                 >
-                  {cat.category}
+                  {getDesktopLabel(cat)}
                 </button>
               );
             })}
+
+            {/* MORE CATEGORIES DROPDOWN */}
+            {moreCategories.length > 0 && (
+              <div className="desktop-more-dropdown-container" ref={moreDropdownRef}>
+                <button
+                  type="button"
+                  role="button"
+                  aria-haspopup="menu"
+                  aria-expanded={isMoreDropdownOpen}
+                  aria-selected={Boolean(selectedInMore)}
+                  className={`desktop-cat-btn desktop-more-btn ${selectedInMore ? 'active' : ''} ${isMoreDropdownOpen ? 'open' : ''}`}
+                  onClick={() => setIsMoreDropdownOpen((prev) => !prev)}
+                  title="More categories"
+                >
+                  <span>{selectedInMore ? selectedInMore.category : 'More'}</span>
+                  <ChevronDown size={13} className={`more-arrow-icon ${isMoreDropdownOpen ? 'rotated' : ''}`} />
+                </button>
+
+                {isMoreDropdownOpen && (
+                  <div className="desktop-more-popover" role="menu">
+                    {moreCategories.map((cat) => {
+                      const isSelected = selectedCategory === cat.id || selectedCategory === cat.category;
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          role="menuitem"
+                          className={`desktop-more-item ${isSelected ? 'active' : ''}`}
+                          onClick={() => {
+                            onSelectCategory(cat.id);
+                            setIsMoreDropdownOpen(false);
+                          }}
+                        >
+                          <span className="desktop-more-item-name">{cat.category}</span>
+                          {isSelected && (
+                            <span className="desktop-more-item-check">
+                              <Check size={13} />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* TABLET / MOBILE CATEGORY DROPDOWN */}

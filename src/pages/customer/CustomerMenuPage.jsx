@@ -194,46 +194,44 @@ export default function CustomerMenuPage() {
 
             {/* Unique 4-Step Laser Progress Stepper */}
             <div className="tracker-progress-stepper">
-              <div className={`stepper-node ${['new', 'preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
+              <div className={`stepper-node ${['new', 'received', 'preparing', 'accepted', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
                 <span className="node-dot">1</span>
                 <span className="node-label">Received</span>
               </div>
-              <div className={`stepper-line ${['preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
-              <div className={`stepper-node ${['preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
+              <div className={`stepper-line ${['preparing', 'accepted', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
+              <div className={`stepper-node ${['preparing', 'accepted', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
                 <span className="node-dot">2</span>
                 <span className="node-label">Preparing</span>
               </div>
               <div className={`stepper-line ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
               <div className={`stepper-node ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
                 <span className="node-dot">3</span>
-                <span className="node-label">{(lastCustomerOrder.table || '').toLowerCase().includes('takeout') ? 'Counter Pickup' : 'Ready to Serve'}</span>
+                <span className="node-label">Crafted</span>
               </div>
               <div className={`stepper-line ${lastCustomerOrder.status === 'completed' ? 'active-line' : ''}`} />
               <div className={`stepper-node ${lastCustomerOrder.status === 'completed' ? 'active' : ''}`}>
                 <span className="node-dot">4</span>
-                <span className="node-label">Delivered</span>
+                <span className="node-label">Completed</span>
               </div>
             </div>
 
             <div className="tracker-status-step">
-              {lastCustomerOrder.status === 'new' && (
-                <span className="status-pill status-new">Received by Barista • Preparing to accept...</span>
+              {(lastCustomerOrder.status === 'new' || lastCustomerOrder.status === 'received') && (
+                <span className="status-pill status-new">Order Received • Waiting for barista</span>
               )}
-              {lastCustomerOrder.status === 'preparing' && (
+              {(lastCustomerOrder.status === 'preparing' || lastCustomerOrder.status === 'accepted') && (
                 <span className="status-pill status-prep">
-                  Barista {lastCustomerOrder.accepted_by_name ? `(${lastCustomerOrder.accepted_by_name}) ` : ''}is handcrafting your order now!
+                  Accepted & Preparing{lastCustomerOrder.accepted_by_name ? ` • Crafted by ${lastCustomerOrder.accepted_by_name}` : ''}
                 </span>
               )}
               {lastCustomerOrder.status === 'ready' && (
                 <span className="status-pill status-ready">
-                  {(lastCustomerOrder.table || '').toLowerCase().includes('takeout')
-                    ? 'Ready for Counter Pickup! Present Order #' + lastCustomerOrder.id
-                    : `Ready! Serving to ${lastCustomerOrder.table || 'Table'}${lastCustomerOrder.accepted_by_name ? ` (Crafted by ${lastCustomerOrder.accepted_by_name})` : ''}`}
+                  Crafted • Ready for pickup!{lastCustomerOrder.accepted_by_name ? ` (Crafted by ${lastCustomerOrder.accepted_by_name})` : ''}
                 </span>
               )}
               {lastCustomerOrder.status === 'completed' && (
                 <span className="status-pill status-complete">
-                  Completed & Delivered{lastCustomerOrder.completed_by_name ? ` by ${lastCustomerOrder.completed_by_name}` : ''}. Thank you for visiting Scialla!
+                  Completed{lastCustomerOrder.completed_by_name ? ` by ${lastCustomerOrder.completed_by_name}` : ''} • Thank you for visiting!
                 </span>
               )}
             </div>
@@ -241,9 +239,11 @@ export default function CustomerMenuPage() {
             {/* Handled by staff info */}
             {(lastCustomerOrder.accepted_by_name || lastCustomerOrder.completed_by_name) && (
               <div style={{ marginTop: '8px', fontSize: '0.78rem', color: '#D4C3B3', textAlign: 'center' }}>
-                Handled by: <strong style={{ color: '#E2B688' }}>{lastCustomerOrder.accepted_by_name || lastCustomerOrder.completed_by_name}</strong>
-                {lastCustomerOrder.completed_by_name && lastCustomerOrder.accepted_by_name && lastCustomerOrder.completed_by_name !== lastCustomerOrder.accepted_by_name && (
-                  <span> • Delivered by: <strong style={{ color: '#E2B688' }}>{lastCustomerOrder.completed_by_name}</strong></span>
+                {lastCustomerOrder.accepted_by_name && (
+                  <span>Accepted by: <strong style={{ color: '#E2B688' }}>{lastCustomerOrder.accepted_by_name}</strong></span>
+                )}
+                {lastCustomerOrder.completed_by_name && (
+                  <span>{lastCustomerOrder.accepted_by_name ? ' • ' : ''}Completed by: <strong style={{ color: '#E2B688' }}>{lastCustomerOrder.completed_by_name}</strong></span>
                 )}
               </div>
             )}
@@ -444,8 +444,8 @@ export default function CustomerMenuPage() {
             <div className="cart-header">
               <div className="cart-title-wrapper">
                 <h2 className="cart-title">Your Order</h2>
-                <span className="cart-table-indicator">
-                  Serving to: <strong>{tableDisplayLabel}</strong>
+                <span className="cart-table-indicator-btn" style={{ cursor: 'default' }}>
+                  <span className="table-label-text">{tableDisplayLabel}</span>
                 </span>
               </div>
               <span className="cart-badge-count">
@@ -456,46 +456,56 @@ export default function CustomerMenuPage() {
             <div className="cart-list">
               {cart.length === 0 ? (
                 <div className="cart-empty-state">
-                  <p>Your order is empty.</p>
-                  <p style={{ marginTop: '4px', fontSize: '0.8rem' }}>Select coffee to start ordering.</p>
+                  <p className="empty-title">Your order is empty.</p>
+                  <p className="empty-sub">Select coffee to start ordering.</p>
                 </div>
               ) : (
                 cart.map((item) => (
-                  <div key={item.id} className="cart-item-row">
-                    <div className="item-info">
-                      <div className="item-row-name">{item.rawName || item.name}</div>
-                      {item.size && <div className="item-row-size" style={{ fontSize: '0.76rem', color: 'var(--color-gold)', fontWeight: 'bold' }}>{item.size}</div>}
-                    </div>
-
-                    <div className="qty-stepper">
+                  <div key={item.id} className="cart-item-card">
+                    <div className="cart-item-top-row">
+                      <div className="cart-item-title-block">
+                        <span className="cart-item-name">{item.rawName || item.name}</span>
+                        {item.size && <span className="cart-item-size">{item.size}</span>}
+                      </div>
                       <button
-                        className="qty-btn"
-                        onClick={() => handleUpdateQty(item.id, -1)}
-                        title="Decrease quantity"
+                        type="button"
+                        className="btn-cart-item-remove"
+                        onClick={() => handleRemoveItem(item.id)}
+                        title="Remove item"
+                        aria-label="Remove item"
                       >
-                        -
-                      </button>
-                      <span className="qty-number">{item.qty}</span>
-                      <button
-                        className="qty-btn"
-                        onClick={() => handleUpdateQty(item.id, 1)}
-                        title="Increase quantity"
-                      >
-                        +
+                        ✕
                       </button>
                     </div>
 
-                    <div className="item-row-total">
-                      ₱{(item.price * item.qty).toFixed(2)}
-                    </div>
+                    <div className="cart-item-bottom-row">
+                      <div className="cart-qty-wrapper">
+                        <span className="cart-qty-label">Qty</span>
+                        <div className="qty-stepper">
+                          <button
+                            type="button"
+                            className="qty-btn"
+                            onClick={() => handleUpdateQty(item.id, -1)}
+                            title="Decrease quantity"
+                          >
+                            −
+                          </button>
+                          <span className="qty-number">{item.qty}</span>
+                          <button
+                            type="button"
+                            className="qty-btn"
+                            onClick={() => handleUpdateQty(item.id, 1)}
+                            title="Increase quantity"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
 
-                    <button
-                      className="btn-remove-item"
-                      onClick={() => handleRemoveItem(item.id)}
-                      title="Remove item"
-                    >
-                      ✕
-                    </button>
+                      <div className="cart-item-total-price">
+                        ₱{(item.price * item.qty).toFixed(2)}
+                      </div>
+                    </div>
                   </div>
                 ))
               )}
@@ -503,15 +513,16 @@ export default function CustomerMenuPage() {
 
             <div className="cart-summary">
               <div className="summary-line">
-                <span>Total Items</span>
-                <span>{totalItemCount}</span>
+                <span className="summary-label">Total Items</span>
+                <span className="summary-value">{totalItemCount}</span>
               </div>
               <div className="summary-line total-line">
-                <span>Total</span>
+                <span className="total-label">Total</span>
                 <span className="total-amount">₱{totalAmount.toFixed(2)}</span>
               </div>
 
               <button
+                type="button"
                 className="btn-3d-checkout"
                 disabled={cart.length === 0}
                 onClick={handleOpenCheckout}

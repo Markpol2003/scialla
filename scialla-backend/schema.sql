@@ -43,6 +43,15 @@ CREATE TABLE IF NOT EXISTS orders (
     status VARCHAR(50) DEFAULT 'new',
     guest_session_id VARCHAR(64) REFERENCES guest_sessions(id) ON DELETE SET NULL,
     user_id INTEGER,
+    items_json TEXT,
+    accepted_by_id INTEGER,
+    accepted_by_staff_id INTEGER,
+    accepted_by_name VARCHAR(150),
+    accepted_at TIMESTAMP,
+    completed_by_id INTEGER,
+    completed_by_staff_id INTEGER,
+    completed_by_name VARCHAR(150),
+    completed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

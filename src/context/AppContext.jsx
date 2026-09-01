@@ -7,6 +7,28 @@ const AppContext = createContext();
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
 const WS_URL = import.meta.env.VITE_WS_URL || API_BASE_URL;
 
+// State order progression ranking (Prevents out-of-order socket events from regressing status)
+const STATUS_RANKS = {
+  new: 1,
+  received: 1,
+  pending: 1,
+  accepted: 2,
+  preparing: 2,
+  ready: 3,
+  completed: 4,
+  cancelled: 5
+};
+
+function shouldAcceptStatusUpdate(currentStatus, incomingStatus) {
+  if (!currentStatus) return true;
+  if (!incomingStatus) return false;
+  if (currentStatus === 'cancelled') return false; // Cancelled is terminal
+  const currentRank = STATUS_RANKS[String(currentStatus).toLowerCase()] || 0;
+  const incomingRank = STATUS_RANKS[String(incomingStatus).toLowerCase()] || 0;
+  if (incomingRank < currentRank) return false; // Prevent backward status movement
+  return true;
+}
+
 const initialCategories = [
   {
     id: 'coffee',
@@ -448,19 +470,16 @@ export function AppProvider({ children }) {
 
     if (status === 'new' || status === 'received') {
       defaultTitle = 'Order Received';
-      defaultMessage = `Order #${cleanId} has been received.`;
-    } else if (status === 'accepted') {
+      defaultMessage = `Your order #${cleanId} has been placed and received by our baristas.`;
+    } else if (status === 'accepted' || status === 'preparing') {
       defaultTitle = 'Order Accepted';
-      defaultMessage = `Order #${cleanId} has been accepted.`;
-    } else if (status === 'preparing') {
-      defaultTitle = 'Order Preparing';
-      defaultMessage = `Your order #${cleanId} is being prepared.`;
+      defaultMessage = 'Your order has been accepted and is being prepared.';
     } else if (status === 'ready') {
       defaultTitle = 'Your order is ready!';
-      defaultMessage = `Your order #${cleanId} is ready!`;
+      defaultMessage = 'Your order has been crafted and is ready!';
     } else if (status === 'completed') {
       defaultTitle = 'Order Completed';
-      defaultMessage = `Order #${cleanId} has been completed. Thank you!`;
+      defaultMessage = 'Your order has been completed. Thank you!';
     } else if (status === 'cancelled') {
       defaultTitle = 'Order Cancelled';
       defaultMessage = `Order #${cleanId} was cancelled.`;
@@ -735,6 +754,12 @@ export function AppProvider({ children }) {
         socketInstance.emit('authenticate', { token: activeToken });
       }
 
+      // Register guest session with server immediately if guest ID is present
+      const activeGuestId = localStorage.getItem('scialla_guest_session');
+      if (activeGuestId) {
+        socketInstance.emit('register:guest', activeGuestId);
+      }
+
       // Re-join all active order rooms for this customer across refresh/reconnect
       try {
         const savedIds = localStorage.getItem('scialla_customer_order_ids');
@@ -745,7 +770,7 @@ export function AppProvider({ children }) {
 
         allIds.forEach((ordId) => {
           if (ordId) {
-            socketInstance.emit('join:order', ordId);
+            socketInstance.emit('join:order', { orderId: ordId, guestSessionId: activeGuestId });
             console.log(`📌 Re-joined order room on socket connect: order:${ordId}`);
           }
         });
@@ -791,15 +816,21 @@ export function AppProvider({ children }) {
       }
     });
 
-    // Targeted status update handler
+    // Targeted status update handler with monotonic order progression guard
     socketInstance.on('order:status_updated', (data) => {
       console.log('📡 Received targeted order:status_updated:', data);
       const targetOrderId = data.id || data.orderId;
       const cleanId = String(targetOrderId).replace(/^#/, '');
 
-      // Update staff dashboard orders queue
+      // Update staff dashboard orders queue with monotonic rank check
       setOrders((prev) =>
-        prev.map((ord) => (ord.id === targetOrderId ? { ...ord, ...data } : ord))
+        prev.map((ord) => {
+          if (ord.id === targetOrderId) {
+            if (!shouldAcceptStatusUpdate(ord.status, data.status)) return ord;
+            return { ...ord, ...data };
+          }
+          return ord;
+        })
       );
 
       // Check if this order belongs to current customer
@@ -810,19 +841,19 @@ export function AppProvider({ children }) {
         let title = 'Order Update';
         let message = `Order #${cleanId} status is now ${data.status}.`;
 
-        if (data.status === 'accepted') {
+        if (data.status === 'new' || data.status === 'received') {
+          title = 'Order Received';
+          message = `Your order #${cleanId} has been placed and received by our baristas.`;
+        } else if (data.status === 'accepted' || data.status === 'preparing') {
           title = 'Order Accepted';
-          message = `Order #${cleanId} has been accepted.`;
-        } else if (data.status === 'preparing') {
-          title = 'Order Preparing';
-          message = `Your order #${cleanId} is being prepared.`;
+          message = 'Your order has been accepted and is being prepared.';
         } else if (data.status === 'ready') {
           title = 'Your order is ready!';
-          message = `Your order #${cleanId} is ready!`;
+          message = 'Your order has been crafted and is ready!';
           triggerToast('Your order is ready!');
         } else if (data.status === 'completed') {
           title = 'Order Completed';
-          message = `Order #${cleanId} has been completed. Thank you!`;
+          message = 'Your order has been completed. Thank you!';
           triggerToast('Order completed. Thank you!');
         } else if (data.status === 'cancelled') {
           title = 'Order Cancelled';
@@ -841,9 +872,10 @@ export function AppProvider({ children }) {
         });
       }
 
-      // Update customer live tracking if it matches this device's active order
+      // Update customer live tracking with monotonic guard
       setLastCustomerOrder((prev) => {
         if (prev && (prev.id === targetOrderId || String(prev.id).replace(/^#/, '') === cleanId)) {
+          if (!shouldAcceptStatusUpdate(prev.status, data.status)) return prev;
           return { ...prev, ...data };
         }
         return prev;
@@ -883,11 +915,18 @@ export function AppProvider({ children }) {
     };
   }, []);
 
+  // Dynamic guest socket registration when guest session changes
+  useEffect(() => {
+    if (!socket || !guestSessionId) return;
+    socket.emit('register:guest', guestSessionId);
+  }, [socket, guestSessionId]);
+
   // Socket.IO Room Joining for Customer Live Order Tracking
   useEffect(() => {
     if (!socket || !lastCustomerOrder?.id) return;
 
-    socket.emit('join:order', lastCustomerOrder.id);
+    const currentGuestId = guestSessionId || localStorage.getItem('scialla_guest_session');
+    socket.emit('join:order', { orderId: lastCustomerOrder.id, guestSessionId: currentGuestId });
     console.log(`📌 Emitted join:order for order:${lastCustomerOrder.id}`);
 
     return () => {
@@ -895,7 +934,7 @@ export function AppProvider({ children }) {
         socket.emit('leave:order', lastCustomerOrder.id);
       }
     };
-  }, [socket, lastCustomerOrder?.id]);
+  }, [socket, lastCustomerOrder?.id, guestSessionId]);
 
   // Fetch staff list when Manager user is active
   useEffect(() => {
@@ -1046,6 +1085,8 @@ export function AppProvider({ children }) {
 
   // Update order status (Staff / Manager) with server-side audit trails & registered staff full name
   const updateOrderStatus = async (orderId, newStatus) => {
+    const canonicalStatus = newStatus === 'accepted' ? 'preparing' : newStatus;
+
     let currentStaffName = null;
     if (currentUser) {
       if (currentUser.first_name && currentUser.last_name) {
@@ -1067,11 +1108,11 @@ export function AppProvider({ children }) {
     setOrders((prev) =>
       prev.map((ord) => {
         if (ord.id !== orderId) return ord;
-        const updated = { ...ord, status: newStatus };
-        if (newStatus === 'preparing' && !updated.accepted_by_name && currentStaffName) {
+        const updated = { ...ord, status: canonicalStatus };
+        if (canonicalStatus === 'preparing' && !updated.accepted_by_name && currentStaffName) {
           updated.accepted_by_name = currentStaffName;
           updated.accepted_at = new Date().toISOString();
-        } else if (newStatus === 'completed' && currentStaffName) {
+        } else if (canonicalStatus === 'completed' && currentStaffName) {
           updated.completed_by_name = currentStaffName;
           updated.completed_at = new Date().toISOString();
         }
@@ -1081,15 +1122,15 @@ export function AppProvider({ children }) {
 
     if (lastCustomerOrder && lastCustomerOrder.id === orderId) {
       setLastCustomerOrder((prev) => {
-        const updated = { ...prev, status: newStatus };
-        if (newStatus === 'preparing' && !updated.accepted_by_name && currentStaffName) {
+        const updated = { ...prev, status: canonicalStatus };
+        if (canonicalStatus === 'preparing' && !updated.accepted_by_name && currentStaffName) {
           updated.accepted_by_name = currentStaffName;
-        } else if (newStatus === 'completed' && currentStaffName) {
+        } else if (canonicalStatus === 'completed' && currentStaffName) {
           updated.completed_by_name = currentStaffName;
         }
         return updated;
       });
-      if (newStatus === 'completed') {
+      if (canonicalStatus === 'completed') {
         setTimeout(() => {
           setLastCustomerOrder(null);
         }, 6000);
@@ -1097,7 +1138,7 @@ export function AppProvider({ children }) {
     }
 
     // 2. Persist status change in PostgreSQL via REST API (passes verified registered staff name)
-    const res = await api.updateOrderStatus(orderId, newStatus, currentStaffName);
+    const res = await api.updateOrderStatus(orderId, canonicalStatus, currentStaffName);
     if (res && res.success === false) {
       triggerToast(`${res.message || 'Action conflict'}`);
       if (res.order) {
@@ -1117,7 +1158,7 @@ export function AppProvider({ children }) {
 
     // Direct Socket.IO emission fallback if connected
     if (socket && socket.connected) {
-      socket.emit('order:update_status', { id: orderId, status: newStatus, staffName: currentStaffName });
+      socket.emit('order:update_status', { id: orderId, status: canonicalStatus, staffName: currentStaffName });
     }
 
     return res;

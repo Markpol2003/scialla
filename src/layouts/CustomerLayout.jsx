@@ -323,21 +323,23 @@ export default function CustomerLayout({ onNavigate }) {
             </div>
 
             <div className="tracker-status-pill-wrap">
-              {lastCustomerOrder.status === 'new' && (
-                <span className="status-pill status-new">Order Received • Barista in queue</span>
+              {(lastCustomerOrder.status === 'new' || lastCustomerOrder.status === 'received') && (
+                <span className="status-pill status-new">Order Received • Waiting for barista</span>
               )}
-              {lastCustomerOrder.status === 'preparing' && (
-                <span className="status-pill status-prep">Barista is handcrafting your order</span>
+              {(lastCustomerOrder.status === 'preparing' || lastCustomerOrder.status === 'accepted') && (
+                <span className="status-pill status-prep">
+                  Accepted & Preparing{lastCustomerOrder.accepted_by_name ? ` • Crafted by ${lastCustomerOrder.accepted_by_name}` : ''}
+                </span>
               )}
               {lastCustomerOrder.status === 'ready' && (
                 <span className="status-pill status-ready">
-                  {(lastCustomerOrder.table || '').toLowerCase().includes('takeout')
-                    ? 'Ready for Counter Pickup!'
-                    : `Ready! Serving to ${lastCustomerOrder.table || 'Table'}`}
+                  Crafted • Ready for pickup!{lastCustomerOrder.accepted_by_name ? ` (Crafted by ${lastCustomerOrder.accepted_by_name})` : ''}
                 </span>
               )}
               {lastCustomerOrder.status === 'completed' && (
-                <span className="status-pill status-complete">Completed • Enjoy your visit!</span>
+                <span className="status-pill status-complete">
+                  Completed{lastCustomerOrder.completed_by_name ? ` by ${lastCustomerOrder.completed_by_name}` : ''} • Thank you for visiting!
+                </span>
               )}
             </div>
           </div>
@@ -345,24 +347,24 @@ export default function CustomerLayout({ onNavigate }) {
           <div className="tracker-right">
             {/* Compact 4-Step Stepper */}
             <div className="tracker-mini-stepper">
-              <div className={`mini-node ${['new', 'preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
+              <div className={`mini-node ${['new', 'received', 'preparing', 'accepted', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
                 <span className="mini-dot">1</span>
-                <span className="mini-label">Accepted</span>
+                <span className="mini-label">Received</span>
               </div>
-              <div className={`mini-line ${['preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
-              <div className={`mini-node ${['preparing', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
+              <div className={`mini-line ${['preparing', 'accepted', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
+              <div className={`mini-node ${['preparing', 'accepted', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
                 <span className="mini-dot">2</span>
-                <span className="mini-label">Crafting</span>
+                <span className="mini-label">Preparing</span>
               </div>
               <div className={`mini-line ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
               <div className={`mini-node ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
                 <span className="mini-dot">3</span>
-                <span className="mini-label">Ready</span>
+                <span className="mini-label">Crafted</span>
               </div>
               <div className={`mini-line ${lastCustomerOrder.status === 'completed' ? 'active-line' : ''}`} />
               <div className={`mini-node ${lastCustomerOrder.status === 'completed' ? 'active' : ''}`}>
                 <span className="mini-dot">4</span>
-                <span className="mini-label">Done</span>
+                <span className="mini-label">Completed</span>
               </div>
             </div>
 
@@ -490,78 +492,94 @@ export default function CustomerLayout({ onNavigate }) {
 
             {/* Scrollable Order Items List */}
             <div className="mobile-cart-items-scroll">
-              {cart.map((item) => (
-                <div key={item.id} className="mobile-cart-item-row" style={{ alignItems: 'flex-start' }}>
-                  <div className="mobile-item-details">
-                    <span className="mobile-item-name">{item.rawName || item.name}</span>
-                    {item.size && <span className="mobile-item-size">{item.size}</span>}
+              {cart.map((item) => {
+                const hasAddons = Array.isArray(item.addons) && item.addons.length > 0;
+                const canHaveAddons = !String(item.id || '').startsWith('da') && !String(item.id || '').startsWith('fa');
+                const itemTotalPrice = (item.price * item.qty).toFixed(2);
 
-                    {/* Display selected add-ons if any */}
-                    {Array.isArray(item.addons) && item.addons.length > 0 && (
-                      <div className="cart-item-addons-list" style={{ margin: '3px 0' }}>
-                        {item.addons.map((a, aIdx) => (
-                          <div key={a.id || aIdx} className="cart-item-addon-line">
-                            <span>+ {a.name}</span>
-                            <span className="cart-item-addon-price">₱{parseFloat(a.price).toFixed(2)}</span>
-                          </div>
-                        ))}
+                return (
+                  <div key={item.id} className="mobile-cart-item-card">
+                    {/* Top Row: Name on Left, Remove on Right */}
+                    <div className="cart-item-top-row">
+                      <div className="cart-item-title-block">
+                        <span className="cart-item-name">{item.rawName || item.name}</span>
+                        {item.size && <span className="cart-item-size">{item.size}</span>}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-cart-item-remove"
+                        onClick={() => handleRemoveItem(item.id)}
+                        title="Remove item"
+                        aria-label="Remove item"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* Selected Add-ons Nested Inset Section */}
+                    {hasAddons && (
+                      <div className="cart-addons-nested-box">
+                        <span className="cart-addons-header-label">Add-ons</span>
+                        <div className="cart-addons-items-list">
+                          {item.addons.map((a, aIdx) => (
+                            <div key={a.id || aIdx} className="cart-addon-row">
+                              <span className="cart-addon-name">• {a.name}</span>
+                              <span className="cart-addon-price">+₱{parseFloat(a.price).toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
 
-                    {/* Secondary action: [ + Add-ons ] / [ Edit Add-ons ] */}
-                    {!String(item.id || '').startsWith('da') && !String(item.id || '').startsWith('fa') && (
+                    {/* Secondary Action: [ + Add-ons ] / [ Edit Add-ons ] */}
+                    {canHaveAddons && (
                       <button
                         type="button"
-                        className={`btn-cart-addon-pill ${item.addons && item.addons.length > 0 ? 'is-edit' : ''}`}
+                        className={`btn-cart-addon-action ${hasAddons ? 'is-edit' : ''}`}
                         onClick={() => {
                           setIsMobileCartOpen(false);
                           setAddonModalItem(item);
                         }}
-                        style={{ height: '34px', margin: '4px 0 2px' }}
-                        title={item.addons && item.addons.length > 0 ? 'Edit add-ons for this item' : 'Customize add-ons for this item'}
+                        title={hasAddons ? 'Edit add-ons for this item' : 'Customize add-ons for this item'}
                       >
-                        {item.addons && item.addons.length > 0 ? 'Edit Add-ons' : '+ Add-ons'}
+                        {hasAddons ? 'Edit Add-ons' : '+ Add-ons'}
                       </button>
                     )}
 
-                    <span className="mobile-item-unit-price" style={{ marginTop: '3px', display: 'block' }}>₱{item.price.toFixed(2)}</span>
+                    {/* Bottom Row: Qty Stepper on Left, Total Price on Right */}
+                    <div className="cart-item-bottom-row">
+                      <div className="cart-qty-wrapper">
+                        <span className="cart-qty-label">Qty</span>
+                        <div className="qty-stepper">
+                          <button
+                            type="button"
+                            className="qty-btn"
+                            onClick={() => handleUpdateQty(item.id, -1)}
+                            title="Decrease quantity"
+                            aria-label="Decrease quantity"
+                          >
+                            −
+                          </button>
+                          <span className="qty-number">{item.qty}</span>
+                          <button
+                            type="button"
+                            className="qty-btn"
+                            onClick={() => handleUpdateQty(item.id, 1)}
+                            title="Increase quantity"
+                            aria-label="Increase quantity"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      <span className="cart-item-total-price">
+                        ₱{itemTotalPrice}
+                      </span>
+                    </div>
                   </div>
-
-                  <div className="qty-stepper" style={{ marginTop: '2px' }}>
-                    <button
-                      type="button"
-                      className="qty-btn"
-                      onClick={() => handleUpdateQty(item.id, -1)}
-                      title="Decrease quantity"
-                    >
-                      -
-                    </button>
-                    <span className="qty-number">{item.qty}</span>
-                    <button
-                      type="button"
-                      className="qty-btn"
-                      onClick={() => handleUpdateQty(item.id, 1)}
-                      title="Increase quantity"
-                    >
-                      +
-                    </button>
-                  </div>
-
-                  <span className="mobile-item-total" style={{ marginTop: '3px' }}>
-                    ₱{(item.price * item.qty).toFixed(2)}
-                  </span>
-
-                  <button
-                    type="button"
-                    className="btn-remove-item"
-                    onClick={() => handleRemoveItem(item.id)}
-                    title="Remove item"
-                    style={{ marginTop: '3px' }}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Sticky Bottom Summary & Always-Accessible Checkout */}

@@ -385,14 +385,12 @@ export default function ManagerOrders() {
                 </span>
               </div>
 
-              {selectedOrder.accepted_by_name && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(201, 139, 91, 0.15)', paddingTop: '6px' }}>
-                  <span style={{ fontSize: '0.8rem', color: '#D4C3B3' }}>Accepted By:</span>
-                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#E2B688' }}>
-                    {selectedOrder.accepted_by_name} {selectedOrder.accepted_at ? `(${formatOrderTime({ timestamp: selectedOrder.accepted_at })})` : ''}
-                  </span>
-                </div>
-              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(201, 139, 91, 0.15)', paddingTop: '6px' }}>
+                <span style={{ fontSize: '0.8rem', color: '#D4C3B3' }}>Accepted By:</span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#E2B688' }}>
+                  {selectedOrder.accepted_by_name || '—'} {selectedOrder.accepted_at ? `(${formatOrderTime({ timestamp: selectedOrder.accepted_at })})` : ''}
+                </span>
+              </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(201, 139, 91, 0.15)', paddingTop: '6px' }}>
                 <span style={{ fontSize: '0.8rem', color: '#D4C3B3' }}>Completed By:</span>

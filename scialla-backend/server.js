@@ -207,9 +207,11 @@ async function initDatabaseMigrations() {
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_id INTEGER;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS items_json TEXT;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS accepted_by_id INTEGER;`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS accepted_by_staff_id INTEGER;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS accepted_by_name VARCHAR(150);`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMP;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_by_id INTEGER;`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_by_staff_id INTEGER;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_by_name VARCHAR(150);`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
@@ -1257,10 +1259,10 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
   const status = orderData.status || 'new';
   const assignedUserId = userId || orderData.user_id || null;
   const assignedGuestId = guestSessionId || orderData.guest_session_id || orderData.guestSessionId || null;
-  const acceptedById = orderData.accepted_by_id || null;
+  const acceptedById = orderData.accepted_by_id || orderData.accepted_by_staff_id || null;
   const acceptedByName = orderData.accepted_by_name || null;
   const acceptedAt = orderData.accepted_at || null;
-  const completedById = orderData.completed_by_id || null;
+  const completedById = orderData.completed_by_id || orderData.completed_by_staff_id || null;
   const completedByName = orderData.completed_by_name || null;
   const completedAt = orderData.completed_at || null;
 
@@ -1325,10 +1327,10 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
       await db.query(
         `INSERT INTO orders (
            id, table_name, timestamp, total, payment_method, status,
-           guest_session_id, user_id, items_json, accepted_by_id, accepted_by_name,
-           accepted_at, completed_by_id, completed_by_name, completed_at, updated_at
+           guest_session_id, user_id, items_json, accepted_by_id, accepted_by_staff_id, accepted_by_name,
+           accepted_at, completed_by_id, completed_by_staff_id, completed_by_name, completed_at, updated_at
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, CURRENT_TIMESTAMP)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, CURRENT_TIMESTAMP)
          ON CONFLICT (id) DO UPDATE SET
            status = EXCLUDED.status,
            total = EXCLUDED.total,
@@ -1336,18 +1338,20 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
            guest_session_id = COALESCE(EXCLUDED.guest_session_id, orders.guest_session_id),
            user_id = COALESCE(EXCLUDED.user_id, orders.user_id),
            items_json = EXCLUDED.items_json,
-           accepted_by_id = COALESCE(EXCLUDED.accepted_by_id, orders.accepted_by_id),
+           accepted_by_id = COALESCE(EXCLUDED.accepted_by_id, orders.accepted_by_id, orders.accepted_by_staff_id),
+           accepted_by_staff_id = COALESCE(EXCLUDED.accepted_by_staff_id, orders.accepted_by_staff_id, orders.accepted_by_id),
            accepted_by_name = COALESCE(EXCLUDED.accepted_by_name, orders.accepted_by_name),
            accepted_at = COALESCE(EXCLUDED.accepted_at, orders.accepted_at),
-           completed_by_id = COALESCE(EXCLUDED.completed_by_id, orders.completed_by_id),
+           completed_by_id = COALESCE(EXCLUDED.completed_by_id, orders.completed_by_id, orders.completed_by_staff_id),
+           completed_by_staff_id = COALESCE(EXCLUDED.completed_by_staff_id, orders.completed_by_staff_id, orders.completed_by_id),
            completed_by_name = COALESCE(EXCLUDED.completed_by_name, orders.completed_by_name),
            completed_at = COALESCE(EXCLUDED.completed_at, orders.completed_at),
            updated_at = CURRENT_TIMESTAMP`,
         [
           orderId, tableName, timestamp, total, paymentMethod, status,
           assignedGuestId, assignedUserId, itemsJson,
-          acceptedById, acceptedByName, acceptedAt,
-          completedById, completedByName, completedAt
+          acceptedById, acceptedById, acceptedByName,
+          acceptedAt, completedById, completedById, completedByName, completedAt
         ]
       );
     } catch (err) {
@@ -1396,6 +1400,49 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
   return orderResult;
 }
 
+// Helper for standard Order SELECT query with staff and manager JOINs
+function getOrdersSelectSql(whereClause = '', orderLimit = 'ORDER BY o.created_at DESC') {
+  return `
+    SELECT 
+      o.id,
+      o.table_name,
+      o.timestamp,
+      o.total,
+      o.payment_method,
+      o.status,
+      o.guest_session_id,
+      o.user_id,
+      o.items_json,
+      COALESCE(o.accepted_by_staff_id, o.accepted_by_id) AS accepted_by_id,
+      COALESCE(o.accepted_by_staff_id, o.accepted_by_id) AS accepted_by_staff_id,
+      COALESCE(
+        NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''),
+        s_acc.username,
+        NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''),
+        o.accepted_by_name
+      ) AS accepted_by_name,
+      o.accepted_at,
+      COALESCE(o.completed_by_staff_id, o.completed_by_id) AS completed_by_id,
+      COALESCE(o.completed_by_staff_id, o.completed_by_id) AS completed_by_staff_id,
+      COALESCE(
+        NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''),
+        s_comp.username,
+        NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''),
+        o.completed_by_name
+      ) AS completed_by_name,
+      o.completed_at,
+      o.created_at,
+      o.updated_at
+    FROM orders o
+    LEFT JOIN staff s_acc ON s_acc.id = COALESCE(o.accepted_by_staff_id, o.accepted_by_id)
+    LEFT JOIN managers m_acc ON m_acc.id = COALESCE(o.accepted_by_staff_id, o.accepted_by_id)
+    LEFT JOIN staff s_comp ON s_comp.id = COALESCE(o.completed_by_staff_id, o.completed_by_id)
+    LEFT JOIN managers m_comp ON m_comp.id = COALESCE(o.completed_by_staff_id, o.completed_by_id)
+    ${whereClause}
+    ${orderLimit}
+  `;
+}
+
 // Get Orders (Filtered by Role / Ownership with Full Staff Audit Trail)
 app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
   try {
@@ -1403,117 +1450,22 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
     const guestSessionId = req.headers['x-guest-session'] || req.query.guestSessionId;
     const userId = req.user ? req.user.id : null;
 
-    let ordersQuery = `
-      SELECT 
-        o.id,
-        o.table_name,
-        o.timestamp,
-        o.total,
-        o.payment_method,
-        o.status,
-        o.guest_session_id,
-        o.user_id,
-        o.items_json,
-        o.accepted_by_id,
-        COALESCE(
-          NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''),
-          s_acc.username,
-          NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''),
-          o.accepted_by_name
-        ) AS accepted_by_name,
-        o.accepted_at,
-        o.completed_by_id,
-        COALESCE(
-          NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''),
-          s_comp.username,
-          NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''),
-          o.completed_by_name
-        ) AS completed_by_name,
-        o.completed_at,
-        o.created_at,
-        o.updated_at
-      FROM orders o
-      LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
-      LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
-      LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
-      LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
-      ORDER BY o.created_at DESC
-    `;
+    let ordersQuery = getOrdersSelectSql('', 'ORDER BY o.created_at DESC');
     let queryParams = [];
 
     // If customer / guest, filter strictly to orders they own
     if (!isStaffOrManager) {
       if (userId && guestSessionId) {
-        ordersQuery = `
-          SELECT 
-            o.id, o.table_name, o.timestamp, o.total, o.payment_method, o.status,
-            o.guest_session_id, o.user_id, o.items_json, o.accepted_by_id,
-            COALESCE(NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''), s_acc.username, NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''), o.accepted_by_name) AS accepted_by_name,
-            o.accepted_at, o.completed_by_id,
-            COALESCE(NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''), s_comp.username, NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''), o.completed_by_name) AS completed_by_name,
-            o.completed_at, o.created_at, o.updated_at
-          FROM orders o
-          LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
-          LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
-          LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
-          LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
-          WHERE o.user_id = $1 OR o.guest_session_id = $2
-          ORDER BY o.created_at DESC
-        `;
+        ordersQuery = getOrdersSelectSql('WHERE o.user_id = $1 OR o.guest_session_id = $2', 'ORDER BY o.created_at DESC');
         queryParams = [userId, guestSessionId];
       } else if (userId) {
-        ordersQuery = `
-          SELECT 
-            o.id, o.table_name, o.timestamp, o.total, o.payment_method, o.status,
-            o.guest_session_id, o.user_id, o.items_json, o.accepted_by_id,
-            COALESCE(NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''), s_acc.username, NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''), o.accepted_by_name) AS accepted_by_name,
-            o.accepted_at, o.completed_by_id,
-            COALESCE(NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''), s_comp.username, NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''), o.completed_by_name) AS completed_by_name,
-            o.completed_at, o.created_at, o.updated_at
-          FROM orders o
-          LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
-          LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
-          LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
-          LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
-          WHERE o.user_id = $1
-          ORDER BY o.created_at DESC
-        `;
+        ordersQuery = getOrdersSelectSql('WHERE o.user_id = $1', 'ORDER BY o.created_at DESC');
         queryParams = [userId];
       } else if (guestSessionId) {
-        ordersQuery = `
-          SELECT 
-            o.id, o.table_name, o.timestamp, o.total, o.payment_method, o.status,
-            o.guest_session_id, o.user_id, o.items_json, o.accepted_by_id,
-            COALESCE(NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''), s_acc.username, NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''), o.accepted_by_name) AS accepted_by_name,
-            o.accepted_at, o.completed_by_id,
-            COALESCE(NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''), s_comp.username, NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''), o.completed_by_name) AS completed_by_name,
-            o.completed_at, o.created_at, o.updated_at
-          FROM orders o
-          LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
-          LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
-          LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
-          LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
-          WHERE o.guest_session_id = $1
-          ORDER BY o.created_at DESC
-        `;
+        ordersQuery = getOrdersSelectSql('WHERE o.guest_session_id = $1', 'ORDER BY o.created_at DESC');
         queryParams = [guestSessionId];
       } else {
-        ordersQuery = `
-          SELECT 
-            o.id, o.table_name, o.timestamp, o.total, o.payment_method, o.status,
-            o.guest_session_id, o.user_id, o.items_json, o.accepted_by_id,
-            COALESCE(NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''), s_acc.username, NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''), o.accepted_by_name) AS accepted_by_name,
-            o.accepted_at, o.completed_by_id,
-            COALESCE(NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''), s_comp.username, NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''), o.completed_by_name) AS completed_by_name,
-            o.completed_at, o.created_at, o.updated_at
-          FROM orders o
-          LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
-          LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
-          LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
-          LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
-          ORDER BY o.created_at DESC
-          LIMIT 50
-        `;
+        ordersQuery = getOrdersSelectSql('', 'ORDER BY o.created_at DESC LIMIT 50');
       }
     }
 
@@ -1558,6 +1510,9 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
         orderItems = itemsByOrderId[o.id] || [];
       }
 
+      const accId = o.accepted_by_staff_id || o.accepted_by_id || null;
+      const compId = o.completed_by_staff_id || o.completed_by_id || null;
+
       return {
         id: o.id,
         orderId: o.id,
@@ -1568,12 +1523,12 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
         status: o.status,
         guest_session_id: o.guest_session_id,
         user_id: o.user_id,
-        accepted_by_id: o.accepted_by_id,
-        accepted_by_staff_id: o.accepted_by_id,
+        accepted_by_id: accId,
+        accepted_by_staff_id: accId,
         accepted_by_name: o.accepted_by_name || null,
         accepted_at: o.accepted_at,
-        completed_by_id: o.completed_by_id,
-        completed_by_staff_id: o.completed_by_id,
+        completed_by_id: compId,
+        completed_by_staff_id: compId,
         completed_by_name: o.completed_by_name || null,
         completed_at: o.completed_at,
         createdAt: o.created_at,
@@ -1593,42 +1548,7 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
 app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
   try {
     const orderId = req.params.id;
-    const singleOrderQuery = `
-      SELECT 
-        o.id,
-        o.table_name,
-        o.timestamp,
-        o.total,
-        o.payment_method,
-        o.status,
-        o.guest_session_id,
-        o.user_id,
-        o.items_json,
-        o.accepted_by_id,
-        COALESCE(
-          NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''),
-          s_acc.username,
-          NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''),
-          o.accepted_by_name
-        ) AS accepted_by_name,
-        o.accepted_at,
-        o.completed_by_id,
-        COALESCE(
-          NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''),
-          s_comp.username,
-          NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''),
-          o.completed_by_name
-        ) AS completed_by_name,
-        o.completed_at,
-        o.created_at,
-        o.updated_at
-      FROM orders o
-      LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
-      LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
-      LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
-      LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
-      WHERE o.id = $1
-    `;
+    const singleOrderQuery = getOrdersSelectSql('WHERE o.id = $1', '');
     const orderRes = await db.query(singleOrderQuery, [orderId]);
 
     if (orderRes.rows.length === 0) {
@@ -1665,6 +1585,9 @@ app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
       } catch {}
     }
 
+    const accId = orderRow.accepted_by_staff_id || orderRow.accepted_by_id || null;
+    const compId = orderRow.completed_by_staff_id || orderRow.completed_by_id || null;
+
     return res.json({
       success: true,
       order: {
@@ -1677,12 +1600,12 @@ app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
         status: orderRow.status,
         guest_session_id: orderRow.guest_session_id,
         user_id: orderRow.user_id,
-        accepted_by_id: orderRow.accepted_by_id,
-        accepted_by_staff_id: orderRow.accepted_by_id,
+        accepted_by_id: accId,
+        accepted_by_staff_id: accId,
         accepted_by_name: orderRow.accepted_by_name || null,
         accepted_at: orderRow.accepted_at,
-        completed_by_id: orderRow.completed_by_id,
-        completed_by_staff_id: orderRow.completed_by_id,
+        completed_by_id: compId,
+        completed_by_staff_id: compId,
         completed_by_name: orderRow.completed_by_name || null,
         completed_at: orderRow.completed_at,
         createdAt: orderRow.created_at,
@@ -1754,11 +1677,14 @@ app.post('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
 // Update Order Status (PATCH) - Atomic Multi-Staff Concurrency Handling & Registered Staff Identity
 app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
   const orderId = req.params.id;
-  const { status, staffName: clientStaffName } = req.body;
+  const { status: rawStatus, staffName: clientStaffName } = req.body;
 
-  if (!status) {
+  if (!rawStatus) {
     return res.status(400).json({ success: false, message: 'Status is required.' });
   }
+
+  // Canonicalize status: Accept transitions order directly into 'preparing'
+  const status = rawStatus === 'accepted' ? 'preparing' : rawStatus;
 
   try {
     let updatedAt = new Date().toISOString();
@@ -1774,18 +1700,20 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
       const currentOrder = currentRes.rows[0];
 
       // Multi-Staff Concurrency Check: If staff tries to accept an order already handled
-      if ((status === 'preparing' || status === 'accepted') && currentOrder.status !== 'new' && currentOrder.status !== 'pending' && currentOrder.status !== 'accepted' && currentOrder.status !== 'preparing') {
+      if (status === 'preparing' && currentOrder.status !== 'new' && currentOrder.status !== 'pending' && currentOrder.status !== 'accepted' && currentOrder.status !== 'preparing') {
+        const conflictAccId = currentOrder.accepted_by_staff_id || currentOrder.accepted_by_id || null;
+        const conflictCompId = currentOrder.completed_by_staff_id || currentOrder.completed_by_id || null;
         const conflictPayload = {
           id: orderId,
           orderId,
           status: currentOrder.status,
-          accepted_by_id: currentOrder.accepted_by_id,
-          accepted_by_staff_id: currentOrder.accepted_by_id,
-          accepted_by_name: currentOrder.accepted_by_name,
+          accepted_by_id: conflictAccId,
+          accepted_by_staff_id: conflictAccId,
+          accepted_by_name: currentOrder.accepted_by_name || null,
           accepted_at: currentOrder.accepted_at,
-          completed_by_id: currentOrder.completed_by_id,
-          completed_by_staff_id: currentOrder.completed_by_id,
-          completed_by_name: currentOrder.completed_by_name,
+          completed_by_id: conflictCompId,
+          completed_by_staff_id: conflictCompId,
+          completed_by_name: currentOrder.completed_by_name || null,
           completed_at: currentOrder.completed_at
         };
         // Broadcast current state to ensure all staff queues stay synchronized
@@ -1834,19 +1762,19 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
       let params = [status, orderId];
       let paramIdx = 3;
 
-      if (status === 'preparing' || status === 'accepted') {
+      if (status === 'preparing') {
         // Record registered staff who accepted order (without overwriting if already set)
         if (authenticatedStaffId || authenticatedStaffName) {
-          if (!currentOrder.accepted_by_name && !currentOrder.accepted_by_id) {
-            updateSql += `, accepted_by_id = $${paramIdx++}, accepted_by_name = $${paramIdx++}, accepted_at = CURRENT_TIMESTAMP`;
-            params.push(authenticatedStaffId, authenticatedStaffName);
+          if (!currentOrder.accepted_by_name && !currentOrder.accepted_by_id && !currentOrder.accepted_by_staff_id) {
+            updateSql += `, accepted_by_id = $${paramIdx++}, accepted_by_staff_id = $${paramIdx++}, accepted_by_name = $${paramIdx++}, accepted_at = CURRENT_TIMESTAMP`;
+            params.push(authenticatedStaffId, authenticatedStaffId, authenticatedStaffName);
           }
         }
       } else if (status === 'completed') {
         // Record registered staff who completed order (without overwriting accepted_by_*)
         if (authenticatedStaffId || authenticatedStaffName) {
-          updateSql += `, completed_by_id = $${paramIdx++}, completed_by_name = $${paramIdx++}, completed_at = CURRENT_TIMESTAMP`;
-          params.push(authenticatedStaffId, authenticatedStaffName);
+          updateSql += `, completed_by_id = $${paramIdx++}, completed_by_staff_id = $${paramIdx++}, completed_by_name = $${paramIdx++}, completed_at = CURRENT_TIMESTAMP`;
+          params.push(authenticatedStaffId, authenticatedStaffId, authenticatedStaffName);
         }
       }
 
@@ -1858,23 +1786,11 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
         updatedAt = new Date(row.updated_at).toISOString();
 
         // Query with full JOINs to guarantee authentic display names
-        const refetchRes = await db.query(`
-          SELECT 
-            o.id, o.table_name, o.timestamp, o.total, o.payment_method, o.status,
-            o.guest_session_id, o.user_id, o.accepted_by_id,
-            COALESCE(NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''), s_acc.username, NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''), o.accepted_by_name) AS accepted_by_name,
-            o.accepted_at, o.completed_by_id,
-            COALESCE(NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''), s_comp.username, NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''), o.completed_by_name) AS completed_by_name,
-            o.completed_at, o.created_at, o.updated_at
-          FROM orders o
-          LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
-          LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
-          LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
-          LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
-          WHERE o.id = $1
-        `, [orderId]);
-
+        const refetchRes = await db.query(getOrdersSelectSql('WHERE o.id = $1', ''), [orderId]);
         const finalRow = refetchRes.rows.length > 0 ? refetchRes.rows[0] : row;
+
+        const accId = finalRow.accepted_by_staff_id || finalRow.accepted_by_id || null;
+        const compId = finalRow.completed_by_staff_id || finalRow.completed_by_id || null;
 
         updatedOrder = {
           id: finalRow.id,
@@ -1885,12 +1801,12 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
           paymentMethod: finalRow.payment_method,
           guest_session_id: finalRow.guest_session_id,
           user_id: finalRow.user_id,
-          accepted_by_id: finalRow.accepted_by_id,
-          accepted_by_staff_id: finalRow.accepted_by_id,
+          accepted_by_id: accId,
+          accepted_by_staff_id: accId,
           accepted_by_name: finalRow.accepted_by_name || null,
           accepted_at: finalRow.accepted_at,
-          completed_by_id: finalRow.completed_by_id,
-          completed_by_staff_id: finalRow.completed_by_id,
+          completed_by_id: compId,
+          completed_by_staff_id: compId,
           completed_by_name: finalRow.completed_by_name || null,
           completed_at: finalRow.completed_at,
           updatedAt
@@ -1903,7 +1819,7 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
       const memOrder = memoryOrdersMap.get(orderId);
       memOrder.status = status;
       memOrder.updatedAt = updatedAt;
-      if (status === 'preparing' || status === 'accepted') {
+      if (status === 'preparing') {
         if (!memOrder.accepted_by_name) {
           memOrder.accepted_by_id = authenticatedStaffId;
           memOrder.accepted_by_staff_id = authenticatedStaffId;
@@ -1922,10 +1838,10 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
       id: orderId,
       orderId,
       status,
-      accepted_by_id: (status === 'preparing' || status === 'accepted') ? authenticatedStaffId : null,
-      accepted_by_staff_id: (status === 'preparing' || status === 'accepted') ? authenticatedStaffId : null,
-      accepted_by_name: (status === 'preparing' || status === 'accepted') ? (authenticatedStaffName || clientStaffName || null) : null,
-      accepted_at: (status === 'preparing' || status === 'accepted') ? updatedAt : null,
+      accepted_by_id: status === 'preparing' ? authenticatedStaffId : null,
+      accepted_by_staff_id: status === 'preparing' ? authenticatedStaffId : null,
+      accepted_by_name: status === 'preparing' ? (authenticatedStaffName || clientStaffName || null) : null,
+      accepted_at: status === 'preparing' ? updatedAt : null,
       completed_by_id: status === 'completed' ? authenticatedStaffId : null,
       completed_by_staff_id: status === 'completed' ? authenticatedStaffId : null,
       completed_by_name: status === 'completed' ? (authenticatedStaffName || clientStaffName || null) : null,
@@ -1933,16 +1849,21 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
       updatedAt
     };
 
-    // 1. Emit targeted status update to order room and staff room (chained to prevent duplicate packets)
+    // 1. Emit targeted status update to order room and staff room
     io.to(`order:${orderId}`).to('staff:orders').emit('order:status_updated', payload);
-    io.emit('order:updated', payload);
+    if (payload.guest_session_id) {
+      io.to(`guest:${payload.guest_session_id}`).emit('order:status_updated', payload);
+    }
+    if (payload.user_id) {
+      io.to(`user:${payload.user_id}`).emit('order:status_updated', payload);
+    }
 
-    // 3. Emit updated staff presence and live order counts
+    // 2. Emit updated staff presence and live order counts
     getStaffOnDutyWithStats().then((list) => {
       io.emit('staff:presence', list);
     });
 
-    // 4. Create and emit persistent lifecycle notification
+    // 3. Create and emit persistent lifecycle notification
     await createAndEmitOrderNotification(orderId, status, payload);
 
     return res.json({ success: true, order: payload });
@@ -1989,18 +1910,18 @@ async function createAndEmitOrderNotification(orderId, status, extraData = {}) {
     let title = 'Order Update';
     let message = `Order #${cleanId} status is now ${status}.`;
 
-    if (status === 'new') {
-      title = 'Order Placed';
-      message = `Your order #${cleanId} has been placed successfully and received by our baristas.`;
+    if (status === 'new' || status === 'received') {
+      title = 'Order Received';
+      message = `Your order #${cleanId} has been placed and received by our baristas.`;
     } else if (status === 'accepted' || status === 'preparing') {
       title = 'Order Accepted';
-      message = `Your order #${cleanId} is being prepared by our barista.`;
+      message = 'Your order has been accepted and is being prepared.';
     } else if (status === 'ready') {
       title = 'Your order is ready!';
-      message = `Order #${cleanId} is ready for pickup/serving. Please collect at counter.`;
+      message = 'Your order has been crafted and is ready!';
     } else if (status === 'completed') {
       title = 'Order Completed';
-      message = `Order #${cleanId} has been completed. Thank you for visiting Scialla Cafe!`;
+      message = 'Your order has been completed. Thank you!';
     } else if (status === 'cancelled') {
       title = 'Order Cancelled';
       message = `Order #${cleanId} was cancelled. Please contact staff for assistance.`;
@@ -2282,8 +2203,19 @@ io.on('connection', (socket) => {
     console.log(`🚪 [Socket] Client ${socket.id} signed out`);
   });
 
+  // Dynamic guest session registration handler
+  socket.on('register:guest', (guestId) => {
+    if (guestId && typeof guestId === 'string') {
+      socket.data.guestSessionId = guestId;
+      socket.join(`guest:${guestId}`);
+      console.log(`👤 [Socket Auth] Dynamic guest session registered: guest:${guestId}`);
+    }
+  });
+
   // Customer joins order-specific room for targeted status tracking with server verification
-  socket.on('join:order', async (orderId) => {
+  socket.on('join:order', async (data) => {
+    const orderId = typeof data === 'object' ? data.orderId : data;
+    const providedGuestId = typeof data === 'object' ? data.guestSessionId : null;
     if (!orderId) return;
 
     let isAuthorized = false;
@@ -2296,10 +2228,13 @@ io.on('connection', (socket) => {
         const ordRes = await db.query('SELECT user_id, guest_session_id FROM orders WHERE id = $1', [orderId]);
         if (ordRes.rows.length > 0) {
           const row = ordRes.rows[0];
+          const activeGuestId = socket.data.guestSessionId || providedGuestId;
           if (row.user_id && socket.data.user?.id && row.user_id === socket.data.user.id) {
             isAuthorized = true;
-          } else if (row.guest_session_id && socket.data.guestSessionId && row.guest_session_id === socket.data.guestSessionId) {
+          } else if (row.guest_session_id && activeGuestId && row.guest_session_id === activeGuestId) {
             isAuthorized = true;
+            socket.data.guestSessionId = activeGuestId;
+            socket.join(`guest:${activeGuestId}`);
           } else if (!row.user_id && !row.guest_session_id) {
             // Legacy order fallback
             isAuthorized = true;
@@ -2343,6 +2278,9 @@ io.on('connection', (socket) => {
       if (guestSessionId) {
         io.to(`guest:${guestSessionId}`).emit('order:created', fullOrder);
       }
+      if (userId) {
+        io.to(`user:${userId}`).emit('order:created', fullOrder);
+      }
       console.log(`📡 [Socket Event] Created & emitted targeted order:created for ${fullOrder.id}`);
 
       // Emit initial lifecycle notification
@@ -2355,8 +2293,10 @@ io.on('connection', (socket) => {
   });
 
   // Order status update via Socket.IO (Staff / Manager)
-  socket.on('order:update_status', async ({ id, status, staffName: clientStaffName }) => {
-    if (!id || !status) return;
+  socket.on('order:update_status', async ({ id, status: rawStatus, staffName: clientStaffName }) => {
+    if (!id || !rawStatus) return;
+    const status = rawStatus === 'accepted' ? 'preparing' : rawStatus;
+
     try {
       let updatedAt = new Date().toISOString();
       let updatedOrder = null;
@@ -2367,10 +2307,18 @@ io.on('connection', (socket) => {
 
         if (staffId) {
           try {
-            const stRes = await db.query('SELECT first_name, last_name, username FROM staff WHERE id = $1', [staffId]);
-            if (stRes.rows.length > 0) {
-              const stRow = stRes.rows[0];
-              staffName = `${stRow.first_name || ''} ${stRow.last_name || ''}`.trim() || stRow.username;
+            if (socket.data.role === 'manager') {
+              const mgRes = await db.query('SELECT first_name, last_name FROM managers WHERE id = $1', [staffId]);
+              if (mgRes.rows.length > 0) {
+                const mgRow = mgRes.rows[0];
+                staffName = `${mgRow.first_name || ''} ${mgRow.last_name || ''}`.trim();
+              }
+            } else {
+              const stRes = await db.query('SELECT first_name, last_name, username FROM staff WHERE id = $1', [staffId]);
+              if (stRes.rows.length > 0) {
+                const stRow = stRes.rows[0];
+                staffName = `${stRow.first_name || ''} ${stRow.last_name || ''}`.trim() || stRow.username;
+              }
             }
           } catch {}
         }
@@ -2383,15 +2331,15 @@ io.on('connection', (socket) => {
         let params = [status, id];
         let pIdx = 3;
 
-        if (status === 'preparing' || status === 'accepted') {
+        if (status === 'preparing') {
           if (staffId || staffName) {
-            updateSql += `, accepted_by_id = $${pIdx++}, accepted_by_name = $${pIdx++}, accepted_at = CURRENT_TIMESTAMP`;
-            params.push(staffId, staffName);
+            updateSql += `, accepted_by_id = $${pIdx++}, accepted_by_staff_id = $${pIdx++}, accepted_by_name = $${pIdx++}, accepted_at = CURRENT_TIMESTAMP`;
+            params.push(staffId, staffId, staffName);
           }
         } else if (status === 'completed') {
           if (staffId || staffName) {
-            updateSql += `, completed_by_id = $${pIdx++}, completed_by_name = $${pIdx++}, completed_at = CURRENT_TIMESTAMP`;
-            params.push(staffId, staffName);
+            updateSql += `, completed_by_id = $${pIdx++}, completed_by_staff_id = $${pIdx++}, completed_by_name = $${pIdx++}, completed_at = CURRENT_TIMESTAMP`;
+            params.push(staffId, staffId, staffName);
           }
         }
 
@@ -2403,23 +2351,11 @@ io.on('connection', (socket) => {
           updatedAt = new Date(row.updated_at).toISOString();
 
           // Refetch with LEFT JOINs to guarantee joined display names
-          const refetchRes = await db.query(`
-            SELECT 
-              o.id, o.table_name, o.timestamp, o.total, o.payment_method, o.status,
-              o.guest_session_id, o.user_id, o.accepted_by_id,
-              COALESCE(NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''), s_acc.username, NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''), o.accepted_by_name) AS accepted_by_name,
-              o.accepted_at, o.completed_by_id,
-              COALESCE(NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''), s_comp.username, NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''), o.completed_by_name) AS completed_by_name,
-              o.completed_at, o.created_at, o.updated_at
-            FROM orders o
-            LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
-            LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
-            LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
-            LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
-            WHERE o.id = $1
-          `, [id]);
-
+          const refetchRes = await db.query(getOrdersSelectSql('WHERE o.id = $1', ''), [id]);
           const finalRow = refetchRes.rows.length > 0 ? refetchRes.rows[0] : row;
+
+          const accId = finalRow.accepted_by_staff_id || finalRow.accepted_by_id || null;
+          const compId = finalRow.completed_by_staff_id || finalRow.completed_by_id || null;
 
           updatedOrder = {
             id: finalRow.id,
@@ -2430,12 +2366,12 @@ io.on('connection', (socket) => {
             paymentMethod: finalRow.payment_method,
             guest_session_id: finalRow.guest_session_id,
             user_id: finalRow.user_id,
-            accepted_by_id: finalRow.accepted_by_id,
-            accepted_by_staff_id: finalRow.accepted_by_id,
+            accepted_by_id: accId,
+            accepted_by_staff_id: accId,
             accepted_by_name: finalRow.accepted_by_name || null,
             accepted_at: finalRow.accepted_at,
-            completed_by_id: finalRow.completed_by_id,
-            completed_by_staff_id: finalRow.completed_by_id,
+            completed_by_id: compId,
+            completed_by_staff_id: compId,
             completed_by_name: finalRow.completed_by_name || null,
             completed_at: finalRow.completed_at,
             updatedAt
@@ -2451,7 +2387,7 @@ io.on('connection', (socket) => {
         const memOrder = memoryOrdersMap.get(id);
         memOrder.status = status;
         memOrder.updatedAt = updatedAt;
-        if (status === 'preparing' || status === 'accepted') {
+        if (status === 'preparing') {
           if (!memOrder.accepted_by_name) {
             memOrder.accepted_by_id = currentStaffId;
             memOrder.accepted_by_staff_id = currentStaffId;
@@ -2470,10 +2406,10 @@ io.on('connection', (socket) => {
         id,
         orderId: id,
         status,
-        accepted_by_id: (status === 'preparing' || status === 'accepted') ? currentStaffId : null,
-        accepted_by_staff_id: (status === 'preparing' || status === 'accepted') ? currentStaffId : null,
-        accepted_by_name: (status === 'preparing' || status === 'accepted') ? currentStaffName : null,
-        accepted_at: (status === 'preparing' || status === 'accepted') ? updatedAt : null,
+        accepted_by_id: status === 'preparing' ? currentStaffId : null,
+        accepted_by_staff_id: status === 'preparing' ? currentStaffId : null,
+        accepted_by_name: status === 'preparing' ? currentStaffName : null,
+        accepted_at: status === 'preparing' ? updatedAt : null,
         completed_by_id: status === 'completed' ? currentStaffId : null,
         completed_by_staff_id: status === 'completed' ? currentStaffId : null,
         completed_by_name: status === 'completed' ? currentStaffName : null,
@@ -2481,9 +2417,14 @@ io.on('connection', (socket) => {
         updatedAt
       };
 
-      // Targeted emission strictly to order room and staff room (chained to prevent duplicate packets)
+      // Targeted emission strictly to order room, staff room, and owner rooms
       io.to(`order:${id}`).to('staff:orders').emit('order:status_updated', payload);
-      io.emit('order:updated', payload);
+      if (payload.guest_session_id) {
+        io.to(`guest:${payload.guest_session_id}`).emit('order:status_updated', payload);
+      }
+      if (payload.user_id) {
+        io.to(`user:${payload.user_id}`).emit('order:status_updated', payload);
+      }
       console.log(`📡 [Socket Event] Targeted order:status_updated for ${id} -> ${status}`);
 
       // Emit lifecycle notification

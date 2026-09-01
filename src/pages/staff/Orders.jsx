@@ -556,11 +556,9 @@ export default function Orders() {
                       <div>
                         <strong>Accepted by:</strong> {ord.accepted_by_name || '—'} {ord.accepted_at ? `at ${new Date(ord.accepted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
                       </div>
-                      {ord.completed_by_name && (
-                        <div style={{ marginTop: '3px' }}>
-                          <strong>Completed by:</strong> {ord.completed_by_name} {ord.completed_at ? `at ${new Date(ord.completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
-                        </div>
-                      )}
+                      <div style={{ marginTop: '3px' }}>
+                        <strong>Completed by:</strong> {ord.completed_by_name || '—'} {ord.completed_at ? `at ${new Date(ord.completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                      </div>
                     </div>
 
                     <div style={{ borderTop: '1px solid rgba(201, 139, 91, 0.15)', paddingTop: '8px', marginBottom: '12px' }}>
