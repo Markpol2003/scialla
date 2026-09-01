@@ -313,72 +313,80 @@ export default function CustomerLayout({ onNavigate }) {
       )}
 
       {/* Sleek Compact Live Order Tracker */}
-      {lastCustomerOrder && (
-        <div className="live-order-tracker-banner">
-          <div className="tracker-left">
-            <div className="tracker-live-tag">
-              <span className="pulse-indicator" />
-              <strong className="tracker-order-id">#{lastCustomerOrder.id}</strong>
-              <span className="tracker-table-badge">{lastCustomerOrder.table}</span>
+      {lastCustomerOrder && (() => {
+        const normStatus = String(lastCustomerOrder.status || '').toLowerCase().trim();
+        const isReceived = ['new', 'received', 'pending'].includes(normStatus);
+        const isPreparing = ['preparing', 'accepted'].includes(normStatus);
+        const isReady = normStatus === 'ready';
+        const isCompleted = normStatus === 'completed';
+
+        return (
+          <div className="live-order-tracker-banner">
+            <div className="tracker-left">
+              <div className="tracker-live-tag">
+                <span className="pulse-indicator" />
+                <strong className="tracker-order-id">#{lastCustomerOrder.id}</strong>
+                <span className="tracker-table-badge">{lastCustomerOrder.table}</span>
+              </div>
+
+              <div className="tracker-status-pill-wrap">
+                {isReceived && (
+                  <span className="status-pill status-new">Order Received • Waiting for barista</span>
+                )}
+                {isPreparing && (
+                  <span className="status-pill status-prep">
+                    Accepted & Preparing{lastCustomerOrder.accepted_by_name ? ` • Crafted by ${lastCustomerOrder.accepted_by_name}` : ''}
+                  </span>
+                )}
+                {isReady && (
+                  <span className="status-pill status-ready">
+                    Crafted • Ready for pickup!{lastCustomerOrder.accepted_by_name ? ` (Crafted by ${lastCustomerOrder.accepted_by_name})` : ''}
+                  </span>
+                )}
+                {isCompleted && (
+                  <span className="status-pill status-complete">
+                    Completed{lastCustomerOrder.completed_by_name ? ` by ${lastCustomerOrder.completed_by_name}` : ''} • Thank you for ordering from Scialla Cafe!
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div className="tracker-status-pill-wrap">
-              {(lastCustomerOrder.status === 'new' || lastCustomerOrder.status === 'received') && (
-                <span className="status-pill status-new">Order Received • Waiting for barista</span>
-              )}
-              {(lastCustomerOrder.status === 'preparing' || lastCustomerOrder.status === 'accepted') && (
-                <span className="status-pill status-prep">
-                  Accepted & Preparing{lastCustomerOrder.accepted_by_name ? ` • Crafted by ${lastCustomerOrder.accepted_by_name}` : ''}
-                </span>
-              )}
-              {lastCustomerOrder.status === 'ready' && (
-                <span className="status-pill status-ready">
-                  Crafted • Ready for pickup!{lastCustomerOrder.accepted_by_name ? ` (Crafted by ${lastCustomerOrder.accepted_by_name})` : ''}
-                </span>
-              )}
-              {lastCustomerOrder.status === 'completed' && (
-                <span className="status-pill status-complete">
-                  Completed{lastCustomerOrder.completed_by_name ? ` by ${lastCustomerOrder.completed_by_name}` : ''} • Thank you for visiting!
-                </span>
-              )}
+            <div className="tracker-right">
+              {/* Compact 4-Step Stepper */}
+              <div className="tracker-mini-stepper">
+                <div className={`mini-node ${['new', 'received', 'pending', 'preparing', 'accepted', 'ready', 'completed'].includes(normStatus) ? 'active' : ''}`}>
+                  <span className="mini-dot">1</span>
+                  <span className="mini-label">Received</span>
+                </div>
+                <div className={`mini-line ${['preparing', 'accepted', 'ready', 'completed'].includes(normStatus) ? 'active-line' : ''}`} />
+                <div className={`mini-node ${['preparing', 'accepted', 'ready', 'completed'].includes(normStatus) ? 'active' : ''}`}>
+                  <span className="mini-dot">2</span>
+                  <span className="mini-label">Preparing</span>
+                </div>
+                <div className={`mini-line ${['ready', 'completed'].includes(normStatus) ? 'active-line' : ''}`} />
+                <div className={`mini-node ${['ready', 'completed'].includes(normStatus) ? 'active' : ''}`}>
+                  <span className="mini-dot">3</span>
+                  <span className="mini-label">Crafted</span>
+                </div>
+                <div className={`mini-line ${isCompleted ? 'active-line' : ''}`} />
+                <div className={`mini-node ${isCompleted ? 'active' : ''}`}>
+                  <span className="mini-dot">4</span>
+                  <span className="mini-label">Completed</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="btn-dismiss-tracker"
+                onClick={() => setLastCustomerOrder(null)}
+                title="Dismiss tracker"
+              >
+                ✕
+              </button>
             </div>
           </div>
-
-          <div className="tracker-right">
-            {/* Compact 4-Step Stepper */}
-            <div className="tracker-mini-stepper">
-              <div className={`mini-node ${['new', 'received', 'preparing', 'accepted', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
-                <span className="mini-dot">1</span>
-                <span className="mini-label">Received</span>
-              </div>
-              <div className={`mini-line ${['preparing', 'accepted', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
-              <div className={`mini-node ${['preparing', 'accepted', 'ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
-                <span className="mini-dot">2</span>
-                <span className="mini-label">Preparing</span>
-              </div>
-              <div className={`mini-line ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active-line' : ''}`} />
-              <div className={`mini-node ${['ready', 'completed'].includes(lastCustomerOrder.status) ? 'active' : ''}`}>
-                <span className="mini-dot">3</span>
-                <span className="mini-label">Crafted</span>
-              </div>
-              <div className={`mini-line ${lastCustomerOrder.status === 'completed' ? 'active-line' : ''}`} />
-              <div className={`mini-node ${lastCustomerOrder.status === 'completed' ? 'active' : ''}`}>
-                <span className="mini-dot">4</span>
-                <span className="mini-label">Completed</span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="btn-dismiss-tracker"
-              onClick={() => setLastCustomerOrder(null)}
-              title="Dismiss tracker"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Main Content + Floating Cart Sidebar */}
       <div className={`scialla-layout ${cart.length === 0 ? 'cart-empty' : ''}`}>

@@ -16,15 +16,21 @@ const STATUS_RANKS = {
   preparing: 2,
   ready: 3,
   completed: 4,
+  complete: 4,
   cancelled: 5
 };
 
 function shouldAcceptStatusUpdate(currentStatus, incomingStatus) {
   if (!currentStatus) return true;
   if (!incomingStatus) return false;
-  if (currentStatus === 'cancelled') return false; // Cancelled is terminal
-  const currentRank = STATUS_RANKS[String(currentStatus).toLowerCase()] || 0;
-  const incomingRank = STATUS_RANKS[String(incomingStatus).toLowerCase()] || 0;
+  const curr = String(currentStatus).toLowerCase().trim();
+  const inc = String(incomingStatus).toLowerCase().trim();
+  if (curr === 'cancelled') return false; // Cancelled is terminal
+  if ((curr === 'completed' || curr === 'complete') && inc !== 'completed' && inc !== 'complete' && inc !== 'cancelled') {
+    return false; // Completed cannot regress to preparing or ready
+  }
+  const currentRank = STATUS_RANKS[curr] || 0;
+  const incomingRank = STATUS_RANKS[inc] || 0;
   if (incomingRank < currentRank) return false; // Prevent backward status movement
   return true;
 }
@@ -1145,11 +1151,6 @@ export function AppProvider({ children }) {
         }
         return updated;
       });
-      if (canonicalStatus === 'completed') {
-        setTimeout(() => {
-          setLastCustomerOrder(null);
-        }, 6000);
-      }
     }
 
     // 2. Persist status change in PostgreSQL via REST API (passes verified registered staff name)
