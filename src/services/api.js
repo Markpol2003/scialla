@@ -267,10 +267,13 @@ export const api = {
       const res = await fetch(`${API_BASE_URL}/api/orders`, {
         headers: getAuthHeaders()
       });
-      if (!res.ok) return null;
-      return await res.json();
+      if (!res.ok) return [];
+      const data = await res.json();
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.orders)) return data.orders;
+      return [];
     } catch {
-      return null;
+      return [];
     }
   },
 

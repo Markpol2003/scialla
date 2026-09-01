@@ -667,6 +667,30 @@ export function AppProvider({ children }) {
     }
   };
 
+  // Fetch orders from PostgreSQL / REST API (Source of Truth)
+  const refreshOrders = async () => {
+    try {
+      const data = await api.getOrders();
+      const orderList = Array.isArray(data) ? data : (data && Array.isArray(data.orders) ? data.orders : []);
+      if (orderList.length > 0) {
+        setOrders((prev) => {
+          const map = new Map();
+          // Server orders are the authoritative source of truth
+          orderList.forEach((ord) => map.set(ord.id, ord));
+          // Retain any optimistic local pending orders not yet saved to server
+          prev.forEach((ord) => {
+            if (!map.has(ord.id)) {
+              map.set(ord.id, ord);
+            }
+          });
+          return Array.from(map.values());
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to refresh orders from API:', err);
+    }
+  };
+
   useEffect(() => {
     // 1. Initialize or validate guest session ID from backend
     api.getOrCreateGuestSession().then((gId) => {
@@ -682,6 +706,7 @@ export function AppProvider({ children }) {
         if (user) {
           setCurrentUser(user);
           setActiveRole(user.role);
+          refreshOrders();
         } else {
           logout();
         }
@@ -703,31 +728,14 @@ export function AppProvider({ children }) {
       } catch {}
     }
 
-    // 4. Function to fetch orders from REST API
-    const fetchOrdersFromApi = () => {
-      api.getOrders().then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setOrders((prev) => {
-            const map = new Map();
-            data.forEach((ord) => map.set(ord.id, ord));
-            prev.forEach((ord) => {
-              if (!map.has(ord.id)) {
-                map.set(ord.id, ord);
-              }
-            });
-            return Array.from(map.values());
-          });
-        }
-      });
-    };
-
-    fetchOrdersFromApi();
+    // 4. Initial fetch of persistent orders from PostgreSQL
+    refreshOrders();
     refreshStaffOnDuty();
     syncProductStock();
     refreshCustomerNotifications();
 
     const pollInterval = setInterval(() => {
-      fetchOrdersFromApi();
+      refreshOrders();
       refreshStaffOnDuty();
     }, 5000);
 
@@ -969,6 +977,13 @@ export function AppProvider({ children }) {
         if (!socket.connected) {
           socket.connect();
         }
+      }
+
+      // Refresh orders and staff data with authenticated role permissions
+      refreshOrders();
+      refreshStaffOnDuty();
+      if (response.user.role === 'manager') {
+        refreshStaffList();
       }
 
       return { success: true, user: response.user };
@@ -1330,6 +1345,7 @@ export function AppProvider({ children }) {
         openAuthModal,
         menuCategories,
         orders,
+        refreshOrders,
         customerOrderHistory,
         customerNotifications,
         unreadNotificationsCount,

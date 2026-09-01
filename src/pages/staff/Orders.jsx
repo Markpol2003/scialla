@@ -82,9 +82,21 @@ export default function Orders() {
     let list = items;
     if (typeof list === 'string') {
       try {
-        list = JSON.parse(list);
+        const parsed = JSON.parse(list);
+        list = parsed;
       } catch {
         list = list.split(',').map((s) => s.trim()).filter(Boolean);
+      }
+    }
+    if (list && typeof list === 'object' && !Array.isArray(list)) {
+      if (Array.isArray(list.items)) {
+        list = list.items;
+      } else if (Array.isArray(list.order_items)) {
+        list = list.order_items;
+      } else if (Array.isArray(list.products)) {
+        list = list.products;
+      } else {
+        list = Object.values(list).filter(Boolean);
       }
     }
     if (!Array.isArray(list)) {
@@ -108,12 +120,13 @@ export default function Orders() {
           displayName: nameOnly,
           size,
           qty,
-          price: 0
+          price: 0,
+          addons: []
         });
         return;
       }
 
-      const rawName = item.rawName || item.name || item.product_name || item.productName || item.item_name || item.title || item.item || 'Item';
+      const rawName = item.rawName || item.displayName || item.name || item.product_name || item.productName || item.item_name || item.title || item.item || item.label || 'Item';
       const sizeVal = item.size || item.selectedSize || (typeof rawName === 'string' && rawName.match(/\(([^)]+)\)/) ? rawName.match(/\(([^)]+)\)/)[1] : '');
       const nameOnly = typeof rawName === 'string'
         ? rawName.replace(/^\d+x\s*/i, '').replace(/\s*\([^)]+\)/g, '').trim() || rawName

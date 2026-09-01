@@ -206,13 +206,19 @@ async function initDatabaseMigrations() {
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS guest_session_id VARCHAR(64);`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_id INTEGER;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS items_json TEXT;`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS items TEXT;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS accepted_by_id INTEGER;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS accepted_by_staff_id INTEGER;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS accepted_by_name VARCHAR(150);`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS accepted_by VARCHAR(150);`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS staff_name VARCHAR(150);`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS handled_by VARCHAR(150);`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS staff_id INTEGER;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMP;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_by_id INTEGER;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_by_staff_id INTEGER;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_by_name VARCHAR(150);`);
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_by VARCHAR(150);`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
 
@@ -1259,11 +1265,11 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
   const status = orderData.status || 'new';
   const assignedUserId = userId || orderData.user_id || null;
   const assignedGuestId = guestSessionId || orderData.guest_session_id || orderData.guestSessionId || null;
-  const acceptedById = orderData.accepted_by_id || orderData.accepted_by_staff_id || null;
-  const acceptedByName = orderData.accepted_by_name || null;
+  const acceptedById = orderData.accepted_by_id || orderData.accepted_by_staff_id || orderData.staff_id || null;
+  const acceptedByName = orderData.accepted_by_name || orderData.accepted_by || orderData.staff_name || orderData.handled_by || null;
   const acceptedAt = orderData.accepted_at || null;
   const completedById = orderData.completed_by_id || orderData.completed_by_staff_id || null;
-  const completedByName = orderData.completed_by_name || null;
+  const completedByName = orderData.completed_by_name || orderData.completed_by || null;
   const completedAt = orderData.completed_at || null;
 
   // Construct complete normalized order object for real-time emission and DB storage
@@ -1412,14 +1418,17 @@ function getOrdersSelectSql(whereClause = '', orderLimit = 'ORDER BY o.created_a
       o.status,
       o.guest_session_id,
       o.user_id,
-      o.items_json,
-      COALESCE(o.accepted_by_staff_id, o.accepted_by_id) AS accepted_by_id,
-      COALESCE(o.accepted_by_staff_id, o.accepted_by_id) AS accepted_by_staff_id,
+      COALESCE(o.items_json, o.items) AS items_json,
+      COALESCE(o.accepted_by_staff_id, o.accepted_by_id, o.staff_id) AS accepted_by_id,
+      COALESCE(o.accepted_by_staff_id, o.accepted_by_id, o.staff_id) AS accepted_by_staff_id,
       COALESCE(
         NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''),
         s_acc.username,
         NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''),
-        o.accepted_by_name
+        o.accepted_by_name,
+        o.accepted_by,
+        o.staff_name,
+        o.handled_by
       ) AS accepted_by_name,
       o.accepted_at,
       COALESCE(o.completed_by_staff_id, o.completed_by_id) AS completed_by_id,
@@ -1428,14 +1437,15 @@ function getOrdersSelectSql(whereClause = '', orderLimit = 'ORDER BY o.created_a
         NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''),
         s_comp.username,
         NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''),
-        o.completed_by_name
+        o.completed_by_name,
+        o.completed_by
       ) AS completed_by_name,
       o.completed_at,
       o.created_at,
       o.updated_at
     FROM orders o
-    LEFT JOIN staff s_acc ON s_acc.id = COALESCE(o.accepted_by_staff_id, o.accepted_by_id)
-    LEFT JOIN managers m_acc ON m_acc.id = COALESCE(o.accepted_by_staff_id, o.accepted_by_id)
+    LEFT JOIN staff s_acc ON s_acc.id = COALESCE(o.accepted_by_staff_id, o.accepted_by_id, o.staff_id)
+    LEFT JOIN managers m_acc ON m_acc.id = COALESCE(o.accepted_by_staff_id, o.accepted_by_id, o.staff_id)
     LEFT JOIN staff s_comp ON s_comp.id = COALESCE(o.completed_by_staff_id, o.completed_by_id)
     LEFT JOIN managers m_comp ON m_comp.id = COALESCE(o.completed_by_staff_id, o.completed_by_id)
     ${whereClause}
