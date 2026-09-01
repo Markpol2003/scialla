@@ -1017,17 +1017,52 @@
 /* Container wrappers for charts & tables */
 .chart-scroll-container {
   width: 100%;
-  overflow-x: visible;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 139, 91, 0.4) rgba(0, 0, 0, 0.2);
 }
 
 .table-scroll-container {
   width: 100%;
-  overflow-x: visible;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 139, 91, 0.4) rgba(0, 0, 0, 0.2);
+  margin-top: 4px;
+}
+
+.table-scroll-container::-webkit-scrollbar,
+.chart-scroll-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.table-scroll-container::-webkit-scrollbar-track,
+.chart-scroll-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb,
+.chart-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(201, 139, 91, 0.4);
+  border-radius: 4px;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb:hover,
+.chart-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 139, 91, 0.7);
 }
 
 .min-w-table {
   width: 100%;
-  min-width: 0;
+  min-width: 620px;
 }
 
 /* Sales Bar Chart Visualizer */
@@ -1198,12 +1233,14 @@
   background: rgba(0, 0, 0, 0.4);
   color: var(--color-gold);
   border-bottom: 1px solid rgba(201, 139, 91, 0.3);
+  white-space: nowrap;
 }
 
 .manager-table td,
 .staff-history-table td {
   padding: 12px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  white-space: nowrap;
 }
 
 .btn-table-action {
