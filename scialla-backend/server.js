@@ -1242,6 +1242,9 @@ const ADDON_PRICES = {
   fa4: { id: 'fa4', name: 'Extra Mayonnaise', price: 25 }
 };
 
+// Memory store fallback for development / offline resilience
+const memoryOrdersMap = new Map();
+
 // Helper: Save & Format Order in PostgreSQL with Ownership and Audit Trail
 async function saveOrderToDatabase(orderData, userId = null, guestSessionId = null) {
   const orderId = orderData.id || orderData.orderNum || `SC-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -1366,7 +1369,7 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
     }
   }
 
-  return {
+  const orderResult = {
     id: orderId,
     orderId,
     table: tableName,
@@ -1377,15 +1380,20 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
     guest_session_id: assignedGuestId,
     user_id: assignedUserId,
     accepted_by_id: acceptedById,
+    accepted_by_staff_id: acceptedById,
     accepted_by_name: acceptedByName,
     accepted_at: acceptedAt,
     completed_by_id: completedById,
+    completed_by_staff_id: completedById,
     completed_by_name: completedByName,
     completed_at: completedAt,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     items: formattedItems
   };
+
+  memoryOrdersMap.set(orderId, orderResult);
+  return orderResult;
 }
 
 // Get Orders (Filtered by Role / Ownership with Full Staff Audit Trail)
@@ -1395,23 +1403,117 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
     const guestSessionId = req.headers['x-guest-session'] || req.query.guestSessionId;
     const userId = req.user ? req.user.id : null;
 
-    let ordersQuery = 'SELECT * FROM orders ORDER BY created_at DESC';
+    let ordersQuery = `
+      SELECT 
+        o.id,
+        o.table_name,
+        o.timestamp,
+        o.total,
+        o.payment_method,
+        o.status,
+        o.guest_session_id,
+        o.user_id,
+        o.items_json,
+        o.accepted_by_id,
+        COALESCE(
+          NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''),
+          s_acc.username,
+          NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''),
+          o.accepted_by_name
+        ) AS accepted_by_name,
+        o.accepted_at,
+        o.completed_by_id,
+        COALESCE(
+          NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''),
+          s_comp.username,
+          NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''),
+          o.completed_by_name
+        ) AS completed_by_name,
+        o.completed_at,
+        o.created_at,
+        o.updated_at
+      FROM orders o
+      LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
+      LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
+      LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
+      LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
+      ORDER BY o.created_at DESC
+    `;
     let queryParams = [];
 
     // If customer / guest, filter strictly to orders they own
     if (!isStaffOrManager) {
       if (userId && guestSessionId) {
-        ordersQuery = 'SELECT * FROM orders WHERE user_id = $1 OR guest_session_id = $2 ORDER BY created_at DESC';
+        ordersQuery = `
+          SELECT 
+            o.id, o.table_name, o.timestamp, o.total, o.payment_method, o.status,
+            o.guest_session_id, o.user_id, o.items_json, o.accepted_by_id,
+            COALESCE(NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''), s_acc.username, NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''), o.accepted_by_name) AS accepted_by_name,
+            o.accepted_at, o.completed_by_id,
+            COALESCE(NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''), s_comp.username, NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''), o.completed_by_name) AS completed_by_name,
+            o.completed_at, o.created_at, o.updated_at
+          FROM orders o
+          LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
+          LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
+          LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
+          LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
+          WHERE o.user_id = $1 OR o.guest_session_id = $2
+          ORDER BY o.created_at DESC
+        `;
         queryParams = [userId, guestSessionId];
       } else if (userId) {
-        ordersQuery = 'SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC';
+        ordersQuery = `
+          SELECT 
+            o.id, o.table_name, o.timestamp, o.total, o.payment_method, o.status,
+            o.guest_session_id, o.user_id, o.items_json, o.accepted_by_id,
+            COALESCE(NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''), s_acc.username, NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''), o.accepted_by_name) AS accepted_by_name,
+            o.accepted_at, o.completed_by_id,
+            COALESCE(NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''), s_comp.username, NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''), o.completed_by_name) AS completed_by_name,
+            o.completed_at, o.created_at, o.updated_at
+          FROM orders o
+          LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
+          LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
+          LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
+          LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
+          WHERE o.user_id = $1
+          ORDER BY o.created_at DESC
+        `;
         queryParams = [userId];
       } else if (guestSessionId) {
-        ordersQuery = 'SELECT * FROM orders WHERE guest_session_id = $1 ORDER BY created_at DESC';
+        ordersQuery = `
+          SELECT 
+            o.id, o.table_name, o.timestamp, o.total, o.payment_method, o.status,
+            o.guest_session_id, o.user_id, o.items_json, o.accepted_by_id,
+            COALESCE(NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''), s_acc.username, NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''), o.accepted_by_name) AS accepted_by_name,
+            o.accepted_at, o.completed_by_id,
+            COALESCE(NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''), s_comp.username, NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''), o.completed_by_name) AS completed_by_name,
+            o.completed_at, o.created_at, o.updated_at
+          FROM orders o
+          LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
+          LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
+          LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
+          LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
+          WHERE o.guest_session_id = $1
+          ORDER BY o.created_at DESC
+        `;
         queryParams = [guestSessionId];
       } else {
-        // Fallback for demo or initial state
-        ordersQuery = 'SELECT * FROM orders ORDER BY created_at DESC LIMIT 50';
+        ordersQuery = `
+          SELECT 
+            o.id, o.table_name, o.timestamp, o.total, o.payment_method, o.status,
+            o.guest_session_id, o.user_id, o.items_json, o.accepted_by_id,
+            COALESCE(NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''), s_acc.username, NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''), o.accepted_by_name) AS accepted_by_name,
+            o.accepted_at, o.completed_by_id,
+            COALESCE(NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''), s_comp.username, NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''), o.completed_by_name) AS completed_by_name,
+            o.completed_at, o.created_at, o.updated_at
+          FROM orders o
+          LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
+          LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
+          LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
+          LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
+          ORDER BY o.created_at DESC
+          LIMIT 50
+        `;
       }
     }
 
@@ -1467,10 +1569,12 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
         guest_session_id: o.guest_session_id,
         user_id: o.user_id,
         accepted_by_id: o.accepted_by_id,
-        accepted_by_name: o.accepted_by_name,
+        accepted_by_staff_id: o.accepted_by_id,
+        accepted_by_name: o.accepted_by_name || null,
         accepted_at: o.accepted_at,
         completed_by_id: o.completed_by_id,
-        completed_by_name: o.completed_by_name,
+        completed_by_staff_id: o.completed_by_id,
+        completed_by_name: o.completed_by_name || null,
         completed_at: o.completed_at,
         createdAt: o.created_at,
         updatedAt: o.updated_at || o.created_at,
@@ -1489,7 +1593,43 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
 app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
   try {
     const orderId = req.params.id;
-    const orderRes = await db.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+    const singleOrderQuery = `
+      SELECT 
+        o.id,
+        o.table_name,
+        o.timestamp,
+        o.total,
+        o.payment_method,
+        o.status,
+        o.guest_session_id,
+        o.user_id,
+        o.items_json,
+        o.accepted_by_id,
+        COALESCE(
+          NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''),
+          s_acc.username,
+          NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''),
+          o.accepted_by_name
+        ) AS accepted_by_name,
+        o.accepted_at,
+        o.completed_by_id,
+        COALESCE(
+          NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''),
+          s_comp.username,
+          NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''),
+          o.completed_by_name
+        ) AS completed_by_name,
+        o.completed_at,
+        o.created_at,
+        o.updated_at
+      FROM orders o
+      LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
+      LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
+      LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
+      LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
+      WHERE o.id = $1
+    `;
+    const orderRes = await db.query(singleOrderQuery, [orderId]);
 
     if (orderRes.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Order not found.' });
@@ -1538,10 +1678,12 @@ app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
         guest_session_id: orderRow.guest_session_id,
         user_id: orderRow.user_id,
         accepted_by_id: orderRow.accepted_by_id,
-        accepted_by_name: orderRow.accepted_by_name,
+        accepted_by_staff_id: orderRow.accepted_by_id,
+        accepted_by_name: orderRow.accepted_by_name || null,
         accepted_at: orderRow.accepted_at,
         completed_by_id: orderRow.completed_by_id,
-        completed_by_name: orderRow.completed_by_name,
+        completed_by_staff_id: orderRow.completed_by_id,
+        completed_by_name: orderRow.completed_by_name || null,
         completed_at: orderRow.completed_at,
         createdAt: orderRow.created_at,
         updatedAt: orderRow.updated_at || orderRow.created_at,
@@ -1632,7 +1774,22 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
       const currentOrder = currentRes.rows[0];
 
       // Multi-Staff Concurrency Check: If staff tries to accept an order already handled
-      if (status === 'preparing' && currentOrder.status !== 'new' && currentOrder.status !== 'accepted' && currentOrder.status !== 'preparing') {
+      if ((status === 'preparing' || status === 'accepted') && currentOrder.status !== 'new' && currentOrder.status !== 'pending' && currentOrder.status !== 'accepted' && currentOrder.status !== 'preparing') {
+        const conflictPayload = {
+          id: orderId,
+          orderId,
+          status: currentOrder.status,
+          accepted_by_id: currentOrder.accepted_by_id,
+          accepted_by_staff_id: currentOrder.accepted_by_id,
+          accepted_by_name: currentOrder.accepted_by_name,
+          accepted_at: currentOrder.accepted_at,
+          completed_by_id: currentOrder.completed_by_id,
+          completed_by_staff_id: currentOrder.completed_by_id,
+          completed_by_name: currentOrder.completed_by_name,
+          completed_at: currentOrder.completed_at
+        };
+        // Broadcast current state to ensure all staff queues stay synchronized
+        io.to('staff:orders').emit('order:status_updated', conflictPayload);
         return res.status(409).json({
           success: false,
           message: `Order #${orderId} has already been accepted and is currently in status "${currentOrder.status}" (Handled by ${currentOrder.accepted_by_name || 'another team member'}).`,
@@ -1660,7 +1817,9 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
               authenticatedStaffName = `${stRow.first_name || ''} ${stRow.last_name || ''}`.trim() || stRow.username;
             }
           }
-        } catch {}
+        } catch (err) {
+          console.warn('Error fetching authenticated staff name from DB:', err.message);
+        }
       }
 
       if (!authenticatedStaffName) {
@@ -1675,15 +1834,17 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
       let params = [status, orderId];
       let paramIdx = 3;
 
-      if (status === 'preparing') {
-        // Record registered staff who accepted order
-        if (authenticatedStaffName && !currentOrder.accepted_by_name) {
-          updateSql += `, accepted_by_id = $${paramIdx++}, accepted_by_name = $${paramIdx++}, accepted_at = CURRENT_TIMESTAMP`;
-          params.push(authenticatedStaffId, authenticatedStaffName);
+      if (status === 'preparing' || status === 'accepted') {
+        // Record registered staff who accepted order (without overwriting if already set)
+        if (authenticatedStaffId || authenticatedStaffName) {
+          if (!currentOrder.accepted_by_name && !currentOrder.accepted_by_id) {
+            updateSql += `, accepted_by_id = $${paramIdx++}, accepted_by_name = $${paramIdx++}, accepted_at = CURRENT_TIMESTAMP`;
+            params.push(authenticatedStaffId, authenticatedStaffName);
+          }
         }
       } else if (status === 'completed') {
-        // Record registered staff who completed order
-        if (authenticatedStaffName) {
+        // Record registered staff who completed order (without overwriting accepted_by_*)
+        if (authenticatedStaffId || authenticatedStaffName) {
           updateSql += `, completed_by_id = $${paramIdx++}, completed_by_name = $${paramIdx++}, completed_at = CURRENT_TIMESTAMP`;
           params.push(authenticatedStaffId, authenticatedStaffName);
         }
@@ -1695,31 +1856,80 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
       if (updateRes.rows.length > 0) {
         const row = updateRes.rows[0];
         updatedAt = new Date(row.updated_at).toISOString();
+
+        // Query with full JOINs to guarantee authentic display names
+        const refetchRes = await db.query(`
+          SELECT 
+            o.id, o.table_name, o.timestamp, o.total, o.payment_method, o.status,
+            o.guest_session_id, o.user_id, o.accepted_by_id,
+            COALESCE(NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''), s_acc.username, NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''), o.accepted_by_name) AS accepted_by_name,
+            o.accepted_at, o.completed_by_id,
+            COALESCE(NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''), s_comp.username, NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''), o.completed_by_name) AS completed_by_name,
+            o.completed_at, o.created_at, o.updated_at
+          FROM orders o
+          LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
+          LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
+          LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
+          LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
+          WHERE o.id = $1
+        `, [orderId]);
+
+        const finalRow = refetchRes.rows.length > 0 ? refetchRes.rows[0] : row;
+
         updatedOrder = {
-          id: row.id,
-          orderId: row.id,
-          status: row.status,
-          table: row.table_name,
-          total: parseFloat(row.total),
-          paymentMethod: row.payment_method,
-          guest_session_id: row.guest_session_id,
-          user_id: row.user_id,
-          accepted_by_id: row.accepted_by_id,
-          accepted_by_name: row.accepted_by_name,
-          accepted_at: row.accepted_at,
-          completed_by_id: row.completed_by_id,
-          completed_by_name: row.completed_by_name,
-          completed_at: row.completed_at,
+          id: finalRow.id,
+          orderId: finalRow.id,
+          status: finalRow.status,
+          table: finalRow.table_name,
+          total: parseFloat(finalRow.total),
+          paymentMethod: finalRow.payment_method,
+          guest_session_id: finalRow.guest_session_id,
+          user_id: finalRow.user_id,
+          accepted_by_id: finalRow.accepted_by_id,
+          accepted_by_staff_id: finalRow.accepted_by_id,
+          accepted_by_name: finalRow.accepted_by_name || null,
+          accepted_at: finalRow.accepted_at,
+          completed_by_id: finalRow.completed_by_id,
+          completed_by_staff_id: finalRow.completed_by_id,
+          completed_by_name: finalRow.completed_by_name || null,
+          completed_at: finalRow.completed_at,
           updatedAt
         };
       }
       console.log(`💾 [DB] Order ${orderId} updated to ${status} by ${authenticatedStaffName || 'Staff'}`);
     }
 
-    const payload = updatedOrder || {
+    if (memoryOrdersMap.has(orderId)) {
+      const memOrder = memoryOrdersMap.get(orderId);
+      memOrder.status = status;
+      memOrder.updatedAt = updatedAt;
+      if (status === 'preparing' || status === 'accepted') {
+        if (!memOrder.accepted_by_name) {
+          memOrder.accepted_by_id = authenticatedStaffId;
+          memOrder.accepted_by_staff_id = authenticatedStaffId;
+          memOrder.accepted_by_name = authenticatedStaffName;
+          memOrder.accepted_at = updatedAt;
+        }
+      } else if (status === 'completed') {
+        memOrder.completed_by_id = authenticatedStaffId;
+        memOrder.completed_by_staff_id = authenticatedStaffId;
+        memOrder.completed_by_name = authenticatedStaffName;
+        memOrder.completed_at = updatedAt;
+      }
+    }
+
+    const payload = updatedOrder || memoryOrdersMap.get(orderId) || {
       id: orderId,
       orderId,
       status,
+      accepted_by_id: (status === 'preparing' || status === 'accepted') ? authenticatedStaffId : null,
+      accepted_by_staff_id: (status === 'preparing' || status === 'accepted') ? authenticatedStaffId : null,
+      accepted_by_name: (status === 'preparing' || status === 'accepted') ? (authenticatedStaffName || clientStaffName || null) : null,
+      accepted_at: (status === 'preparing' || status === 'accepted') ? updatedAt : null,
+      completed_by_id: status === 'completed' ? authenticatedStaffId : null,
+      completed_by_staff_id: status === 'completed' ? authenticatedStaffId : null,
+      completed_by_name: status === 'completed' ? (authenticatedStaffName || clientStaffName || null) : null,
+      completed_at: status === 'completed' ? updatedAt : null,
       updatedAt
     };
 
@@ -1779,81 +1989,71 @@ async function createAndEmitOrderNotification(orderId, status, extraData = {}) {
     let title = 'Order Update';
     let message = `Order #${cleanId} status is now ${status}.`;
 
-    switch (status) {
-      case 'new':
-      case 'received':
-        title = 'Order Received';
-        message = `Order #${cleanId} has been received.`;
-        break;
-      case 'accepted':
-        title = 'Order Accepted';
-        message = `Order #${cleanId} has been accepted.`;
-        break;
-      case 'preparing':
-        title = 'Order Preparing';
-        message = `Your order #${cleanId} is being prepared.`;
-        break;
-      case 'ready':
-        title = 'Your order is ready!';
-        message = `Your order #${cleanId} is ready!`;
-        break;
-      case 'completed':
-        title = 'Order Completed';
-        message = `Order #${cleanId} has been completed. Thank you!`;
-        break;
-      case 'cancelled':
-        title = 'Order Cancelled';
-        message = `Order #${cleanId} was cancelled.`;
-        break;
+    if (status === 'new') {
+      title = 'Order Placed';
+      message = `Your order #${cleanId} has been placed successfully and received by our baristas.`;
+    } else if (status === 'accepted' || status === 'preparing') {
+      title = 'Order Accepted';
+      message = `Your order #${cleanId} is being prepared by our barista.`;
+    } else if (status === 'ready') {
+      title = 'Your order is ready!';
+      message = `Order #${cleanId} is ready for pickup/serving. Please collect at counter.`;
+    } else if (status === 'completed') {
+      title = 'Order Completed';
+      message = `Order #${cleanId} has been completed. Thank you for visiting Scialla Cafe!`;
+    } else if (status === 'cancelled') {
+      title = 'Order Cancelled';
+      message = `Order #${cleanId} was cancelled. Please contact staff for assistance.`;
     }
 
-    let notificationRecord = null;
+    let notificationRecord = {
+      order_id: orderId,
+      orderId,
+      guest_session_id: guestSessionId,
+      user_id: userId,
+      status,
+      title,
+      message,
+      is_read: false,
+      created_at: new Date().toISOString()
+    };
+
     if (db.pool) {
       try {
         const notifRes = await db.query(
           `INSERT INTO customer_notifications (order_id, guest_session_id, user_id, status, title, message, is_read, created_at)
            VALUES ($1, $2, $3, $4, $5, $6, FALSE, CURRENT_TIMESTAMP)
-           ON CONFLICT (order_id, status) DO NOTHING
+           ON CONFLICT (order_id, status) DO UPDATE SET
+             title = EXCLUDED.title,
+             message = EXCLUDED.message,
+             is_read = FALSE,
+             created_at = CURRENT_TIMESTAMP
            RETURNING *`,
           [orderId, guestSessionId, userId, status, title, message]
         );
-
         if (notifRes.rows.length > 0) {
-          const row = notifRes.rows[0];
+          const nr = notifRes.rows[0];
           notificationRecord = {
-            id: String(row.id),
-            key: `${orderId}-${status}`,
-            orderId,
-            status,
-            title: row.title,
-            message: row.message,
-            read: row.is_read,
-            timestamp: new Date(row.created_at).toISOString(),
+            id: nr.id,
+            order_id: nr.order_id,
+            orderId: nr.order_id,
+            guest_session_id: nr.guest_session_id,
+            user_id: nr.user_id,
+            status: nr.status,
+            title: nr.title,
+            message: nr.message,
+            is_read: nr.is_read,
+            created_at: nr.created_at,
             accepted_by_name: extraData.accepted_by_name || (order ? order.accepted_by_name : null),
             completed_by_name: extraData.completed_by_name || (order ? order.completed_by_name : null)
           };
         }
       } catch (err) {
-        console.warn('Note on customer_notifications insert:', err.message);
+        console.warn('Customer notification persistence note:', err.message);
       }
     }
 
-    if (!notificationRecord) {
-      notificationRecord = {
-        id: `${orderId}-${status}`,
-        key: `${orderId}-${status}`,
-        orderId,
-        status,
-        title,
-        message,
-        read: false,
-        timestamp: new Date().toISOString(),
-        accepted_by_name: extraData.accepted_by_name || (order ? order.accepted_by_name : null),
-        completed_by_name: extraData.completed_by_name || (order ? order.completed_by_name : null)
-      };
-    }
-
-    // Emit strictly to the private order room and private guest/user room
+    // Emit targeted notification strictly to owner rooms
     io.to(`order:${orderId}`).emit('notification:new', notificationRecord);
     if (guestSessionId) {
       io.to(`guest:${guestSessionId}`).emit('notification:new', notificationRecord);
@@ -1862,10 +2062,10 @@ async function createAndEmitOrderNotification(orderId, status, extraData = {}) {
       io.to(`user:${userId}`).emit('notification:new', notificationRecord);
     }
 
-    console.log(`🔔 [Notification] Emitted "${status}" for Order #${orderId} to private rooms`);
+    console.log(`🔔 [Notification] Targeted dispatch for order #${cleanId} (${status})`);
     return notificationRecord;
   } catch (err) {
-    console.error('Error in createAndEmitOrderNotification:', err);
+    console.error('Create Order Notification Error:', err);
     return null;
   }
 }
@@ -1981,6 +2181,51 @@ app.delete('/api/notifications', requireDatabase, optionalAuth, async (req, res)
   }
 });
 
+// Helper: Authenticate and register socket connection
+async function registerAuthenticatedSocket(socket, decoded) {
+  socket.data.user = decoded;
+  socket.data.role = decoded.role;
+
+  if (decoded.role === 'staff' || decoded.role === 'manager') {
+    socket.join('staff:orders');
+  }
+
+  socket.join(`user:${decoded.id}`);
+
+  if (decoded.role === 'staff') {
+    let staffName = decoded.name;
+    let staffRole = decoded.staffRole || decoded.role || 'Barista';
+
+    if (db.pool) {
+      try {
+        const stRes = await db.query('SELECT first_name, last_name, username, role FROM staff WHERE id = $1', [decoded.id]);
+        if (stRes.rows.length > 0) {
+          const st = stRes.rows[0];
+          staffName = `${st.first_name || ''} ${st.last_name || ''}`.trim() || st.username;
+          staffRole = st.role || staffRole;
+        }
+      } catch (err) {
+        console.warn('Error fetching staff profile for socket auth:', err.message);
+      }
+    }
+
+    activeStaffSockets.set(socket.id, {
+      id: decoded.id,
+      name: staffName || decoded.name || 'Staff',
+      email: decoded.email,
+      role: staffRole,
+      loginTime: new Date().toISOString()
+    });
+
+    console.log(`[Socket Auth] Staff ${decoded.id} (${staffName || decoded.name || 'Staff'}) connected`);
+    getStaffOnDutyWithStats().then((list) => {
+      io.emit('staff:presence', list);
+    });
+  } else if (decoded.role === 'manager') {
+    console.log(`[Socket Auth] Manager ${decoded.id} (${decoded.name || 'Manager'}) connected`);
+  }
+}
+
 // Socket.IO Real-Time Event Handlers with Authentication & Ownership Verification
 io.on('connection', (socket) => {
   console.log(`⚡ [Socket] Client connected: ${socket.id}`);
@@ -1993,27 +2238,7 @@ io.on('connection', (socket) => {
   if (token) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET || 'scialla_dev_jwt_secret_key_2026');
-      socket.data.user = decoded;
-      socket.data.role = decoded.role;
-
-      if (decoded.role === 'staff' || decoded.role === 'manager') {
-        socket.join('staff:orders');
-      }
-
-      if (decoded.role === 'staff') {
-        activeStaffSockets.set(socket.id, {
-          id: decoded.id,
-          name: decoded.name || 'Staff Member',
-          email: decoded.email,
-          role: decoded.staffRole || decoded.role || 'Barista',
-          loginTime: new Date().toISOString()
-        });
-        console.log(`[Socket Auth] Staff ${decoded.id} (${decoded.name}) on duty.`);
-        getStaffOnDutyWithStats().then((list) => {
-          io.emit('staff:presence', list);
-        });
-      }
-      socket.join(`user:${decoded.id}`);
+      registerAuthenticatedSocket(socket, decoded);
     } catch {
       // Invalid token ignored
     }
@@ -2024,6 +2249,38 @@ io.on('connection', (socket) => {
     socket.join(`guest:${guestSessionId}`);
     console.log(`👤 [Socket Auth] Guest session connected: guest:${guestSessionId}`);
   }
+
+  // Dynamic socket authentication handler (allows instant room joining upon login without reconnect race)
+  socket.on('authenticate', async (payload) => {
+    const rawToken = typeof payload === 'string' ? payload : (payload?.token || null);
+    if (!rawToken) return;
+
+    try {
+      const decoded = jwt.verify(rawToken, JWT_SECRET || 'scialla_dev_jwt_secret_key_2026');
+      await registerAuthenticatedSocket(socket, decoded);
+      socket.emit('authenticated', { success: true, user: decoded });
+    } catch (err) {
+      console.warn('[Socket Auth] Authentication event failed:', err.message);
+      socket.emit('authenticated', { success: false, message: 'Invalid token' });
+    }
+  });
+
+  // Socket logout handler to cleanly remove presence and leave staff rooms
+  socket.on('logout', () => {
+    if (activeStaffSockets.has(socket.id)) {
+      activeStaffSockets.delete(socket.id);
+      getStaffOnDutyWithStats().then((list) => {
+        io.emit('staff:presence', list);
+      });
+    }
+    socket.leave('staff:orders');
+    if (socket.data.user?.id) {
+      socket.leave(`user:${socket.data.user.id}`);
+    }
+    socket.data.user = null;
+    socket.data.role = null;
+    console.log(`🚪 [Socket] Client ${socket.id} signed out`);
+  });
 
   // Customer joins order-specific room for targeted status tracking with server verification
   socket.on('join:order', async (orderId) => {
@@ -2126,13 +2383,13 @@ io.on('connection', (socket) => {
         let params = [status, id];
         let pIdx = 3;
 
-        if (status === 'preparing') {
-          if (staffName) {
+        if (status === 'preparing' || status === 'accepted') {
+          if (staffId || staffName) {
             updateSql += `, accepted_by_id = $${pIdx++}, accepted_by_name = $${pIdx++}, accepted_at = CURRENT_TIMESTAMP`;
             params.push(staffId, staffName);
           }
         } else if (status === 'completed') {
-          if (staffName) {
+          if (staffId || staffName) {
             updateSql += `, completed_by_id = $${pIdx++}, completed_by_name = $${pIdx++}, completed_at = CURRENT_TIMESTAMP`;
             params.push(staffId, staffName);
           }
@@ -2144,31 +2401,83 @@ io.on('connection', (socket) => {
         if (updateRes.rows.length > 0) {
           const row = updateRes.rows[0];
           updatedAt = new Date(row.updated_at).toISOString();
+
+          // Refetch with LEFT JOINs to guarantee joined display names
+          const refetchRes = await db.query(`
+            SELECT 
+              o.id, o.table_name, o.timestamp, o.total, o.payment_method, o.status,
+              o.guest_session_id, o.user_id, o.accepted_by_id,
+              COALESCE(NULLIF(TRIM(CONCAT(s_acc.first_name, ' ', s_acc.last_name)), ''), s_acc.username, NULLIF(TRIM(CONCAT(m_acc.first_name, ' ', m_acc.last_name)), ''), o.accepted_by_name) AS accepted_by_name,
+              o.accepted_at, o.completed_by_id,
+              COALESCE(NULLIF(TRIM(CONCAT(s_comp.first_name, ' ', s_comp.last_name)), ''), s_comp.username, NULLIF(TRIM(CONCAT(m_comp.first_name, ' ', m_comp.last_name)), ''), o.completed_by_name) AS completed_by_name,
+              o.completed_at, o.created_at, o.updated_at
+            FROM orders o
+            LEFT JOIN staff s_acc ON s_acc.id = o.accepted_by_id
+            LEFT JOIN managers m_acc ON m_acc.id = o.accepted_by_id
+            LEFT JOIN staff s_comp ON s_comp.id = o.completed_by_id
+            LEFT JOIN managers m_comp ON m_comp.id = o.completed_by_id
+            WHERE o.id = $1
+          `, [id]);
+
+          const finalRow = refetchRes.rows.length > 0 ? refetchRes.rows[0] : row;
+
           updatedOrder = {
-            id: row.id,
-            orderId: row.id,
-            status: row.status,
-            table: row.table_name,
-            total: parseFloat(row.total),
-            paymentMethod: row.payment_method,
-            guest_session_id: row.guest_session_id,
-            user_id: row.user_id,
-            accepted_by_id: row.accepted_by_id,
-            accepted_by_name: row.accepted_by_name,
-            accepted_at: row.accepted_at,
-            completed_by_id: row.completed_by_id,
-            completed_by_name: row.completed_by_name,
-            completed_at: row.completed_at,
+            id: finalRow.id,
+            orderId: finalRow.id,
+            status: finalRow.status,
+            table: finalRow.table_name,
+            total: parseFloat(finalRow.total),
+            paymentMethod: finalRow.payment_method,
+            guest_session_id: finalRow.guest_session_id,
+            user_id: finalRow.user_id,
+            accepted_by_id: finalRow.accepted_by_id,
+            accepted_by_staff_id: finalRow.accepted_by_id,
+            accepted_by_name: finalRow.accepted_by_name || null,
+            accepted_at: finalRow.accepted_at,
+            completed_by_id: finalRow.completed_by_id,
+            completed_by_staff_id: finalRow.completed_by_id,
+            completed_by_name: finalRow.completed_by_name || null,
+            completed_at: finalRow.completed_at,
             updatedAt
           };
         }
         console.log(`💾 [Socket DB] Order ${id} status updated to: ${status}`);
       }
 
-      const payload = updatedOrder || {
+      const currentStaffId = socket.data.user?.id || null;
+      const currentStaffName = socket.data.user?.name || clientStaffName || null;
+
+      if (memoryOrdersMap.has(id)) {
+        const memOrder = memoryOrdersMap.get(id);
+        memOrder.status = status;
+        memOrder.updatedAt = updatedAt;
+        if (status === 'preparing' || status === 'accepted') {
+          if (!memOrder.accepted_by_name) {
+            memOrder.accepted_by_id = currentStaffId;
+            memOrder.accepted_by_staff_id = currentStaffId;
+            memOrder.accepted_by_name = currentStaffName;
+            memOrder.accepted_at = updatedAt;
+          }
+        } else if (status === 'completed') {
+          memOrder.completed_by_id = currentStaffId;
+          memOrder.completed_by_staff_id = currentStaffId;
+          memOrder.completed_by_name = currentStaffName;
+          memOrder.completed_at = updatedAt;
+        }
+      }
+
+      const payload = updatedOrder || memoryOrdersMap.get(id) || {
         id,
         orderId: id,
         status,
+        accepted_by_id: (status === 'preparing' || status === 'accepted') ? currentStaffId : null,
+        accepted_by_staff_id: (status === 'preparing' || status === 'accepted') ? currentStaffId : null,
+        accepted_by_name: (status === 'preparing' || status === 'accepted') ? currentStaffName : null,
+        accepted_at: (status === 'preparing' || status === 'accepted') ? updatedAt : null,
+        completed_by_id: status === 'completed' ? currentStaffId : null,
+        completed_by_staff_id: status === 'completed' ? currentStaffId : null,
+        completed_by_name: status === 'completed' ? currentStaffName : null,
+        completed_at: status === 'completed' ? updatedAt : null,
         updatedAt
       };
 

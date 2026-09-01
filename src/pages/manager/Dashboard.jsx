@@ -117,7 +117,7 @@ export default function Dashboard() {
                       <td>
                         {ord.status === 'completed' ? (
                           <span style={{ color: '#86efac', fontWeight: 600 }}>
-                            {ord.completed_by_name || 'Staff Member'}
+                            {ord.completed_by_name || '—'}
                           </span>
                         ) : (
                           <span style={{ color: '#8C7B70' }}>—</span>

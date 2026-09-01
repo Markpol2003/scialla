@@ -223,7 +223,7 @@ export default function ManagerOrders() {
                   {filteredOrders.map((ord) => {
                     const isCompleted = ord.status === 'completed';
                     const completedByDisplay = isCompleted
-                      ? (ord.completed_by_name || 'Staff Member')
+                      ? (ord.completed_by_name || '—')
                       : '—';
 
                     return (
@@ -248,50 +248,19 @@ export default function ManagerOrders() {
                             {ord.status.toUpperCase()}
                           </span>
                         </td>
-                        <td style={{ padding: '12px' }}>
-                          {isCompleted ? (
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{
-                                width: '20px',
-                                height: '20px',
-                                borderRadius: '50%',
-                                background: 'rgba(34, 197, 94, 0.2)',
-                                color: '#86efac',
-                                fontSize: '0.65rem',
-                                fontWeight: 900,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}>
-                                ✓
-                              </span>
-                              <span style={{ fontWeight: 600, color: '#F5EDE6' }}>
-                                {completedByDisplay}
-                              </span>
-                            </div>
-                          ) : (
-                            <span style={{ color: '#8C7B70' }}>—</span>
-                          )}
+                        <td style={{ padding: '12px', color: isCompleted ? '#4ade80' : '#8C7B70', fontWeight: isCompleted ? 600 : 400 }}>
+                          {completedByDisplay}
                         </td>
-                        <td style={{ padding: '12px', color: '#D4C3B3', fontSize: '0.82rem' }}>
-                          {formatOrderTime(ord)}
+                        <td style={{ padding: '12px', color: '#F5EDE6', fontSize: '0.85rem' }}>
+                          {formatFullDateTime(ord.timestamp || ord.createdAt || ord.created_at)}
                         </td>
                         <td style={{ padding: '12px', textAlign: 'center' }}>
                           <button
                             type="button"
-                            className="btn-action-small"
+                            className="btn-order-audit-trigger"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedOrder(ord);
-                            }}
-                            style={{
-                              background: 'rgba(201, 139, 91, 0.15)',
-                              border: '1px solid rgba(201, 139, 91, 0.3)',
-                              borderRadius: '6px',
-                              color: '#E2B688',
-                              padding: '4px 10px',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer'
                             }}
                           >
                             View Audit
@@ -309,7 +278,7 @@ export default function ManagerOrders() {
               {filteredOrders.map((ord) => {
                 const isCompleted = ord.status === 'completed';
                 const completedByDisplay = isCompleted
-                  ? (ord.completed_by_name || 'Staff Member')
+                  ? (ord.completed_by_name || '—')
                   : '—';
 
                 return (
@@ -428,7 +397,7 @@ export default function ManagerOrders() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(201, 139, 91, 0.15)', paddingTop: '6px' }}>
                 <span style={{ fontSize: '0.8rem', color: '#D4C3B3' }}>Completed By:</span>
                 <span style={{ fontSize: '0.82rem', fontWeight: 700, color: selectedOrder.status === 'completed' ? '#4ade80' : '#A08070' }}>
-                  {selectedOrder.status === 'completed' ? (selectedOrder.completed_by_name || 'Staff Member') : 'Not completed'}
+                  {selectedOrder.status === 'completed' ? (selectedOrder.completed_by_name || '—') : 'Not completed'}
                 </span>
               </div>
 

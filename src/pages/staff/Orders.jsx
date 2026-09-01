@@ -554,7 +554,7 @@ export default function Orders() {
                     {/* Staff Handlers Audit Trail */}
                     <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '8px 10px', marginBottom: '12px', fontSize: '0.76rem', color: '#D4C3B3', lineHeight: '1.4' }}>
                       <div>
-                        <strong>Accepted by:</strong> {ord.accepted_by_name || 'Staff Member'} {ord.accepted_at ? `at ${new Date(ord.accepted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                        <strong>Accepted by:</strong> {ord.accepted_by_name || '—'} {ord.accepted_at ? `at ${new Date(ord.accepted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
                       </div>
                       {ord.completed_by_name && (
                         <div style={{ marginTop: '3px' }}>

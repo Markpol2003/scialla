@@ -729,6 +729,12 @@ export function AppProvider({ children }) {
       console.log(`⚡ Scialla Real-Time Socket.IO connected (${socketInstance.id}) on ${WS_URL}`);
       setIsConnected(true);
 
+      // Authenticate socket session with server immediately upon connection
+      const activeToken = localStorage.getItem('scialla_token');
+      if (activeToken) {
+        socketInstance.emit('authenticate', { token: activeToken });
+      }
+
       // Re-join all active order rooms for this customer across refresh/reconnect
       try {
         const savedIds = localStorage.getItem('scialla_customer_order_ids');
@@ -913,6 +919,19 @@ export function AppProvider({ children }) {
       setCurrentUser(response.user);
       setActiveRole(response.user.role);
       setIsAuthModalOpen(false);
+
+      // Authenticate active Socket.IO connection immediately with verified token
+      if (socket) {
+        socket.auth = {
+          token: response.token,
+          guestSessionId: localStorage.getItem('scialla_guest_session')
+        };
+        socket.emit('authenticate', { token: response.token });
+        if (!socket.connected) {
+          socket.connect();
+        }
+      }
+
       return { success: true, user: response.user };
     } else {
       return { success: false, message: response?.message || 'Authentication failed.' };
@@ -921,6 +940,13 @@ export function AppProvider({ children }) {
 
   const logout = () => {
     api.logout();
+    if (socket) {
+      socket.emit('logout');
+      socket.auth = {
+        token: null,
+        guestSessionId: localStorage.getItem('scialla_guest_session')
+      };
+    }
     localStorage.removeItem('scialla_token');
     localStorage.removeItem('scialla_user');
     setCurrentUser(null);

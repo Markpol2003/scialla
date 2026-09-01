@@ -29,7 +29,7 @@ export default function Staff() {
   const displayStaffOnDuty = (staffOnDuty && staffOnDuty.length > 0 ? staffOnDuty : filteredStaffList.filter((s) => s.status === 'Active'))
     .filter((s) => (s.role || s.staffRole || '').toLowerCase() !== 'manager')
     .map((s) => {
-      const fullName = `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.name || s.username || 'Staff Member';
+      const fullName = `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.name || s.username || 'Staff';
       const liveOrdersCount = orders.filter((o) =>
         (o.accepted_by_id && String(o.accepted_by_id) === String(s.id)) ||
         (o.completed_by_id && String(o.completed_by_id) === String(s.id)) ||
