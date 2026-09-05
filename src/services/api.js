@@ -206,6 +206,15 @@ export const api = {
     return data.products;
   },
 
+  async uploadProductImage(file) {
+    const response = await fetch(API_BASE_URL + '/api/products/images?filename=' + encodeURIComponent(file.name), {
+      method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': file.type }, body: file
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.message || 'Unable to upload image.');
+    return data.image;
+  },
+
   async saveProduct(id, product) {
     const response = await fetch(API_BASE_URL + '/api/products' + (id ? '/' + encodeURIComponent(id) : ''), {
       method: id ? 'PATCH' : 'POST', headers: getAuthHeaders(), body: JSON.stringify(product)

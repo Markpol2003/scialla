@@ -11,6 +11,7 @@ require('dotenv').config();
 
 const db = require('./db');
 const { initializeCatalog, registerCatalogRoutes } = require('./productCatalog');
+const { registerProductImages } = require('./productImages');
 const emailService = require('./emailService');
 
 const PORT = process.env.PORT || 10000;
@@ -62,6 +63,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
+registerProductImages(app, { verifyToken, verifyManager });
 
 // Look for frontend build dist folder
 const candidateDistPaths = [

@@ -1,3 +1,4 @@
+import { productImageUrl, productImageFallback } from '../../utils/productImage';
 import React, { useState, useRef } from 'react';
 import Live3DBackground from '../../Live3DBackground';
 import { useApp } from '../../context/AppContext';
@@ -367,7 +368,7 @@ export default function CustomerMenuPage() {
                   const cartItem = cart.find((c) => c.id === cartItemId);
                   const qty = cartItem ? cartItem.qty : 0;
                   const isOutOfStock = !item.inStock;
-                  const cardImg = item.image || '/images/products/caramelmacc.png';
+                  const cardImg = productImageUrl(item.image);
 
                   return (
                     <div
@@ -379,10 +380,7 @@ export default function CustomerMenuPage() {
                           src={cardImg}
                           alt={item.name}
                           className="card-bg-image"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = '/images/products/caramelmacc.png';
-                          }}
+                          onError={productImageFallback}
                         />
                         <div className="card-bg-overlay" />
                       </div>
@@ -699,7 +697,7 @@ export default function CustomerMenuPage() {
 
             <div style={{ textAlign: 'center', marginBottom: '16px' }}>
               <img
-                src={modalItem.image || '/images/products/caramelmacc.png'}
+                src={productImageUrl(modalItem.image)} onError={productImageFallback}
                 alt={modalItem.name}
                 style={{ height: '130px', width: 'auto', objectFit: 'contain', margin: '0 auto 10px', borderRadius: '12px' }}
               />

@@ -1,3 +1,4 @@
+import { productImageUrl, productImageFallback } from '../../utils/productImage';
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import CategoryFilterBar from '../../components/customer/CategoryFilterBar';
@@ -200,7 +201,7 @@ export default function Menu({ onAddToCart, cart }) {
                 const cartItem = cart.find((c) => c.id === cartItemId);
                 const qty = cartItem ? cartItem.qty : 0;
                 const isOutOfStock = !item.inStock;
-                const cardImg = item.image || '/images/products/caramelmacc.png';
+                const cardImg = productImageUrl(item.image);
 
                 return (
                   <div
@@ -212,10 +213,7 @@ export default function Menu({ onAddToCart, cart }) {
                         src={cardImg}
                         alt={item.name}
                         className="card-bg-image"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = '/images/products/caramelmacc.png';
-                        }}
+                        onError={productImageFallback}
                       />
                     </div>
 
@@ -280,7 +278,7 @@ export default function Menu({ onAddToCart, cart }) {
             <div style={{ textAlign: 'center', marginBottom: '16px' }}>
               <div className="product-modal-image-wrap">
                 <img
-                  src={modalItem.image || '/images/products/caramelmacc.png'}
+                  src={productImageUrl(modalItem.image)} onError={productImageFallback}
                   alt={modalItem.name}
                   style={{ height: '130px', width: 'auto', objectFit: 'contain', borderRadius: '8px' }}
                 />

@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import categories from '../../../shared/catalog.json';
 import './ProductForm.css';
+import { api } from '../../services/api';
+import { productImageUrl, productImageFallback } from '../../utils/productImage';
 
 export default function ProductForm({ product, onSave, onClose }) {
   const [form, setForm] = useState(() => ({
@@ -12,6 +14,29 @@ export default function ProductForm({ product, onSave, onClose }) {
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const imageInput = useRef(null);
+  useEffect(() => {
+    if (!imageFile) { setImagePreview(''); return; }
+    const url = URL.createObjectURL(imageFile);
+    setImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
+  const chooseImage = event => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const types = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+    if (types[file.name.split('.').pop().toLowerCase()] !== file.type || !file.type) {
+      setError('Choose a JPG, JPEG, PNG, or WebP image.'); return;
+    }
+    if (!file.size || file.size > 25 * 1024 * 1024) {
+      setError('Choose a non-empty image that is 25 MB or smaller.'); return;
+    }
+    setError('');
+    setImageFile(file);
+  };
   const category = categories.find(c => c.id === form.categoryId);
   const sizeOptions = category.items.find(i => i.sizes)?.sizes || [];
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
@@ -20,7 +45,21 @@ export default function ProductForm({ product, onSave, onClose }) {
     if (saving) return;
     setSaving(true);
     setError('');
-    try { await onSave(product?.id, form); onClose(); }
+    try {
+      let image = form.image;
+      if (imageFile) {
+        try { image = await api.uploadProductImage(imageFile); }
+        catch {
+          setImageFile(null);
+          setError('Image upload failed. Choose another image or save again using the current image or placeholder.');
+          return;
+        }
+        setForm(prev => ({ ...prev, image }));
+        setImageFile(null);
+      }
+      await onSave(product?.id, { ...form, image });
+      onClose();
+    }
     catch (err) { setError(err.message || 'Unable to save product.'); }
     finally { setSaving(false); }
   };
@@ -42,8 +81,18 @@ export default function ProductForm({ product, onSave, onClose }) {
                 <input type="number" min="0" max="99999999.99" step="0.01" required value={size.price} onChange={e => update('sizes', form.sizes.map((s, i) => i === index ? { ...s, price: e.target.value } : s))} />
               </label>)}</div>}
             </>}
-            <label>Image path<input placeholder="/images/products/spanish.png" value={form.image} onChange={e => update('image', e.target.value)} /></label>
-            <small>Use an existing image under /images/products/.</small>
+            <div className="product-image-upload">
+              <label htmlFor="product-image-file">Product Image</label>
+              <input ref={imageInput} id="product-image-file" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={chooseImage} hidden />
+              {!imageFile && form.image && <small>Current Image</small>}
+              <img className="product-image-preview" src={imagePreview || productImageUrl(form.image)} onError={productImageFallback} alt={imageFile ? 'Selected product image preview' : 'Current product image'} />
+              <div className="product-image-actions">
+                <button type="button" onClick={() => imageInput.current?.click()}>{imageFile || form.image ? 'Replace Image' : 'Choose Image'}</button>
+                {imageFile && <button type="button" onClick={() => setImageFile(null)}>Remove Selection</button>}
+              </div>
+              {imageFile && <span className="product-image-filename">{imageFile.name}</span>}
+              <small>JPG, JPEG, PNG, or WebP. Maximum 25 MB. Uploads when you save.</small>
+            </div>
             <div className="product-editor-sizes">
               <label>Availability<select value={String(form.inStock)} onChange={e => update('inStock', e.target.value === 'true')}><option value="true">Available</option><option value="false">Unavailable</option></select></label>
               <label>Product Status<select value={String(form.active)} onChange={e => update('active', e.target.value === 'true')}><option value="true">Active</option><option value="false">Inactive</option></select></label>
