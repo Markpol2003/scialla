@@ -110,10 +110,12 @@ export default function OrderHistoryModal({ isOpen, onClose }) {
                     <span style={{ color: '#8c7b70' }}>Destination: </span>
                     <strong style={{ color: '#FFFFFF' }}>{selectedOrder.table}</strong>
                   </div>
-                  <div>
-                    <span style={{ color: '#8c7b70' }}>Payment: </span>
-                    <strong style={{ color: '#FFFFFF' }}>{selectedOrder.paymentMethod || 'Cash'}</strong>
-                  </div>
+                  {selectedOrder.paymentMethod && (
+                    <div>
+                      <span style={{ color: '#8c7b70' }}>Payment: </span>
+                      <strong style={{ color: '#FFFFFF' }}>{selectedOrder.paymentMethod}</strong>
+                    </div>
+                  )}
                   <div style={{ gridColumn: 'span 2' }}>
                     <span style={{ color: '#8c7b70' }}>Date/Time: </span>
                     <strong style={{ color: '#FFFFFF' }}>

@@ -363,7 +363,7 @@ export default function ManagerOrders() {
                 Order #{selectedOrder.id}
               </h2>
               <p className="brand-subtitle">
-                {selectedOrder.table || 'Counter Pickup'} &bull; {selectedOrder.paymentMethod || 'Cash'}
+                {selectedOrder.table || 'Counter Pickup'}{selectedOrder.paymentMethod && <> &bull; {selectedOrder.paymentMethod}</>}
               </p>
             </div>
 

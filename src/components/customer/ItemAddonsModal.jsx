@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useApp } from '../../context/AppContext';
 
 export const DRINK_ADDONS = [
   { id: 'da1', name: 'Sweetener Syrup', price: 10 },
@@ -21,7 +22,14 @@ export const FOOD_ADDONS = [
   { id: 'fa4', name: 'Extra Mayonnaise', price: 25 },
 ];
 
-export function getCompatibleAddons(item) {
+export function getCompatibleAddons(item, menuCategories) {
+  if (menuCategories) {
+    const current = menuCategories.find(c => c.items.some(i => i.id === (item?.originalId || item?.id)));
+    if (current?.id === 'drinkaddons' || current?.id === 'foodaddons') return [];
+    const legacy = getCompatibleAddons({ ...item, category: current?.category || item?.category });
+    const addonCategory = legacy === DRINK_ADDONS ? 'drinkaddons' : 'foodaddons';
+    return legacy.length ? (menuCategories.find(c => c.id === addonCategory)?.items || legacy).filter(a => a.inStock !== false && a.active !== false) : [];
+  }
   if (!item) return [];
   const id = String(item.id || item.originalId || '').toLowerCase();
   const category = String(item.category || '').toLowerCase();
@@ -71,10 +79,14 @@ export function getCompatibleAddons(item) {
 }
 
 export default function ItemAddonsModal({ isOpen, item, onClose, onSave }) {
+  const { menuCategories } = useApp();
   if (!isOpen || !item) return null;
+  return <AddonEditor key={item.id} item={item} onClose={onClose} onSave={onSave} menuCategories={menuCategories} />;
+}
 
-  const availableAddons = getCompatibleAddons(item);
-  const isDrink = availableAddons === DRINK_ADDONS;
+function AddonEditor({ item, onClose, onSave, menuCategories }) {
+  const availableAddons = getCompatibleAddons(item, menuCategories);
+  const isDrink = getCompatibleAddons(item) === DRINK_ADDONS;
   const initialSelectedIds = (item.addons || []).map((a) => a.id);
   const [selectedIds, setSelectedIds] = useState(initialSelectedIds);
   const [isMobile, setIsMobile] = useState(false);

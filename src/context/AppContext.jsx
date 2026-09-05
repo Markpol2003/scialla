@@ -35,340 +35,7 @@ function shouldAcceptStatusUpdate(currentStatus, incomingStatus) {
   return true;
 }
 
-const initialCategories = [
-  {
-    id: 'coffee',
-    category: 'Coffee Drinks',
-    items: [
-      {
-        id: 'cf1',
-        name: 'Caramel Macchiato',
-        description: 'Rich espresso, velvety steamed milk, and sweet caramel drizzle',
-        price: 49,
-        sizes: [
-          { label: '12 oz', size: '12 oz', price: 49 },
-          { label: '16 oz', size: '16 oz', price: 69 },
-          { label: '22 oz', size: '22 oz', price: 89 }
-        ],
-        tag: 'Popular',
-        inStock: true,
-        image: '/images/products/caramelmacc.png'
-      },
-      {
-        id: 'cf2',
-        name: 'Iced Mocha',
-        description: 'Dark Dutch cocoa folded into double shot espresso and chilled milk',
-        price: 60,
-        sizes: [
-          { label: '12 oz', size: '12 oz', price: 60 },
-          { label: '16 oz', size: '16 oz', price: 80 },
-          { label: '22 oz', size: '22 oz', price: 105 }
-        ],
-        tag: 'Indulgent',
-        inStock: true,
-        image: '/images/products/icemocha.png'
-      },
-      {
-        id: 'cf3',
-        name: 'Spanish Latte',
-        description: 'Espresso infused with sweet condensed milk and fresh whole milk',
-        price: 49,
-        sizes: [
-          { label: '12 oz', size: '12 oz', price: 49 },
-          { label: '16 oz', size: '16 oz', price: 69 },
-          { label: '22 oz', size: '22 oz', price: 89 }
-        ],
-        tag: 'Best Seller',
-        inStock: true,
-        image: '/images/products/spanish.png'
-      },
-      {
-        id: 'cf4',
-        name: 'Oreo Dalgona',
-        description: 'Whipped espresso froth layered over creamy chilled milk & Oreo crumbles',
-        price: 55,
-        sizes: [
-          { label: '12 oz', size: '12 oz', price: 55 },
-          { label: '16 oz', size: '16 oz', price: 75 },
-          { label: '22 oz', size: '22 oz', price: 95 }
-        ],
-        tag: 'Signature',
-        inStock: true,
-        image: '/images/products/oreodalgona.png'
-      }
-    ]
-  },
-  {
-    id: 'noncoffee',
-    category: 'Non-Coffee Drinks',
-    items: [
-      {
-        id: 'nc1',
-        name: 'Black Forest',
-        description: 'Rich chocolate blend with dark cherry syrup and whipped cream',
-        price: 55,
-        sizes: [
-          { label: '12 oz', size: '12 oz', price: 55 },
-          { label: '16 oz', size: '16 oz', price: 75 },
-          { label: '22 oz', size: '22 oz', price: 95 }
-        ],
-        tag: 'Decadent',
-        inStock: true,
-        image: '/images/products/cocoadream.png'
-      },
-      {
-        id: 'nc2',
-        name: 'Blueberry Cream',
-        description: 'Smooth organic blueberry puree blended with rich fresh milk',
-        price: 49,
-        sizes: [
-          { label: '12 oz', size: '12 oz', price: 49 },
-          { label: '16 oz', size: '16 oz', price: 69 },
-          { label: '22 oz', size: '22 oz', price: 89 }
-        ],
-        tag: 'Fruity',
-        inStock: true,
-        image: '/images/products/blueberrysoda.png'
-      },
-      {
-        id: 'nc3',
-        name: 'Strawberry Cream',
-        description: 'Sweet strawberry infusion folded into thick velvety cream',
-        price: 49,
-        sizes: [
-          { label: '12 oz', size: '12 oz', price: 49 },
-          { label: '16 oz', size: '16 oz', price: 69 },
-          { label: '22 oz', size: '22 oz', price: 89 }
-        ],
-        tag: 'Popular',
-        inStock: true,
-        image: '/images/products/strawberry.png'
-      },
-      {
-        id: 'nc4',
-        name: 'Cocoa Dream',
-        description: 'Premium Dutch dark chocolate blend topped with chocolate dust',
-        price: 55,
-        sizes: [
-          { label: '12 oz', size: '12 oz', price: 55 },
-          { label: '16 oz', size: '16 oz', price: 75 },
-          { label: '22 oz', size: '22 oz', price: 95 }
-        ],
-        tag: 'Rich',
-        inStock: true,
-        image: '/images/products/cocoadream.png'
-      },
-      {
-        id: 'nc5',
-        name: 'Creamy Taro',
-        description: 'Sweet purple taro root blended into silky sweet milk tea',
-        price: 49,
-        sizes: [
-          { label: '12 oz', size: '12 oz', price: 49 },
-          { label: '16 oz', size: '16 oz', price: 69 },
-          { label: '22 oz', size: '22 oz', price: 89 }
-        ],
-        tag: 'Smooth',
-        inStock: true,
-        image: '/images/products/tarocream.png'
-      },
-      {
-        id: 'nc6',
-        name: 'Oreo & Strawberry',
-        description: 'Crushed Oreo cookies paired with fresh strawberry cream',
-        price: 55,
-        sizes: [
-          { label: '12 oz', size: '12 oz', price: 55 },
-          { label: '16 oz', size: '16 oz', price: 75 },
-          { label: '22 oz', size: '22 oz', price: 95 }
-        ],
-        tag: 'Special',
-        inStock: true,
-        image: '/images/products/strawberrymilk.png'
-      },
-      {
-        id: 'nc7',
-        name: 'Matcha',
-        description: 'Authentic Uji Japanese matcha whisked with fresh whole milk',
-        price: 65,
-        sizes: [
-          { label: '12 oz', size: '12 oz', price: 65 },
-          { label: '16 oz', size: '16 oz', price: 85 },
-          { label: '22 oz', size: '22 oz', price: 105 }
-        ],
-        tag: 'Authentic',
-        inStock: true,
-        image: '/images/products/matcha.png'
-      },
-      {
-        id: 'nc8',
-        name: 'Oreo Matcha',
-        description: 'Uji matcha latte layered with crunchy Oreo cookie crumbles',
-        price: 75,
-        sizes: [
-          { label: '12 oz', size: '12 oz', price: 75 },
-          { label: '16 oz', size: '16 oz', price: 95 },
-          { label: '22 oz', size: '22 oz', price: 115 }
-        ],
-        tag: 'Best Seller',
-        inStock: true,
-        image: '/images/products/matcha.png'
-      }
-    ]
-  },
-  {
-    id: 'soda',
-    category: 'Soda & Refreshers',
-    items: [
-      {
-        id: 'sd1',
-        name: 'Blueberry Fizz',
-        description: 'Refreshing sparkling soda infused with sweet blueberry syrup',
-        price: 49,
-        sizes: [
-          { label: '12 oz', size: '12 oz', price: 49 },
-          { label: '16 oz', size: '16 oz', price: 69 },
-          { label: '22 oz', size: '22 oz', price: 89 }
-        ],
-        tag: 'Refresher',
-        inStock: true,
-        image: '/images/products/blueberrysoda.png'
-      },
-      {
-        id: 'sd2',
-        name: 'Strawberry Soda',
-        description: 'Fizzy soda blended with real strawberry fruit preserves',
-        price: 49,
-        sizes: [
-          { label: '12 oz', size: '12 oz', price: 49 },
-          { label: '16 oz', size: '16 oz', price: 69 },
-          { label: '22 oz', size: '22 oz', price: 89 }
-        ],
-        tag: 'Fruity',
-        inStock: true,
-        image: '/images/products/strawberrysoda.png'
-      },
-      {
-        id: 'sd3',
-        name: 'Green Apple Soda',
-        description: 'Crisp and tangy green apple sparkling refresher',
-        price: 49,
-        sizes: [
-          { label: '12 oz', size: '12 oz', price: 49 },
-          { label: '16 oz', size: '16 oz', price: 69 },
-          { label: '22 oz', size: '22 oz', price: 89 }
-        ],
-        tag: 'Tangy',
-        inStock: true,
-        image: '/images/products/greenapplesoda.png'
-      }
-    ]
-  },
-  {
-    id: 'ricemeals',
-    category: 'Rice Meals',
-    items: [
-      { id: 'rm1', name: 'Flavored Chicken (Original, Buffalo, Garlic Parmesan)', description: 'Crispy fried chicken choice of Original, Buffalo or Garlic Parmesan with steamed rice', price: 89, tag: 'Popular', inStock: true, image: '/images/products/buffalo.png' },
-      { id: 'rm2', name: 'Chicken Parmigiana', description: 'Breaded chicken breast baked with rich marinara sauce and melted cheese over rice', price: 139, tag: 'Signature', inStock: true, image: '/images/products/shredded.png' },
-      { id: 'rm3', name: 'Chicken Katsu', description: 'Japanese style crispy breaded chicken cutlet with savoury katsu sauce and rice', price: 89, tag: 'Best Seller', inStock: true, image: '/images/products/chickenkatsu.png' },
-      { id: 'rm4', name: 'Pork Sisig', description: 'Sizzling minced pork seasoned with calamansi, chillies, onions, and topped with rice', price: 89, tag: 'Classic', inStock: true, image: '/images/products/porksisig.png' },
-      { id: 'rm5', name: 'Pork Steak', description: 'Tender pork chops seared in soy-citrus sauce and caramelized onions with rice', price: 89, tag: 'Savoury', inStock: true, image: '/images/products/porksteak.png' },
-      { id: 'rm6', name: 'Crispy Belly', description: 'Golden deep-fried pork belly served with soy vinegar sauce and garlic rice', price: 89, tag: 'Crispy', inStock: true, image: '/images/products/crispybelly.png' },
-      { id: 'rm7', name: 'Hungarian w/ Egg', description: 'Grilled smoky Hungarian sausage served with sunny-side up egg and garlic rice', price: 135, tag: 'Hearty', inStock: true, image: '/images/products/hungarian.png' },
-    ]
-  },
-  {
-    id: 'waffles',
-    category: 'Waffles',
-    items: [
-      { id: 'wf1', name: 'Strawberry & Cream Waffle', description: 'Freshly baked Belgian waffle topped with strawberry puree and whipped cream', price: 75, tag: 'Sweet', inStock: true, image: '/images/products/strawberrywaffle.png' },
-      { id: 'wf2', name: 'Blueberry & Cream Waffle', description: 'Golden crisp waffle loaded with blueberry topping and whipped cream', price: 75, tag: 'Fruity', inStock: true, image: '/images/products/almondcaramelwaffle.png' },
-      { id: 'wf3', name: 'Almond Caramel Waffle', description: 'Warm waffle topped with toasted sliced almonds and butter caramel sauce', price: 75, tag: 'Popular', inStock: true, image: '/images/products/almondcaramelwaffle.png' },
-      { id: 'wf4', name: 'Chocolate Cookie Waffle', description: 'Decadent chocolate drizzle waffle topped with crushed cookie pieces', price: 75, tag: 'Indulgent', inStock: true, image: '/images/products/chococookieewaffles.png' },
-      { id: 'wf5', name: 'Cheesy Cheese Waffle', description: 'Warm savoury cheese waffle topped with melted cheddar cheese', price: 75, tag: 'Savoury', inStock: true, image: '/images/products/cheesequesa.png' }
-    ]
-  },
-  {
-    id: 'pasta',
-    category: 'Pasta',
-    items: [
-      { id: 'ps1', name: 'Lasagna', description: 'Layered pasta sheets with rich beef ragu, creamy bechamel & melted mozzarella', price: 69, tag: 'Signature', inStock: true, image: '/images/products/lasagna.png' },
-      { id: 'ps2', name: 'Spaghetti', description: 'Classic Filipino style sweet savoury spaghetti sauce with sliced hotdog & cheese', price: 99, tag: 'Classic', inStock: true, image: '/images/products/beefspag.png' },
-      { id: 'ps3', name: 'Carbonara', description: 'Rich cream sauce pasta tossed with crispy bacon bits & parmesan cheese', price: 129, tag: 'Creamy', inStock: true, image: '/images/products/carbonara.png' }
-    ]
-  },
-  {
-    id: 'pikapika',
-    category: 'Pika-Pika (Snacks)',
-    items: [
-      { id: 'pk1', name: 'Kropek', description: 'Crispy deep-fried prawn crackers served with spicy vinegar dip', price: 45, tag: 'Crunchy', inStock: true, image: '/images/products/kropek.png' },
-      { id: 'pk2', name: 'Fries in Basket', description: 'Crispy potato fries available in Cheese, BBQ, Sour Cream, White Cheddar, or Salt', price: 55, tag: 'Popular', inStock: true, image: '/images/products/fries.png' },
-      { id: 'pk3', name: 'Cheese Sticks', description: 'Golden fried spring roll wrappers filled with gooey cheddar cheese sticks', price: 99, tag: 'Cheesy', inStock: true, image: '/images/products/cheesestick.png' },
-      { id: 'pk4', name: 'Overload Fries', description: 'Crispy French fries smothered in melted cheese sauce, bacon bits & jalapeños', price: 99, tag: 'Overloaded', inStock: true, image: '/images/products/cheesefries.png' },
-      { id: 'pk5', name: 'Overload Nachos', description: 'Crispy corn tortilla chips topped with ground beef, cheese sauce, salsa & jalapeños', price: 120, tag: 'Best Seller', inStock: true, image: '/images/products/nachos.png' },
-      { id: 'pk6', name: 'Chicken Tenders', description: 'Crispy golden fried chicken breast tenders served with dip choice', price: 120, tag: 'Crispy', inStock: true, image: '/images/products/chickenskin.png' }
-    ]
-  },
-  {
-    id: 'quesadilla',
-    category: 'Quesadilla',
-    items: [
-      { id: 'qd1', name: 'Cheesy Quesa', description: 'Toasted flour tortilla stuffed with melted cheddar & mozzarella blend', price: 89, tag: 'Cheesy', inStock: true, image: '/images/products/cheesequesa.png' },
-      { id: 'qd2', name: 'Ham & Cheese Quesa', description: 'Grilled tortilla loaded with savory ham slices and melted cheese', price: 89, tag: 'Classic', inStock: true, image: '/images/products/hamcheesequesa.png' },
-      { id: 'qd3', name: 'Beef Quesa', description: 'Toasted tortilla filled with seasoned ground beef and melted cheese', price: 99, tag: 'Popular', inStock: true, image: '/images/products/beefquesa.png' },
-      { id: 'qd4', name: 'Quesa Supreme', description: 'Loaded tortilla with beef, ham, bell peppers, onions, and double melted cheese', price: 109, tag: 'Supreme', inStock: true, image: '/images/products/beefquesa.png' }
-    ]
-  },
-  {
-    id: 'sandwiches',
-    category: 'Sandwiches & Burgers',
-    items: [
-      { id: 'sw1', name: 'Hotdog Overload', description: 'Jumbo grilled hotdog in toasted bun with cheese sauce, mayo & bacon bits', price: 89, tag: 'Loaded', inStock: true, image: '/images/products/hotdog.png' },
-      { id: 'sw2', name: 'Crispy Chicken Sandwich', description: 'Crispy fried chicken thigh filet with lettuce, mayo & pickles on toasted brioche', price: 99, tag: 'Crispy', inStock: true, image: '/images/products/chickensandwich.png' },
-      { id: 'sw3', name: 'Scialla\'s Clubhouse', description: 'Triple decker toasted sandwich with ham, chicken, bacon, egg, cheese & lettuce', price: 120, tag: 'Signature', inStock: true, image: '/images/products/clubhouse.png' },
-      { id: 'sw4', name: 'Scialla\'s Beef Burger', description: 'Juicy 100% pure beef patty with melted cheddar, caramelized onions & house sauce', price: 139, tag: 'Gourmet', inStock: true, image: '/images/products/beefburger.png' }
-    ]
-  },
-  {
-    id: 'pizza',
-    category: 'Pizza',
-    items: [
-      { id: 'pz1', name: 'Ham & Cheese Pizza', description: 'Hand-tossed pizza crust with rich tomato sauce, savory ham & melted cheese', price: 175, tag: 'Classic', inStock: true, image: '/images/products/hamcheesepizza.png' },
-      { id: 'pz2', name: 'Bacon & Cheese Pizza', description: 'Loaded with smoky bacon strips and melted mozzarella cheese blend', price: 175, tag: 'Smoky', inStock: true, image: '/images/products/pepperoni.png' },
-      { id: 'pz3', name: 'Four Cheese Pizza', description: 'Decadent mix of Mozzarella, Cheddar, Parmesan & Blue Cheese on thin crust', price: 175, tag: 'Cheesy', inStock: true, image: '/images/products/4cheese.png' },
-      { id: 'pz4', name: 'Garlic White Pizza', description: 'Creamy garlic white sauce pizza topped with mozzarella and herbs', price: 175, tag: 'Garlicky', inStock: true, image: '/images/products/hamcheesepizza.png' },
-      { id: 'pz5', name: 'Shawarma Pizza', description: 'Topped with tender shawarma beef, onions, tomatoes & garlic sauce drizzle', price: 180, tag: 'Special', inStock: true, image: '/images/products/pepperoni.png' },
-      { id: 'pz6', name: 'Meat Lovers Pizza', description: 'Overloaded with pepperoni, bacon, ham, ground beef & sausage', price: 199, tag: 'Overloaded', inStock: true, image: '/images/products/pepperoni.png' }
-    ]
-  },
-  {
-    id: 'drinkaddons',
-    category: 'Drink Add-ons',
-    items: [
-      { id: 'da1', name: 'Sweetener Syrup', description: 'Extra liquid cane sugar or vanilla sweetener', price: 10, tag: 'Add-on', inStock: true, image: '/images/products/addons/sweetener-syrup.png' },
-      { id: 'da2', name: '1 Shot Espresso', description: 'Extra shot of rich single-origin espresso', price: 10, tag: 'Coffee', inStock: true, image: '/images/products/addons/espresso-shot.png' },
-      { id: 'da3', name: 'Strawberry Flavor', description: 'Extra organic strawberry syrup shot', price: 10, tag: 'Fruity', inStock: true, image: '/images/products/addons/strawberry-flavor.png' },
-      { id: 'da4', name: 'Blueberry Flavor', description: 'Extra organic blueberry syrup shot', price: 10, tag: 'Fruity', inStock: true, image: '/images/products/addons/blueberry-flavor.png' },
-      { id: 'da5', name: 'Almond Syrup', description: 'Nutty almond syrup shot', price: 10, tag: 'Nutty', inStock: true, image: '/images/products/addons/almond-syrup.png' },
-      { id: 'da6', name: 'Oreo Crumbles', description: 'Extra crunchy crushed Oreo cookies', price: 10, tag: 'Topping', inStock: true, image: '/images/products/addons/oreo-crumbles.png' },
-      { id: 'da7', name: 'Caramel Drizzle', description: 'Rich caramel sauce swirl', price: 10, tag: 'Topping', inStock: true, image: '/images/products/addons/caramel-drizzle.png' },
-      { id: 'da8', name: 'Chocolate Drizzle', description: 'Rich Dutch cocoa chocolate sauce drizzle', price: 15, tag: 'Topping', inStock: true, image: '/images/products/addons/chocolate-drizzle.png' },
-      { id: 'da9', name: 'Boba Pearls', description: 'Chewy tapioca boba pearls', price: 20, tag: 'Chewy', inStock: true, image: '/images/products/addons/boba-pearls.png' },
-      { id: 'da10', name: 'Nata de Coco', description: 'Sweet chewy coconut nata cubes', price: 20, tag: 'Chewy', inStock: true, image: '/images/products/addons/nata-de-coco.png' },
-      { id: 'da11', name: 'Coffee Jelly', description: 'Handcrafted espresso coffee jelly cubes', price: 20, tag: 'Jelly', inStock: true, image: '/images/products/addons/coffee-jelly.png' }
-    ]
-  },
-  {
-    id: 'foodaddons',
-    category: 'Food Add-ons',
-    items: [
-      { id: 'fa1', name: 'Extra Egg', description: 'Fried sunny-side up or poached egg', price: 20, tag: 'Side', inStock: true, image: '/images/products/addons/extra-egg.png' },
-      { id: 'fa2', name: 'Extra Lettuce', description: 'Fresh green leaf lettuce portion', price: 20, tag: 'Fresh', inStock: true, image: '/images/products/addons/extra-lettuce.png' },
-      { id: 'fa3', name: 'Extra Cheese', description: 'Melted cheddar or mozzarella cheese slice', price: 20, tag: 'Cheesy', inStock: true, image: '/images/products/addons/extra-cheese.png' },
-      { id: 'fa4', name: 'Extra Mayonnaise', description: 'Creamy garlic mayo dip portion', price: 25, tag: 'Sauce', inStock: true, image: '/images/products/addons/extra-mayonnaise.png' }
-    ]
-  }
-];
+import initialCategories from '../../shared/catalog.json';
 
 export function AppProvider({ children }) {
   const [activeRole, setActiveRole] = useState('customer'); // 'customer' | 'staff' | 'manager'
@@ -470,7 +137,7 @@ export function AppProvider({ children }) {
     const cleanId = String(notif.orderId || 'gen').replace(/^#/, '');
     const status = notif.status || 'update';
     const dedupKey = notif.key || `${cleanId}-${status}`;
-    
+
     let defaultTitle = notif.title || 'Order Update';
     let defaultMessage = notif.message || `Order #${cleanId} status is now ${status}.`;
 
@@ -508,7 +175,7 @@ export function AppProvider({ children }) {
       // Find if notification for this exact order & status transition already exists
       const existsIndex = prev.findIndex(
         (n) => (n.key && n.key === dedupKey) ||
-               (n.orderId && String(n.orderId).replace(/^#/, '') === cleanId && n.status && n.status === status)
+          (n.orderId && String(n.orderId).replace(/^#/, '') === cleanId && n.status && n.status === status)
       );
 
       if (existsIndex > -1) {
@@ -554,19 +221,19 @@ export function AppProvider({ children }) {
 
   const markNotificationsAsRead = () => {
     setCustomerNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    api.markAllNotificationsAsRead().catch(() => {});
+    api.markAllNotificationsAsRead().catch(() => { });
   };
 
   const markSingleNotificationAsRead = (id) => {
     setCustomerNotifications((prev) =>
       prev.map((n) => (n.id === id || n.key === id ? { ...n, read: true } : n))
     );
-    api.markNotificationAsRead(id).catch(() => {});
+    api.markNotificationAsRead(id).catch(() => { });
   };
 
   const clearNotifications = () => {
     setCustomerNotifications([]);
-    api.clearNotifications().catch(() => {});
+    api.clearNotifications().catch(() => { });
   };
 
   const unreadNotificationsCount = customerNotifications.filter((n) => !n.read).length;
@@ -605,12 +272,12 @@ export function AppProvider({ children }) {
           if (Array.isArray(parsed)) {
             setOrders(parsed);
           }
-        } catch {}
+        } catch { }
       }
       if (e.key === 'scialla_active_order' && e.newValue) {
         try {
           setLastCustomerOrder(JSON.parse(e.newValue));
-        } catch {}
+        } catch { }
       }
       if (e.key === 'scialla_guest_session' && e.newValue) {
         setGuestSessionId(e.newValue);
@@ -618,12 +285,12 @@ export function AppProvider({ children }) {
       if (e.key === 'scialla_customer_notifications' && e.newValue) {
         try {
           setCustomerNotifications(JSON.parse(e.newValue));
-        } catch {}
+        } catch { }
       }
       if (e.key === 'scialla_customer_order_ids' && e.newValue) {
         try {
           setCustomerOrderIds(JSON.parse(e.newValue));
-        } catch {}
+        } catch { }
       }
     };
     window.addEventListener('storage', handleStorageChange);
@@ -651,6 +318,23 @@ export function AppProvider({ children }) {
   };
 
   // Sync Product Stock from PostgreSQL
+  const syncProducts = async () => {
+    try {
+      const products = await api.getProducts();
+      setMenuCategories(initialCategories.map(cat => ({
+        ...cat, items: products.filter(item => item.categoryId === cat.id)
+      })));
+    } catch (error) {
+      console.warn('Catalog sync failed:', error.message);
+    }
+  };
+
+  const saveProduct = async (id, product) => {
+    const saved = await api.saveProduct(id, product);
+    await syncProducts();
+    return saved;
+  };
+
   const syncProductStock = async () => {
     const stockMap = await api.getProductStock();
     if (stockMap && typeof stockMap === 'object' && Object.keys(stockMap).length > 0) {
@@ -663,7 +347,8 @@ export function AppProvider({ children }) {
             if (stockInfo) {
               return {
                 ...item,
-                inStock: stockInfo.inStock !== false && (typeof stockInfo.quantity !== 'number' || stockInfo.quantity > 0)
+                available: stockInfo.inStock !== false && (typeof stockInfo.quantity !== 'number' || stockInfo.quantity > 0),
+                inStock: item.active !== false && stockInfo.inStock !== false && (typeof stockInfo.quantity !== 'number' || stockInfo.quantity > 0)
               };
             }
             return item;
@@ -731,12 +416,13 @@ export function AppProvider({ children }) {
             }
           });
         }
-      } catch {}
+      } catch { }
     }
 
     // 4. Initial fetch of persistent orders from PostgreSQL
     refreshOrders();
     refreshStaffOnDuty();
+    syncProducts();
     syncProductStock();
     refreshCustomerNotifications();
 
@@ -759,6 +445,7 @@ export function AppProvider({ children }) {
     });
 
     socketInstance.on('connect', () => {
+      syncProducts();
       console.log(`⚡ Scialla Real-Time Socket.IO connected (${socketInstance.id}) on ${WS_URL}`);
       setIsConnected(true);
 
@@ -904,6 +591,8 @@ export function AppProvider({ children }) {
       refreshStaffOnDuty();
     });
 
+    socketInstance.on('product:updated', () => { syncProducts(); });
+
     socketInstance.on('stock:updated', (data) => {
       console.log('📦 Real-time stock update received:', data);
       setMenuCategories((prevCats) =>
@@ -912,9 +601,10 @@ export function AppProvider({ children }) {
           items: cat.items.map((item) =>
             item.id === data.itemId
               ? {
-                  ...item,
-                  inStock: data.inStock !== false && (typeof data.quantity !== 'number' || data.quantity > 0)
-                }
+                ...item,
+                available: data.inStock !== false && (typeof data.quantity !== 'number' || data.quantity > 0),
+                inStock: item.active !== false && data.inStock !== false && (typeof data.quantity !== 'number' || data.quantity > 0)
+              }
               : item
           )
         }))
@@ -1246,7 +936,7 @@ export function AppProvider({ children }) {
   // Monthly Revenue & Sales Data Analytics
   const liveOrderTotal = completedOrders.reduce((sum, o) => sum + o.total, 0);
   const liveOrderCount = completedOrders.length;
-  
+
   const monthlySalesData = [
     { month: 'Jan', revenue: 310500, orders: 1820, avgTicket: 170.6, percent: 60, growth: '+8.4%' },
     { month: 'Feb', revenue: 345800, orders: 1980, avgTicket: 174.6, percent: 67, growth: '+11.3%' },
@@ -1361,6 +1051,7 @@ export function AppProvider({ children }) {
         staffOnDuty,
         refreshStaffOnDuty,
         syncProductStock,
+        saveProduct,
         lastCustomerOrder,
         setLastCustomerOrder,
         placeOrder,

@@ -199,6 +199,22 @@ export const api = {
     }
   },
 
+  async getProducts() {
+    const response = await fetch(API_BASE_URL + '/api/products');
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.message || 'Unable to load products.');
+    return data.products;
+  },
+
+  async saveProduct(id, product) {
+    const response = await fetch(API_BASE_URL + '/api/products' + (id ? '/' + encodeURIComponent(id) : ''), {
+      method: id ? 'PATCH' : 'POST', headers: getAuthHeaders(), body: JSON.stringify(product)
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.message || 'Unable to save product.');
+    return data.product;
+  },
+
   // Product Stock Management
   async getProductStock() {
     try {

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import ProductForm from './ProductForm';
 import { useApp } from '../../context/AppContext';
 
 export default function Products() {
-  const { menuCategories, toggleItemStock } = useApp();
+  const { menuCategories, toggleItemStock, saveProduct } = useApp();
+  const [editor, setEditor] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCat, setSelectedCat] = useState('all');
 
@@ -35,6 +37,7 @@ export default function Products() {
 
   return (
     <div className="catalog-modern">
+      {editor && <ProductForm product={editor.id ? editor : null} onSave={saveProduct} onClose={() => setEditor(null)} />}
       {/* Hero Header */}
       <header className="catalog-hero">
         <div className="catalog-hero-text">
@@ -43,6 +46,7 @@ export default function Products() {
             Manage your menu pricing and live item availability status
           </p>
         </div>
+        <button type="button" className="filter-chip active" onClick={() => setEditor({})}>+ Add Product</button>
         <div className="catalog-hero-stats">
           <div className="hero-stat">
             <span className="hero-stat-value">{totalItemsCount}</span>
@@ -127,6 +131,7 @@ export default function Products() {
                     <th style={{ width: '22%' }}>Category</th>
                     <th style={{ width: '16%' }}>Price</th>
                     <th style={{ width: '20%', textAlign: 'right' }}>Availability</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -149,7 +154,7 @@ export default function Products() {
                           {item.sizes ? (
                             <div>
                               <strong className="tbl-price-val">
-                                ₱{item.sizes[0].price} – ₱{item.sizes[item.sizes.length - 1].price}
+                                ₱{Math.min(...item.sizes.map(s => s.price))} – ₱{Math.max(...item.sizes.map(s => s.price))}
                               </strong>
                               <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
                                 {item.sizes.map((s) => `${s.size}: ₱${s.price}`).join(' | ')}
@@ -164,15 +169,17 @@ export default function Products() {
                         <button
                           type="button"
                           className={`stock-switch ${item.inStock ? 'is-stock' : 'is-out'}`}
-                          onClick={() => toggleItemStock(item.id)}
+                          disabled={item.active === false}
+                      onClick={() => toggleItemStock(item.id)}
                           title={item.inStock ? 'Mark as sold out' : 'Mark as in stock'}
                         >
                           <span className="switch-knob" />
                           <span className="switch-label">
-                            {item.inStock ? 'In Stock' : 'Sold Out'}
+                            {item.active === false ? 'Inactive' : item.inStock ? 'Available' : 'Unavailable'}
                           </span>
                         </button>
                       </td>
+                      <td><button type="button" className="filter-chip" onClick={() => setEditor(item)}>Edit</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -191,6 +198,7 @@ export default function Products() {
                     <span className="tbl-cat-badge">{item.categoryName}</span>
                   </div>
 
+                  <button type="button" className="filter-chip" onClick={() => setEditor(item)}>Edit</button>
                   <p className="pmc-desc">{item.description}</p>
 
                   <div className="pmc-bottom-row">
@@ -198,7 +206,7 @@ export default function Products() {
                       {item.sizes ? (
                         <div>
                           <strong className="pmc-price-main">
-                            ₱{item.sizes[0].price} – ₱{item.sizes[item.sizes.length - 1].price}
+                            ₱{Math.min(...item.sizes.map(s => s.price))} – ₱{Math.max(...item.sizes.map(s => s.price))}
                           </strong>
                           <span className="pmc-sizes-sub">
                             {item.sizes.map((s) => `${s.size}: ₱${s.price}`).join(' · ')}
@@ -212,12 +220,13 @@ export default function Products() {
                     <button
                       type="button"
                       className={`stock-switch ${item.inStock ? 'is-stock' : 'is-out'}`}
-                      onClick={() => toggleItemStock(item.id)}
+                      disabled={item.active === false}
+                          onClick={() => toggleItemStock(item.id)}
                       title={item.inStock ? 'Mark as sold out' : 'Mark as in stock'}
                     >
                       <span className="switch-knob" />
                       <span className="switch-label">
-                        {item.inStock ? 'In Stock' : 'Sold Out'}
+                        {item.active === false ? 'Inactive' : item.inStock ? 'Available' : 'Unavailable'}
                       </span>
                     </button>
                   </div>

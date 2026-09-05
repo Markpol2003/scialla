@@ -160,7 +160,7 @@ export default function Cart({
             disabled={cart.length === 0}
             onClick={onOpenCheckout}
           >
-            Checkout • ₱{totalAmount.toFixed(2)}
+            Confirm Order • ₱{totalAmount.toFixed(2)}
           </button>
         </div>
       </div>

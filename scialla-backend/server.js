@@ -10,6 +10,7 @@ const { Server } = require('socket.io');
 require('dotenv').config();
 
 const db = require('./db');
+const { initializeCatalog, registerCatalogRoutes } = require('./productCatalog');
 const emailService = require('./emailService');
 
 const PORT = process.env.PORT || 10000;
@@ -186,7 +187,7 @@ async function initDatabaseMigrations() {
         table_name VARCHAR(50) NOT NULL,
         timestamp VARCHAR(50),
         total NUMERIC(10, 2) NOT NULL,
-        payment_method VARCHAR(50) NOT NULL,
+        payment_method VARCHAR(50),
         status VARCHAR(50) DEFAULT 'new',
         guest_session_id VARCHAR(64),
         user_id INTEGER,
@@ -201,6 +202,9 @@ async function initDatabaseMigrations() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Allow orders without payment selection; preserve historical payment values.
+    await db.query(`ALTER TABLE orders ALTER COLUMN payment_method DROP NOT NULL;`);
 
     // Add missing columns to orders if it already existed
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS guest_session_id VARCHAR(64);`);
@@ -246,6 +250,8 @@ async function initDatabaseMigrations() {
       );
     `);
 
+    await initializeCatalog(db);
+
     // 7. Password Reset Codes Table
     await db.query(`
       CREATE TABLE IF NOT EXISTS password_reset_codes (
@@ -288,7 +294,7 @@ async function initDatabaseMigrations() {
   }
 }
 
-initDatabaseMigrations();
+const databaseReady = initDatabaseMigrations();
 
 // Initial Manager Seed Mechanism via Environment Variables
 async function seedInitialManager() {
@@ -1261,7 +1267,7 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
   const items = orderData.items || [];
   const calculatedTotal = items.reduce((acc, it) => acc + (parseFloat(it.price) || 0) * (parseInt(it.qty || it.quantity || 1, 10) || 1), 0);
   const total = orderData.total !== undefined && orderData.total !== null ? (parseFloat(orderData.total) || 0) : calculatedTotal;
-  const paymentMethod = orderData.paymentMethod || orderData.payment_method || 'Cash';
+  const paymentMethod = orderData.paymentMethod || orderData.payment_method || null;
   const status = orderData.status || 'new';
   const assignedUserId = userId || orderData.user_id || null;
   const assignedGuestId = guestSessionId || orderData.guest_session_id || orderData.guestSessionId || null;
@@ -1271,6 +1277,13 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
   const completedById = orderData.completed_by_id || orderData.completed_by_staff_id || null;
   const completedByName = orderData.completed_by_name || orderData.completed_by || null;
   const completedAt = orderData.completed_at || null;
+
+  // Resolve current add-on catalog prices for newly submitted order snapshots.
+  let addonPrices = ADDON_PRICES;
+  if (db.pool && items.some(item => Array.isArray(item.addons) && item.addons.length)) {
+    const result = await db.query("SELECT item_id, name, price FROM product_stock WHERE category_id IN ('drinkaddons', 'foodaddons')");
+    addonPrices = Object.fromEntries(result.rows.map(row => [row.item_id, { id: row.item_id, name: row.name, price: Number(row.price) }]));
+  }
 
   // Construct complete normalized order object for real-time emission and DB storage
   const formattedItems = items.map((item) => {
@@ -1287,7 +1300,7 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
     const itemAddons = (Array.isArray(item.addons) ? item.addons : [])
       .map((a) => {
         const addonId = typeof a === 'string' ? a : (a.id || a.addon_id);
-        const master = ADDON_PRICES[addonId];
+        const master = addonPrices[addonId];
         if (master) {
           return { id: master.id, name: master.name, price: master.price };
         }
@@ -1641,14 +1654,14 @@ app.post('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
       for (const it of orderItems) {
         const itemId = String(it.id || it.item_id || it.originalId || '');
         if (itemId) {
-          const baseItemId = itemId.includes('-') ? itemId.split('-')[0] : itemId;
+          const baseItemId = String(it.originalId || itemId.replace(/-\d+ oz$/, ''));
           const stockCheck = await db.query(
-            'SELECT in_stock, quantity, name FROM product_stock WHERE item_id = $1 OR item_id = $2',
+            'SELECT in_stock, quantity, name, active FROM product_stock WHERE item_id = $1 OR item_id = $2',
             [itemId, baseItemId]
           );
           if (stockCheck.rows.length > 0) {
             const sRow = stockCheck.rows[0];
-            if (sRow.in_stock === false || (typeof sRow.quantity === 'number' && sRow.quantity <= 0)) {
+            if (sRow.active === false || sRow.in_stock === false || (typeof sRow.quantity === 'number' && sRow.quantity <= 0)) {
               return res.status(409).json({
                 success: false,
                 message: `${sRow.name || it.name || 'An item'} is no longer available. Please update your order.`,
@@ -2484,6 +2497,8 @@ io.on('connection', (socket) => {
   });
 });
 
+registerCatalogRoutes(app, db, io, { requireDatabase, verifyToken, verifyManager });
+
 // SPA Client-Side Routing Fallback (/staff, /manager, /checkout, etc.)
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
@@ -2499,9 +2514,9 @@ app.get('*', (req, res, next) => {
 });
 
 // Start Server listening on process.env.PORT || 10000 on 0.0.0.0
-server.listen(PORT, '0.0.0.0', () => {
+databaseReady.then(() => server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Scialla Production Node Backend listening on 0.0.0.0:${PORT}`);
   console.log(`⚡ Socket.IO Server bound to HTTP server on port ${PORT}`);
-});
+}));
 
 

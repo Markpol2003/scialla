@@ -242,7 +242,7 @@ export default function StaffDashboardPage() {
 
                     <div className="card-footer-bar">
                       <div className="order-payment-tag">
-                        Paid: <strong>₱{ord.total.toFixed(2)}</strong> ({ord.paymentMethod})
+                        Total: <strong>₱{ord.total.toFixed(2)}</strong>{ord.paymentMethod && <> ({ord.paymentMethod})</>}
                       </div>
                       <div className="card-actions-row">
                         <button

@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS orders (
     table_name VARCHAR(50) NOT NULL,
     timestamp VARCHAR(50),
     total NUMERIC(10, 2) NOT NULL,
-    payment_method VARCHAR(50) NOT NULL,
+    payment_method VARCHAR(50),
     status VARCHAR(50) DEFAULT 'new',
     guest_session_id VARCHAR(64) REFERENCES guest_sessions(id) ON DELETE SET NULL,
     user_id INTEGER,

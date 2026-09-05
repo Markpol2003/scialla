@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import CategoryFilterBar from '../../components/customer/CategoryFilterBar';
 
@@ -58,6 +58,22 @@ export default function Menu({ onAddToCart, cart }) {
   const [modalItem, setModalItem] = useState(null);
   const [modalSize, setModalSize] = useState(null);
   const [modalQty, setModalQty] = useState(1);
+
+  useEffect(() => {
+    setSelectedSizes(previous => Object.fromEntries(Object.entries(previous).flatMap(([id, size]) => {
+      const item = menuCategories.flatMap(c => c.items).find(i => i.id === id);
+      const latest = item?.sizes?.find(s => s.size === size.size);
+      return latest ? [[id, latest]] : [];
+    })));
+    setModalItem(previous => {
+      if (!previous) return null;
+      return menuCategories.flatMap(c => c.items).find(i => i.id === previous.id && i.inStock) || null;
+    });
+  }, [menuCategories]);
+
+  useEffect(() => {
+    if (modalItem) setModalSize(previous => modalItem.sizes?.find(s => s.size === previous?.size) || modalItem.sizes?.[0] || null);
+  }, [modalItem]);
 
   const triggerToast = (msg) => {
     setToastMsg(msg);

@@ -33,10 +33,9 @@ export default function CustomerMenuPage() {
     ? menuCategories
     : menuCategories.filter((sec) => sec.id === selectedCategory);
 
-  // Checkout & Receipt Modal State
+  // Confirm Order & Receipt Modal State
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('GCash');
   const [orderMeta, setOrderMeta] = useState({ orderNum: '', dateStr: '' });
   const [selectedSizes, setSelectedSizes] = useState({});
   const [isMobileBarDismissed, setIsMobileBarDismissed] = useState(false);
@@ -138,17 +137,17 @@ export default function CustomerMenuPage() {
     ? 'Takeout'
     : `Table #${tableNumber || '01'}`;
 
-  const handlePay = () => {
-    setIsPaid(true);
+  const handlePay = async () => {
 
     // Dispatch order into shared AppContext store so Staff & Manager UIs instantly reflect it!
-    placeOrder({
+    const result = await placeOrder({
       orderNum: orderMeta.orderNum,
       table: tableDisplayLabel,
       items: cart,
       total: totalAmount,
-      paymentMethod: paymentMethod
+      paymentMethod: null
     });
+    if (result?.success) setIsPaid(true);
   };
 
   const handleNewOrder = () => {
@@ -535,7 +534,7 @@ export default function CustomerMenuPage() {
                 disabled={cart.length === 0}
                 onClick={handleOpenCheckout}
               >
-                Checkout • ₱{totalAmount.toFixed(2)}
+                Confirm Order • ₱{totalAmount.toFixed(2)}
               </button>
             </div>
           </div>
@@ -558,7 +557,7 @@ export default function CustomerMenuPage() {
                 className="mobile-order-bar-view-btn"
                 onClick={handleOpenCheckout}
               >
-                Checkout &bull; ₱{totalAmount.toFixed(2)}
+                Confirm Order &bull; ₱{totalAmount.toFixed(2)}
               </button>
             </div>
           </div>
@@ -589,7 +588,7 @@ export default function CustomerMenuPage() {
               <>
                 <div className="receipt-header">
                   <h2 className="receipt-cafe-title">Scialla Cafe</h2>
-                  <p style={{ fontSize: '0.78rem', color: '#7a6e62' }}>Official Order Receipt</p>
+                  <p style={{ fontSize: '0.78rem', color: '#7a6e62' }}>Confirm your order?</p>
                   <span className="receipt-table-pill">{tableDisplayLabel}</span>
                   <div className="receipt-meta">
                     <span>Order: {orderMeta.orderNum}</span>
@@ -627,40 +626,6 @@ export default function CustomerMenuPage() {
                   </div>
                 </div>
 
-                <div className="payment-section">
-                  <label className="payment-label">Select Payment Method</label>
-                  <div className="payment-options-grid">
-                    {['GCash', 'Maya', 'Cash'].map((method) => (
-                      <button
-                        key={method}
-                        type="button"
-                        className={`payment-option-btn ${paymentMethod === method ? 'active' : ''}`}
-                        onClick={() => setPaymentMethod(method)}
-                      >
-                        {method}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Minimal QR Code Display for GCash and Maya */}
-                  {(paymentMethod === 'GCash' || paymentMethod === 'Maya') && (
-                    <div className="qr-payment-preview-box">
-                      <div className="qr-box-header">
-                        <span className="qr-brand-tag">{paymentMethod}</span>
-                        <span className="qr-amount-tag">₱{totalAmount.toFixed(2)}</span>
-                      </div>
-
-                      <div className="qr-img-wrapper">
-                        <img
-                          src={paymentMethod === 'GCash' ? '/images/gcash-qr.svg' : '/images/maya-qr.svg'}
-                          alt={`${paymentMethod} QR Code`}
-                          className="payment-qr-code-img"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 <div className="checkout-actions-row">
                   <button
                     type="button"
@@ -674,16 +639,16 @@ export default function CustomerMenuPage() {
                     className="btn-3d-pay"
                     onClick={handlePay}
                   >
-                    Pay ₱{totalAmount.toFixed(2)} with {paymentMethod}
+                    Confirm Order
                   </button>
                 </div>
               </>
             ) : (
               <div className="receipt-success-state">
                 <div className="success-icon-badge">✓</div>
-                <h3 className="success-title">Payment Received</h3>
+                <h3 className="success-title">Order Confirmed</h3>
                 <p className="success-msg">
-                  Thank you! Your order has been sent to the Staff Dashboard and is being prepared for <strong>{tableDisplayLabel}</strong>.
+                  Your order has been sent to the kitchen for <strong>{tableDisplayLabel}</strong>.
                 </p>
 
                 <div className="success-receipt-summary">
@@ -696,11 +661,7 @@ export default function CustomerMenuPage() {
                     <strong className="success-val-dest">{tableDisplayLabel}</strong>
                   </div>
                   <div className="success-line">
-                    <span className="success-label">Payment Method:</span>
-                    <strong style={{ color: '#1A0C06' }}>{paymentMethod}</strong>
-                  </div>
-                  <div className="success-line">
-                    <span className="success-label">Total Paid:</span>
+                    <span className="success-label">Total:</span>
                     <strong className="success-val-total">₱{totalAmount.toFixed(2)}</strong>
                   </div>
                   {lastCustomerOrder && (lastCustomerOrder.accepted_by_name || lastCustomerOrder.completed_by_name) && (
@@ -722,7 +683,7 @@ export default function CustomerMenuPage() {
                 </div>
 
                 <button className="btn-3d-new-order" onClick={handleNewOrder}>
-                  Start New Order
+                  Track Order
                 </button>
               </div>
             )}

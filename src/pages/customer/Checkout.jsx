@@ -15,7 +15,6 @@ export default function Checkout({
   const { placeOrder } = useApp();
 
   const [isPaid, setIsPaid] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('GCash');
   const [createdOrder, setCreatedOrder] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -42,7 +41,7 @@ export default function Checkout({
       table: tableDisplayLabel,
       items: cart,
       total: totalAmount,
-      paymentMethod
+      paymentMethod: null
     });
     setIsSubmitting(false);
 
@@ -51,7 +50,7 @@ export default function Checkout({
       return;
     }
 
-    setCreatedOrder(res?.order || { id: orderNum, table: tableDisplayLabel, paymentMethod, total: totalAmount });
+    setCreatedOrder(res?.order || { id: orderNum, table: tableDisplayLabel, paymentMethod: null, total: totalAmount });
     setIsPaid(true);
   };
 
@@ -69,7 +68,7 @@ export default function Checkout({
             <Coffee size={15} className="receipt-brand-icon" />
             <h2 className="receipt-brand-title">SCIALLA CAFE</h2>
           </div>
-          <p className="receipt-subtitle">Official Guest Receipt</p>
+          <p className="receipt-subtitle">{isPaid ? 'Official Guest Receipt' : 'Confirm your order?'}</p>
           <p className="receipt-tagline">Crafted coffee, served simply.</p>
           <div className="receipt-header-divider" />
 
@@ -129,39 +128,6 @@ export default function Checkout({
               </div>
             </div>
 
-            <div className="payment-section">
-              <label className="payment-label">Select Payment Method</label>
-              <div className="payment-options-grid">
-                {['GCash', 'Maya', 'Cash'].map((method) => (
-                  <button
-                    key={method}
-                    type="button"
-                    className={`payment-option-btn ${paymentMethod === method ? 'active' : ''}`}
-                    onClick={() => setPaymentMethod(method)}
-                  >
-                    {method}
-                  </button>
-                ))}
-              </div>
-
-              {(paymentMethod === 'GCash' || paymentMethod === 'Maya') && (
-                <div className="qr-payment-preview-box">
-                  <div className="qr-box-header">
-                    <span className="qr-brand-tag">{paymentMethod}</span>
-                    <span className="qr-amount-tag">₱{totalAmount.toFixed(2)}</span>
-                  </div>
-
-                  <div className="qr-img-wrapper">
-                    <img
-                      src={paymentMethod === 'GCash' ? '/images/gcash-qr.svg' : '/images/maya-qr.svg'}
-                      alt={`${paymentMethod} QR Code`}
-                      className="payment-qr-code-img"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
             <div className="checkout-actions-row">
               <button
                 type="button"
@@ -177,16 +143,16 @@ export default function Checkout({
                 onClick={handlePay}
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Verifying Order...' : `Pay ₱${totalAmount.toFixed(2)} with ${paymentMethod}`}
+                {isSubmitting ? 'Submitting Order...' : 'Confirm Order'}
               </button>
             </div>
           </>
         ) : (
           <div className="receipt-success-state">
             <div className="success-icon-badge">✓</div>
-            <h3 className="success-title">Payment Received</h3>
+            <h3 className="success-title">Order Confirmed</h3>
             <p className="success-msg">
-              Thank you! Your order has been dispatched to the Barista Kitchen queue for <strong>{tableDisplayLabel}</strong>.
+              Your order has been sent to the kitchen for <strong>{tableDisplayLabel}</strong>.
             </p>
 
             <div className="success-receipt-summary">
@@ -199,7 +165,7 @@ export default function Checkout({
                 <strong className="success-val-dest">{tableDisplayLabel}</strong>
               </div>
               <div className="success-line">
-                <span className="success-label">Total Paid:</span>
+                <span className="success-label">Total:</span>
                 <strong className="success-val-total">₱{totalAmount.toFixed(2)}</strong>
               </div>
               {(createdOrder?.accepted_by_name || createdOrder?.completed_by_name) && (
@@ -221,7 +187,7 @@ export default function Checkout({
             </div>
 
             <button className="btn-3d-new-order" onClick={handleFinish}>
-              Return to Menu
+              Track Order
             </button>
           </div>
         )}

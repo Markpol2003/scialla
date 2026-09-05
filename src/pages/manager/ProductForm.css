@@ -1,0 +1,9 @@
+.product-editor { width: 92%; max-width: 520px; max-height: 90vh; overflow-y: auto; }
+.product-editor h2 { margin: 0 0 18px; }
+.product-editor fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 14px; min-width: 0; }
+.product-editor label { display: grid; gap: 6px; font-size: .85rem; font-weight: 600; }
+.product-editor input:not([type=checkbox]), .product-editor select, .product-editor textarea { width: 100%; box-sizing: border-box; border: 1px solid #8c6248; border-radius: 8px; background: #26150c; color: #fff; padding: 10px; font: inherit; }
+.product-editor .product-editor-check { display: flex; align-items: center; }
+.product-editor-sizes { display: flex; gap: 12px; }
+.product-editor-sizes > label { flex: 1; min-width: 0; }
+.product-editor-error { color: #ef7777; margin: 0; }

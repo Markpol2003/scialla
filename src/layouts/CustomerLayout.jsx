@@ -609,7 +609,7 @@ export default function CustomerLayout({ onNavigate }) {
                   setIsCheckoutOpen(true);
                 }}
               >
-                Checkout &bull; ₱{totalAmount.toFixed(2)}
+                Confirm Order &bull; ₱{totalAmount.toFixed(2)}
               </button>
             </div>
           </div>

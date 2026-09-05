@@ -365,7 +365,7 @@ export default function Orders() {
 
                     <div className="card-footer-bar">
                       <div className="order-payment-tag">
-                        Paid: <strong>₱{parseFloat(ord.total || 0).toFixed(2)}</strong> ({ord.paymentMethod || 'Paid'})
+                        Total: <strong>₱{parseFloat(ord.total || 0).toFixed(2)}</strong>{ord.paymentMethod && <> ({ord.paymentMethod})</>}
                       </div>
                       <div className="card-actions-row">
                         <button
@@ -581,7 +581,7 @@ export default function Orders() {
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed rgba(201, 139, 91, 0.25)', paddingTop: '10px' }}>
                     <span style={{ fontSize: '0.8rem', color: '#D4A373' }}>
-                      {ord.paymentMethod || 'Cash'}
+                      {ord.paymentMethod || 'Total'}
                     </span>
                     <span style={{ fontSize: '1.05rem', fontWeight: 900, color: '#E2B688', fontFamily: 'var(--font-mono, monospace)' }}>
                       ₱{parseFloat(ord.total || 0).toFixed(2)}
