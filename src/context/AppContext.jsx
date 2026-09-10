@@ -871,41 +871,54 @@ export function AppProvider({ children }) {
   };
 
   // Toggle item stock status (Staff / Manager) with PostgreSQL persistence
-  const toggleItemStock = (itemId) => {
-    // 1. Find the current item synchronously from active categories
-    let currentItem = null;
-    for (const cat of menuCategories) {
-      const found = cat.items.find((i) => i.id === itemId);
-      if (found) {
-        currentItem = found;
-        break;
+  const toggleItemStock = async (itemId) => {
+    let nextStockState = false;
+    let nextQuantity = 0;
+    let itemName = itemId;
+
+    // 1. Functional state updater to ensure synchronous fresh state from previous state (no stale closures)
+    setMenuCategories((prevCats) => {
+      let currentItem = null;
+      for (const cat of prevCats) {
+        const found = cat.items.find((i) => i.id === itemId);
+        if (found) {
+          currentItem = found;
+          break;
+        }
       }
-    }
 
-    const currentStock = currentItem ? currentItem.inStock !== false : true;
-    const nextStockState = !currentStock;
-    const nextQuantity = nextStockState ? 50 : 0;
-    const itemName = currentItem ? currentItem.name : itemId;
+      const currentStock = currentItem ? currentItem.inStock !== false : true;
+      nextStockState = !currentStock;
+      nextQuantity = nextStockState ? 50 : 0;
+      itemName = currentItem ? currentItem.name : itemId;
 
-    // 2. Optimistic local state update
-    setMenuCategories((prevCats) =>
-      prevCats.map((cat) => ({
+      return prevCats.map((cat) => ({
         ...cat,
         items: cat.items.map((item) => {
           if (item.id === itemId) {
-            return { ...item, inStock: nextStockState };
+            return {
+              ...item,
+              inStock: nextStockState,
+              available: nextStockState
+            };
           }
           return item;
         })
-      }))
-    );
+      }));
+    });
 
-    // 3. Persist to PostgreSQL via REST API
-    api.updateProductStock(itemId, nextStockState, nextQuantity, itemName);
+    try {
+      // 2. Persist to PostgreSQL via REST API
+      const res = await api.updateProductStock(itemId, nextStockState, nextQuantity, itemName);
 
-    // 4. Broadcast via Socket.IO
-    if (socket && socket.connected) {
-      socket.emit('stock:toggle', { itemId, inStock: nextStockState, quantity: nextQuantity, name: itemName });
+      // 3. Broadcast via Socket.IO
+      if (socket && socket.connected) {
+        socket.emit('stock:toggle', { itemId, inStock: nextStockState, quantity: nextQuantity, name: itemName });
+      }
+
+      return res;
+    } catch (err) {
+      console.error('Failed to update product stock:', err);
     }
   };
 

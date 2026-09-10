@@ -1875,7 +1875,7 @@ body {
 }
 
 /* Out of Stock */
-.card-out-of-stock {
+.coffee-card-3d.card-out-of-stock {
   opacity: 0.45;
   pointer-events: none;
 }

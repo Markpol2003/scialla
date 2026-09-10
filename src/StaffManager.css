@@ -5520,11 +5520,34 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    pointer-events: auto !important;
   }
 
-  .product-mobile-card.card-out-of-stock {
-    opacity: 0.65;
-    border-color: rgba(239, 68, 68, 0.3);
+  .product-mobile-card.card-out-of-stock,
+  .product-mobile-card.pmc-out-of-stock {
+    opacity: 0.7;
+    border-color: rgba(239, 68, 68, 0.35);
+    pointer-events: auto !important;
+  }
+
+  .product-mobile-card .stock-switch {
+    min-height: 42px;
+    min-width: 104px;
+    padding: 8px 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 20px;
+    font-size: 0.74rem;
+    font-weight: 800;
+    cursor: pointer;
+    pointer-events: auto !important;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    position: relative;
+    z-index: 2;
   }
 
   .pmc-top-row {

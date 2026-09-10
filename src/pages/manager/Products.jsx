@@ -7,6 +7,19 @@ export default function Products() {
   const [editor, setEditor] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCat, setSelectedCat] = useState('all');
+  const [updatingId, setUpdatingId] = useState(null);
+
+  const handleToggleStock = async (itemId) => {
+    if (updatingId === itemId) return;
+    setUpdatingId(itemId);
+    try {
+      await toggleItemStock(itemId);
+    } catch (err) {
+      console.error('Error toggling product stock:', err);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   const totalItemsCount = menuCategories.reduce((sum, cat) => sum + cat.items.length, 0);
   const totalInStockCount = menuCategories.reduce(
@@ -169,8 +182,8 @@ export default function Products() {
                         <button
                           type="button"
                           className={`stock-switch ${item.inStock ? 'is-stock' : 'is-out'}`}
-                          disabled={item.active === false}
-                      onClick={() => toggleItemStock(item.id)}
+                          disabled={item.active === false || updatingId === item.id}
+                          onClick={() => handleToggleStock(item.id)}
                           title={item.inStock ? 'Mark as sold out' : 'Mark as in stock'}
                         >
                           <span className="switch-knob" />
@@ -189,7 +202,7 @@ export default function Products() {
             {/* Mobile Product Cards View (Visible only on mobile via CSS) */}
             <div className="catalog-mobile-cards-list">
               {filteredProducts.map((item) => (
-                <div key={item.id} className={`product-mobile-card ${!item.inStock ? 'card-out-of-stock' : ''}`}>
+                <div key={item.id} className={`product-mobile-card ${!item.inStock ? 'pmc-out-of-stock' : ''}`}>
                   <div className="pmc-top-row">
                     <div className="pmc-identity">
                       <strong className="pmc-name">{item.name}</strong>
@@ -220,8 +233,8 @@ export default function Products() {
                     <button
                       type="button"
                       className={`stock-switch ${item.inStock ? 'is-stock' : 'is-out'}`}
-                      disabled={item.active === false}
-                          onClick={() => toggleItemStock(item.id)}
+                      disabled={item.active === false || updatingId === item.id}
+                      onClick={() => handleToggleStock(item.id)}
                       title={item.inStock ? 'Mark as sold out' : 'Mark as in stock'}
                     >
                       <span className="switch-knob" />
