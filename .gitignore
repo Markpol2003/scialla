@@ -29,3 +29,4 @@ dist-ssr
 .env.*.local
 scialla-backend/.env
 
+scialla-backend/scratch_test.js
