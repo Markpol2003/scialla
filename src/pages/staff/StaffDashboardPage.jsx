@@ -231,9 +231,20 @@ export default function StaffDashboardPage() {
                 newOrders.map((ord) => (
                   <div key={ord.id} className="staff-order-card card-new">
                     <div className="card-header-bar">
-                      <span className="order-id-pill">#{ord.id}</span>
-                      <span className="order-table-tag">{ord.table}</span>
-                      <span className="order-time-tag">{ord.timestamp}</span>
+                      <div className="order-header-main" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <strong className="order-customer-title" style={{ fontSize: '1.05rem', color: '#FFFFFF', fontWeight: 800 }}>
+                          {ord.customer_name || ord.customerName || `#${ord.id}`}
+                        </strong>
+                        {(ord.customer_name || ord.customerName) && (
+                          <span className="order-id-pill font-mono" style={{ fontSize: '0.8rem', color: '#E2B688', opacity: 0.9 }}>
+                            Ref: #{ord.id}
+                          </span>
+                        )}
+                      </div>
+                      <div className="order-header-meta" style={{ textAlign: 'right' }}>
+                        <span className="order-table-tag" style={{ display: 'block', fontWeight: 700 }}>{ord.table}</span>
+                        <span className="order-time-tag" style={{ fontSize: '0.78rem', color: '#A08070' }}>{ord.timestamp}</span>
+                      </div>
                     </div>
 
                     <div className="card-items-list">
@@ -283,10 +294,40 @@ export default function StaffDashboardPage() {
                 preparingOrders.map((ord) => (
                   <div key={ord.id} className="staff-order-card card-preparing">
                     <div className="card-header-bar">
-                      <span className="order-id-pill">#{ord.id}</span>
-                      <span className="order-table-tag">{ord.table}</span>
-                      <span className="order-time-tag">{ord.timestamp}</span>
+                      <div className="order-header-main" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <strong className="order-customer-title" style={{ fontSize: '1.05rem', color: '#FFFFFF', fontWeight: 800 }}>
+                          {ord.customer_name || ord.customerName || `#${ord.id}`}
+                        </strong>
+                        {(ord.customer_name || ord.customerName) && (
+                          <span className="order-id-pill font-mono" style={{ fontSize: '0.8rem', color: '#E2B688', opacity: 0.9 }}>
+                            Ref: #{ord.id}
+                          </span>
+                        )}
+                      </div>
+                      <div className="order-header-meta" style={{ textAlign: 'right' }}>
+                        <span className="order-table-tag" style={{ display: 'block', fontWeight: 700 }}>{ord.table}</span>
+                        <span className="order-time-tag" style={{ fontSize: '0.78rem', color: '#A08070' }}>{ord.timestamp}</span>
+                      </div>
                     </div>
+
+                    {ord.accepted_by_name && (
+                      <div
+                        style={{
+                          margin: '4px 0 8px',
+                          padding: '4px 10px',
+                          background: 'rgba(201, 139, 91, 0.15)',
+                          borderLeft: '3px solid #C98B5B',
+                          borderRadius: '4px',
+                          fontSize: '0.78rem',
+                          color: '#E2B688',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <span>Accepted by: <strong>{ord.accepted_by_name}</strong></span>
+                      </div>
+                    )}
 
                     <div className="card-items-list">
                       {renderItemList(ord.items, ord.total)}
@@ -323,9 +364,40 @@ export default function StaffDashboardPage() {
                 readyOrders.map((ord) => (
                   <div key={ord.id} className="staff-order-card card-ready">
                     <div className="card-header-bar">
-                      <span className="order-id-pill">#{ord.id}</span>
-                      <span className="order-table-tag">{ord.table}</span>
+                      <div className="order-header-main" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <strong className="order-customer-title" style={{ fontSize: '1.05rem', color: '#FFFFFF', fontWeight: 800 }}>
+                          {ord.customer_name || ord.customerName || `#${ord.id}`}
+                        </strong>
+                        {(ord.customer_name || ord.customerName) && (
+                          <span className="order-id-pill font-mono" style={{ fontSize: '0.8rem', color: '#E2B688', opacity: 0.9 }}>
+                            Ref: #{ord.id}
+                          </span>
+                        )}
+                      </div>
+                      <div className="order-header-meta" style={{ textAlign: 'right' }}>
+                        <span className="order-table-tag" style={{ display: 'block', fontWeight: 700 }}>{ord.table}</span>
+                        <span className="order-time-tag" style={{ fontSize: '0.78rem', color: '#A08070' }}>{ord.timestamp}</span>
+                      </div>
                     </div>
+
+                    {ord.accepted_by_name && (
+                      <div
+                        style={{
+                          margin: '4px 0 8px',
+                          padding: '4px 10px',
+                          background: 'rgba(201, 139, 91, 0.15)',
+                          borderLeft: '3px solid #C98B5B',
+                          borderRadius: '4px',
+                          fontSize: '0.78rem',
+                          color: '#E2B688',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <span>Accepted by: <strong>{ord.accepted_by_name}</strong></span>
+                      </div>
+                    )}
 
                     <div className="card-items-list">
                       {renderItemList(ord.items, ord.total)}
@@ -387,6 +459,7 @@ export default function StaffDashboardPage() {
           <table className="staff-history-table">
             <thead>
               <tr>
+                <th>Customer</th>
                 <th>Order Ref</th>
                 <th>Destination</th>
                 <th>Time</th>
@@ -398,7 +471,8 @@ export default function StaffDashboardPage() {
             <tbody>
               {completedOrders.map((ord) => (
                 <tr key={ord.id}>
-                  <td><strong>#{ord.id}</strong></td>
+                  <td><strong style={{ color: '#FFDFBA' }}>{ord.customer_name || ord.customerName || '—'}</strong></td>
+                  <td><span style={{ fontFamily: 'var(--font-mono)', color: '#E2B688' }}>#{ord.id}</span></td>
                   <td>{ord.table}</td>
                   <td>{ord.timestamp}</td>
                   <td>{ord.items.map((i) => `${i.qty || i.quantity || 1}x ${i.name || i.product_name || i.item_name || 'Item'}`).join(', ')}</td>

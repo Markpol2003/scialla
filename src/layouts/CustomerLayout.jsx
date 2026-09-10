@@ -325,52 +325,61 @@ export default function CustomerLayout({ onNavigate }) {
             <div className="tracker-left">
               <div className="tracker-live-tag">
                 <span className="pulse-indicator" />
-                <strong className="tracker-order-id">#{lastCustomerOrder.id}</strong>
+                <strong className="tracker-order-id">
+                  {lastCustomerOrder.customer_name
+                    ? `${lastCustomerOrder.customer_name}'s Order`
+                    : `#${lastCustomerOrder.id}`}
+                </strong>
                 <span className="tracker-table-badge">{lastCustomerOrder.table}</span>
+                {lastCustomerOrder.customer_name && (
+                  <span className="tracker-ref-badge" style={{ fontSize: '0.75rem', color: '#E2B688', background: 'rgba(201, 139, 91, 0.2)', padding: '2px 8px', borderRadius: '6px', fontFamily: 'var(--font-mono)' }}>
+                    Ref: #{lastCustomerOrder.id}
+                  </span>
+                )}
               </div>
 
               <div className="tracker-status-pill-wrap">
                 {isReceived && (
-                  <span className="status-pill status-new">Order Received • Waiting for barista</span>
+                  <span className="status-pill status-new">Your order has been received.</span>
                 )}
                 {isPreparing && (
                   <span className="status-pill status-prep">
-                    Accepted & Preparing{lastCustomerOrder.accepted_by_name ? ` • Crafted by ${lastCustomerOrder.accepted_by_name}` : ''}
+                    Your order is being prepared.{lastCustomerOrder.accepted_by_name ? ` • Handled by ${lastCustomerOrder.accepted_by_name}` : ''}
                   </span>
                 )}
                 {isReady && (
                   <span className="status-pill status-ready">
-                    Crafted • Ready for pickup!{lastCustomerOrder.accepted_by_name ? ` (Crafted by ${lastCustomerOrder.accepted_by_name})` : ''}
+                    Your order has been crafted and is ready.{lastCustomerOrder.accepted_by_name ? ` (Crafted by ${lastCustomerOrder.accepted_by_name})` : ''}
                   </span>
                 )}
                 {isCompleted && (
                   <span className="status-pill status-complete">
-                    Completed{lastCustomerOrder.completed_by_name ? ` by ${lastCustomerOrder.completed_by_name}` : ''} • Thank you for ordering from Scialla Cafe!
+                    Your order has been completed. Thank you!{lastCustomerOrder.completed_by_name ? ` • Delivered by ${lastCustomerOrder.completed_by_name}` : ''}
                   </span>
                 )}
               </div>
             </div>
 
             <div className="tracker-right">
-              {/* Compact 4-Step Stepper */}
+              {/* Compact 4-Step Stepper: Received -> Preparing -> Crafted -> Completed */}
               <div className="tracker-mini-stepper">
-                <div className={`mini-node ${['new', 'received', 'pending', 'preparing', 'accepted', 'ready', 'completed'].includes(normStatus) ? 'active' : ''}`}>
-                  <span className="mini-dot">1</span>
+                <div className={`mini-node active ${isPreparing || isReady || isCompleted ? 'done' : ''}`}>
+                  <span className="mini-dot">{(isPreparing || isReady || isCompleted) ? '✓' : '1'}</span>
                   <span className="mini-label">Received</span>
                 </div>
                 <div className={`mini-line ${['preparing', 'accepted', 'ready', 'completed'].includes(normStatus) ? 'active-line' : ''}`} />
-                <div className={`mini-node ${['preparing', 'accepted', 'ready', 'completed'].includes(normStatus) ? 'active' : ''}`}>
-                  <span className="mini-dot">2</span>
+                <div className={`mini-node ${['preparing', 'accepted', 'ready', 'completed'].includes(normStatus) ? 'active' : ''} ${isReady || isCompleted ? 'done' : ''}`}>
+                  <span className="mini-dot">{(isReady || isCompleted) ? '✓' : '2'}</span>
                   <span className="mini-label">Preparing</span>
                 </div>
                 <div className={`mini-line ${['ready', 'completed'].includes(normStatus) ? 'active-line' : ''}`} />
-                <div className={`mini-node ${['ready', 'completed'].includes(normStatus) ? 'active' : ''}`}>
-                  <span className="mini-dot">3</span>
+                <div className={`mini-node ${['ready', 'completed'].includes(normStatus) ? 'active' : ''} ${isCompleted ? 'done' : ''}`}>
+                  <span className="mini-dot">{isCompleted ? '✓' : '3'}</span>
                   <span className="mini-label">Crafted</span>
                 </div>
                 <div className={`mini-line ${isCompleted ? 'active-line' : ''}`} />
-                <div className={`mini-node ${isCompleted ? 'active' : ''}`}>
-                  <span className="mini-dot">4</span>
+                <div className={`mini-node ${isCompleted ? 'active done' : ''}`}>
+                  <span className="mini-dot">{isCompleted ? '✓' : '4'}</span>
                   <span className="mini-label">Completed</span>
                 </div>
               </div>

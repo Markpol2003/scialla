@@ -49,6 +49,7 @@ export default function ManagerOrders() {
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase().trim();
           const idMatch = String(o.id || '').toLowerCase().includes(q);
+          const customerMatch = String(o.customer_name || '').toLowerCase().includes(q);
           const tableMatch = String(o.table || '').toLowerCase().includes(q);
           const statusMatch = String(o.status || '').toLowerCase().includes(q);
           const completedByMatch = String(o.completed_by_name || '').toLowerCase().includes(q);
@@ -57,7 +58,7 @@ export default function ManagerOrders() {
             String(it.name || it.product_name || it.item_name || '').toLowerCase().includes(q)
           );
 
-          return idMatch || tableMatch || statusMatch || completedByMatch || acceptedByMatch || itemsMatch;
+          return idMatch || customerMatch || tableMatch || statusMatch || completedByMatch || acceptedByMatch || itemsMatch;
         }
 
         return true;
@@ -144,7 +145,7 @@ export default function ManagerOrders() {
             <input
               type="text"
               className="orders-search-input"
-              placeholder="Search by order #, table, staff..."
+              placeholder="Search by customer, order #, table, staff..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -210,7 +211,7 @@ export default function ManagerOrders() {
               <table className="manager-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: 'left', padding: '10px 12px' }}>Order Ref</th>
+                    <th style={{ textAlign: 'left', padding: '10px 12px' }}>Customer / Order</th>
                     <th style={{ textAlign: 'left', padding: '10px 12px' }}>Destination</th>
                     <th style={{ textAlign: 'left', padding: '10px 12px' }}>Total</th>
                     <th style={{ textAlign: 'left', padding: '10px 12px' }}>Status</th>
@@ -233,9 +234,16 @@ export default function ManagerOrders() {
                         style={{ cursor: 'pointer', transition: 'background 0.15s ease' }}
                       >
                         <td style={{ padding: '12px' }}>
-                          <strong style={{ color: '#E2B688', fontFamily: 'var(--font-mono)' }}>
-                            #{ord.id}
-                          </strong>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span style={{ fontWeight: 700, color: ord.customer_name ? '#FFDFBA' : '#E2B688', fontSize: '0.95rem' }}>
+                              {ord.customer_name || `#${ord.id}`}
+                            </span>
+                            {ord.customer_name && (
+                              <span style={{ fontSize: '0.78rem', color: '#A08070', fontFamily: 'var(--font-mono)' }}>
+                                Ref: #{ord.id}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td style={{ padding: '12px', color: '#FFFFFF' }}>
                           {ord.table || 'Counter Pickup'}
@@ -287,9 +295,18 @@ export default function ManagerOrders() {
                     className="manager-order-mobile-card"
                     onClick={() => setSelectedOrder(ord)}
                   >
-                    {/* Top Row: Order reference (left) + Status badge (right) */}
+                    {/* Top Row: Customer Name / Order reference (left) + Status badge (right) */}
                     <div className="order-card-top-row">
-                      <strong className="order-card-ref">#{ord.id}</strong>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span className="order-card-customer" style={{ fontWeight: 700, color: ord.customer_name ? '#FFDFBA' : '#E2B688', fontSize: '1.05rem' }}>
+                          {ord.customer_name || `#${ord.id}`}
+                        </span>
+                        {ord.customer_name && (
+                          <span className="order-card-ref-sub" style={{ fontSize: '0.78rem', color: '#A08070', fontFamily: 'var(--font-mono)' }}>
+                            Ref: #{ord.id}
+                          </span>
+                        )}
+                      </div>
                       <span className={`status-pill pill-${ord.status}`}>
                         {ord.status.toUpperCase()}
                       </span>
@@ -359,11 +376,11 @@ export default function ManagerOrders() {
 
             {/* Modal Header */}
             <div className="login-brand">
-              <h2 className="brand-title" style={{ marginTop: '4px', fontSize: '1.4rem' }}>
-                Order #{selectedOrder.id}
+              <h2 className="brand-title" style={{ marginTop: '4px', fontSize: '1.4rem', color: '#FFDFBA' }}>
+                {selectedOrder.customer_name ? `${selectedOrder.customer_name}'s Order` : `Order #${selectedOrder.id}`}
               </h2>
-              <p className="brand-subtitle">
-                {selectedOrder.table || 'Counter Pickup'}{selectedOrder.paymentMethod && <> &bull; {selectedOrder.paymentMethod}</>}
+              <p className="brand-subtitle" style={{ fontSize: '0.85rem' }}>
+                Order Ref: <strong style={{ color: '#E2B688', fontFamily: 'var(--font-mono)' }}>#{selectedOrder.id}</strong> &bull; {selectedOrder.table || 'Counter Pickup'}{selectedOrder.paymentMethod && <> &bull; {selectedOrder.paymentMethod}</>}
               </p>
             </div>
 
@@ -378,6 +395,15 @@ export default function ManagerOrders() {
               flexDirection: 'column',
               gap: '8px'
             }}>
+              {selectedOrder.customer_name && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(201, 139, 91, 0.15)', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#D4C3B3' }}>Customer:</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFDFBA' }}>
+                    {selectedOrder.customer_name}
+                  </span>
+                </div>
+              )}
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.78rem', color: '#A08070', textTransform: 'uppercase' }}>Order Status</span>
                 <span className={`status-pill pill-${selectedOrder.status}`}>

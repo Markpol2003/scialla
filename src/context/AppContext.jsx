@@ -137,31 +137,34 @@ export function AppProvider({ children }) {
     const cleanId = String(notif.orderId || 'gen').replace(/^#/, '');
     const status = notif.status || 'update';
     const dedupKey = notif.key || `${cleanId}-${status}`;
+    const custName = notif.customer_name || notif.customerName || (lastCustomerOrder && lastCustomerOrder.customer_name ? lastCustomerOrder.customer_name : null);
 
     let defaultTitle = notif.title || 'Order Update';
-    let defaultMessage = notif.message || `Order #${cleanId} status is now ${status}.`;
+    let defaultMessage = notif.message || (custName ? `${custName}, your order status is now ${status}.` : `Order #${cleanId} status is now ${status}.`);
 
     if (status === 'new' || status === 'received') {
       defaultTitle = 'Order Received';
-      defaultMessage = `Your order #${cleanId} has been placed and received by our baristas.`;
+      defaultMessage = custName ? `${custName}, your order has been received.` : `Your order #${cleanId} has been placed and received by our baristas.`;
     } else if (status === 'accepted' || status === 'preparing') {
-      defaultTitle = 'Order Accepted';
-      defaultMessage = 'Your order has been accepted and is being prepared.';
+      defaultTitle = 'Order Preparing';
+      defaultMessage = custName ? `${custName}, your order is being prepared.` : 'Your order is being prepared.';
     } else if (status === 'ready') {
-      defaultTitle = 'Your order is ready!';
-      defaultMessage = 'Your order has been crafted and is ready!';
+      defaultTitle = 'Order Crafted';
+      defaultMessage = custName ? `${custName}, your order has been crafted and is ready.` : 'Your order has been crafted and is ready!';
     } else if (status === 'completed') {
       defaultTitle = 'Order Completed';
-      defaultMessage = 'Your order has been completed. Thank you!';
+      defaultMessage = custName ? `${custName}, your order has been completed. Thank you!` : 'Your order has been completed. Thank you!';
     } else if (status === 'cancelled') {
       defaultTitle = 'Order Cancelled';
-      defaultMessage = `Order #${cleanId} was cancelled.`;
+      defaultMessage = custName ? `${custName}, your order #${cleanId} was cancelled.` : `Order #${cleanId} was cancelled.`;
     }
 
     const newEntry = {
       id: notif.id ? String(notif.id) : dedupKey,
       key: dedupKey,
       orderId: cleanId,
+      customer_name: custName,
+      customerName: custName,
       status,
       title: notif.title || defaultTitle,
       message: notif.message || defaultMessage,
@@ -521,14 +524,21 @@ export function AppProvider({ children }) {
     socketInstance.on('order:status_updated', (data) => {
       console.log('📡 Received targeted order:status_updated:', data);
       const targetOrderId = data.id || data.orderId;
+      if (!targetOrderId) return;
       const cleanId = String(targetOrderId).replace(/^#/, '');
 
       // Update staff dashboard orders queue with monotonic rank check
       setOrders((prev) =>
         prev.map((ord) => {
-          if (ord.id === targetOrderId) {
+          const ordCleanId = String(ord.id || '').replace(/^#/, '');
+          if (ord.id === targetOrderId || ordCleanId === cleanId) {
             if (!shouldAcceptStatusUpdate(ord.status, data.status)) return ord;
-            return { ...ord, ...data };
+            return {
+              ...ord,
+              ...data,
+              customer_name: data.customer_name || data.customerName || ord.customer_name || ord.customerName || null,
+              customerName: data.customer_name || data.customerName || ord.customer_name || ord.customerName || null
+            };
           }
           return ord;
         })
@@ -539,32 +549,39 @@ export function AppProvider({ children }) {
         customerOrderIds.some((id) => id === targetOrderId || String(id).replace(/^#/, '') === cleanId);
 
       if (isCustomerOrder) {
+        const foundOrder = (lastCustomerOrder && (lastCustomerOrder.id === targetOrderId || String(lastCustomerOrder.id).replace(/^#/, '') === cleanId))
+          ? lastCustomerOrder
+          : orders.find((o) => o.id === targetOrderId || String(o.id).replace(/^#/, '') === cleanId);
+        const custName = data.customer_name || data.customerName || (foundOrder ? (foundOrder.customer_name || foundOrder.customerName) : null);
+
         let title = 'Order Update';
-        let message = `Order #${cleanId} status is now ${data.status}.`;
+        let message = custName ? `${custName}, your order status is now ${data.status}.` : `Order #${cleanId} status is now ${data.status}.`;
 
         if (data.status === 'new' || data.status === 'received') {
           title = 'Order Received';
-          message = `Your order #${cleanId} has been placed and received by our baristas.`;
+          message = custName ? `${custName}, your order has been received.` : `Your order #${cleanId} has been placed and received by our baristas.`;
         } else if (data.status === 'accepted' || data.status === 'preparing') {
-          title = 'Order Accepted';
-          message = 'Your order has been accepted and is being prepared.';
+          title = 'Order Preparing';
+          message = custName ? `${custName}, your order is being prepared.` : 'Your order is being prepared.';
         } else if (data.status === 'ready') {
-          title = 'Your order is ready!';
-          message = 'Your order has been crafted and is ready!';
-          triggerToast('Your order is ready!');
+          title = 'Order Crafted';
+          message = custName ? `${custName}, your order has been crafted and is ready.` : 'Your order has been crafted and is ready!';
+          triggerToast(custName ? `${custName}, your order has been crafted and is ready.` : 'Your order has been crafted and is ready!');
         } else if (data.status === 'completed') {
           title = 'Order Completed';
-          message = 'Your order has been completed. Thank you!';
-          triggerToast('Order completed. Thank you!');
+          message = custName ? `${custName}, your order has been completed. Thank you!` : 'Your order has been completed. Thank you!';
+          triggerToast(custName ? `${custName}, your order has been completed. Thank you!` : 'Your order has been completed. Thank you!');
         } else if (data.status === 'cancelled') {
           title = 'Order Cancelled';
-          message = `Order #${cleanId} was cancelled.`;
+          message = custName ? `${custName}, your order #${cleanId} was cancelled.` : `Order #${cleanId} was cancelled.`;
           triggerToast('Your order was cancelled.');
         }
 
         addCustomerNotification({
           key: `${cleanId}-${data.status}`,
           orderId: cleanId,
+          customer_name: custName,
+          customerName: custName,
           title,
           message,
           status: data.status,
@@ -573,11 +590,18 @@ export function AppProvider({ children }) {
         });
       }
 
-      // Update customer live tracking with monotonic guard
+      // Update customer live tracking with monotonic guard & customer_name retention
       setLastCustomerOrder((prev) => {
-        if (prev && (prev.id === targetOrderId || String(prev.id).replace(/^#/, '') === cleanId)) {
-          if (!shouldAcceptStatusUpdate(prev.status, data.status)) return prev;
-          return { ...prev, ...data };
+        if (prev) {
+          const prevCleanId = String(prev.id || '').replace(/^#/, '');
+          if (prev.id === targetOrderId || prevCleanId === cleanId) {
+            if (!shouldAcceptStatusUpdate(prev.status, data.status)) return prev;
+            const merged = { ...prev, ...data };
+            const preservedName = data.customer_name || data.customerName || prev.customer_name || prev.customerName || null;
+            merged.customer_name = preservedName;
+            merged.customerName = preservedName;
+            return merged;
+          }
         }
         return prev;
       });
@@ -732,10 +756,16 @@ export function AppProvider({ children }) {
     const consolidatedItems = Array.from(itemMap.values());
 
     const activeGuestId = guestSessionId || (await api.getOrCreateGuestSession());
+    const rawCustomerName = orderData.customer_name || orderData.customerName || '';
+    const cleanCustomerName = typeof rawCustomerName === 'string' && rawCustomerName.trim().length > 0
+      ? rawCustomerName.trim().slice(0, 40)
+      : null;
 
     const nowIso = new Date().toISOString();
     const newOrder = {
       id: orderData.orderNum || orderData.id || `SC-${Math.floor(1000 + Math.random() * 9000)}`,
+      customer_name: cleanCustomerName,
+      customerName: cleanCustomerName,
       table: orderData.table,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       createdAt: nowIso,
@@ -760,8 +790,10 @@ export function AppProvider({ children }) {
     const cleanTargetId = String(targetId).replace(/^#/, '');
     addCustomerNotification({
       orderId: cleanTargetId,
+      customer_name: cleanCustomerName,
+      customerName: cleanCustomerName,
       title: 'Order Received',
-      message: `Order #${cleanTargetId} has been received.`,
+      message: cleanCustomerName ? `${cleanCustomerName}, your order has been received.` : `Your order #${cleanTargetId} has been placed and received by our baristas.`,
       status: 'new'
     });
 
@@ -774,24 +806,25 @@ export function AppProvider({ children }) {
       return { success: false, message: response.message };
     }
 
-    if (response && response.order) {
-      setOrders((prev) =>
-        prev.map((o) => (o.id === newOrder.id ? { ...newOrder, ...response.order } : o))
-      );
-      setLastCustomerOrder(response.order);
-      if (response.order.id) {
-        setCustomerOrderIds((prev) => (prev.includes(response.order.id) ? prev : [response.order.id, ...prev]));
-      }
+    const created = response?.order || newOrder;
+    setOrders((prev) =>
+      prev.map((o) => (o.id === newOrder.id ? { ...newOrder, ...created } : o))
+    );
+    setLastCustomerOrder(created);
+    if (created.id) {
+      setCustomerOrderIds((prev) => (prev.includes(created.id) ? prev : [created.id, ...prev]));
     }
 
-    // Direct Socket.IO emission fallback if connected
+    // Join order room immediately on socket
     if (socket && socket.connected) {
-      socket.emit('order:create', newOrder);
-      socket.emit('join:order', newOrder.id);
+      if (activeGuestId) {
+        socket.emit('register:guest', activeGuestId);
+      }
+      socket.emit('join:order', { orderId: created.id, guestSessionId: activeGuestId });
     }
 
     triggerToast(`Order placed successfully! #${newOrder.id}`);
-    return { success: true, order: response?.order || newOrder };
+    return { success: true, order: created };
   };
 
   // Update order status (Staff / Manager) with server-side audit trails & registered staff full name
@@ -858,7 +891,14 @@ export function AppProvider({ children }) {
         prev.map((ord) => (ord.id === orderId ? { ...ord, ...res.order } : ord))
       );
       if (lastCustomerOrder && lastCustomerOrder.id === orderId) {
-        setLastCustomerOrder((prev) => ({ ...prev, ...res.order }));
+        setLastCustomerOrder((prev) => {
+          const merged = { ...prev, ...res.order };
+          if (!merged.customer_name && prev.customer_name) {
+            merged.customer_name = prev.customer_name;
+            merged.customerName = prev.customer_name;
+          }
+          return merged;
+        });
       }
     }
 

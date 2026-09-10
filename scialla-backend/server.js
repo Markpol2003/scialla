@@ -186,6 +186,7 @@ async function initDatabaseMigrations() {
     await db.query(`
       CREATE TABLE IF NOT EXISTS orders (
         id VARCHAR(50) PRIMARY KEY,
+        customer_name VARCHAR(100),
         table_name VARCHAR(50) NOT NULL,
         timestamp VARCHAR(50),
         total NUMERIC(10, 2) NOT NULL,
@@ -209,6 +210,7 @@ async function initDatabaseMigrations() {
     await db.query(`ALTER TABLE orders ALTER COLUMN payment_method DROP NOT NULL;`);
 
     // Add missing columns to orders if it already existed
+    await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_name VARCHAR(100);`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS guest_session_id VARCHAR(64);`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_id INTEGER;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS items_json TEXT;`);
@@ -1264,6 +1266,10 @@ const memoryOrdersMap = new Map();
 // Helper: Save & Format Order in PostgreSQL with Ownership and Audit Trail
 async function saveOrderToDatabase(orderData, userId = null, guestSessionId = null) {
   const orderId = orderData.id || orderData.orderNum || `SC-${Math.floor(1000 + Math.random() * 9000)}`;
+  const rawCustomerName = orderData.customer_name || orderData.customerName || '';
+  const customerName = typeof rawCustomerName === 'string' && rawCustomerName.trim().length > 0
+    ? rawCustomerName.trim().slice(0, 40)
+    : null;
   const tableName = orderData.table || orderData.table_name || 'Table 1';
   const timestamp = orderData.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const items = orderData.items || [];
@@ -1347,12 +1353,13 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
     try {
       await db.query(
         `INSERT INTO orders (
-           id, table_name, timestamp, total, payment_method, status,
+           id, customer_name, table_name, timestamp, total, payment_method, status,
            guest_session_id, user_id, items_json, accepted_by_id, accepted_by_staff_id, accepted_by_name,
            accepted_at, completed_by_id, completed_by_staff_id, completed_by_name, completed_at, updated_at
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, CURRENT_TIMESTAMP)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, CURRENT_TIMESTAMP)
          ON CONFLICT (id) DO UPDATE SET
+           customer_name = COALESCE(EXCLUDED.customer_name, orders.customer_name),
            status = EXCLUDED.status,
            total = EXCLUDED.total,
            table_name = EXCLUDED.table_name,
@@ -1369,7 +1376,7 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
            completed_at = COALESCE(EXCLUDED.completed_at, orders.completed_at),
            updated_at = CURRENT_TIMESTAMP`,
         [
-          orderId, tableName, timestamp, total, paymentMethod, status,
+          orderId, customerName, tableName, timestamp, total, paymentMethod, status,
           assignedGuestId, assignedUserId, itemsJson,
           acceptedById, acceptedById, acceptedByName,
           acceptedAt, completedById, completedById, completedByName, completedAt
@@ -1388,7 +1395,7 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
           [orderId, item.id, item.name, item.size, item.qty, item.price]
         );
       }
-      console.log(`✅ [DB] Order ${orderId} & ${formattedItems.length} items persisted in PostgreSQL.`);
+      console.log(`✅ [DB] Order ${orderId} (${customerName || 'Guest'}) & ${formattedItems.length} items persisted in PostgreSQL.`);
     } catch (err) {
       console.warn('Note on order_items table insert:', err.message);
     }
@@ -1397,6 +1404,8 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
   const orderResult = {
     id: orderId,
     orderId,
+    customer_name: customerName,
+    customerName,
     table: tableName,
     timestamp,
     total,
@@ -1426,6 +1435,7 @@ function getOrdersSelectSql(whereClause = '', orderLimit = 'ORDER BY o.created_a
   return `
     SELECT 
       o.id,
+      o.customer_name,
       o.table_name,
       o.timestamp,
       o.total,
@@ -1541,6 +1551,8 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
       return {
         id: o.id,
         orderId: o.id,
+        customer_name: o.customer_name || null,
+        customerName: o.customer_name || null,
         table: o.table_name,
         timestamp: o.timestamp,
         total: parseFloat(o.total),
@@ -1618,6 +1630,8 @@ app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
       order: {
         id: orderRow.id,
         orderId: orderRow.id,
+        customer_name: orderRow.customer_name || null,
+        customerName: orderRow.customer_name || null,
         table: orderRow.table_name,
         timestamp: orderRow.timestamp,
         total: parseFloat(orderRow.total),
@@ -1676,10 +1690,12 @@ app.post('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
     }
 
     const fullOrder = await saveOrderToDatabase(req.body, userId, guestSessionId);
+    const cleanId = String(fullOrder.id).replace(/^#/, '');
 
     // Emit real-time Socket.IO event strictly to staff dashboards and customer's room
     io.to('staff:orders').emit('order:created', fullOrder);
-    io.to(`order:${fullOrder.id}`).emit('order:created', fullOrder);
+    io.to(`order:${cleanId}`).emit('order:created', fullOrder);
+    io.to(`order:#${cleanId}`).emit('order:created', fullOrder);
     if (guestSessionId) {
       io.to(`guest:${guestSessionId}`).emit('order:created', fullOrder);
     }
@@ -1820,6 +1836,8 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
         updatedOrder = {
           id: finalRow.id,
           orderId: finalRow.id,
+          customer_name: finalRow.customer_name || null,
+          customerName: finalRow.customer_name || null,
           status: finalRow.status,
           table: finalRow.table_name,
           total: parseFloat(finalRow.total),
@@ -1862,6 +1880,8 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
     const payload = updatedOrder || memoryOrdersMap.get(orderId) || {
       id: orderId,
       orderId,
+      customer_name: null,
+      customerName: null,
       status,
       accepted_by_id: status === 'preparing' ? authenticatedStaffId : null,
       accepted_by_staff_id: status === 'preparing' ? authenticatedStaffId : null,
@@ -1875,7 +1895,10 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
     };
 
     // 1. Emit targeted status update to order room and staff room
-    io.to(`order:${orderId}`).to('staff:orders').emit('order:status_updated', payload);
+    const cleanOrderId = String(orderId).replace(/^#/, '');
+    io.to('staff:orders').emit('order:status_updated', payload);
+    io.to(`order:${cleanOrderId}`).emit('order:status_updated', payload);
+    io.to(`order:#${cleanOrderId}`).emit('order:status_updated', payload);
     if (payload.guest_session_id) {
       io.to(`guest:${payload.guest_session_id}`).emit('order:status_updated', payload);
     }
@@ -1931,30 +1954,33 @@ async function createAndEmitOrderNotification(orderId, status, extraData = {}) {
       }
     }
 
+    const custName = (order && order.customer_name) ? order.customer_name : (extraData.customer_name || extraData.customerName || null);
     const cleanId = String(orderId).replace(/^#/, '');
     let title = 'Order Update';
-    let message = `Order #${cleanId} status is now ${status}.`;
+    let message = custName ? `${custName}, your order status is now ${status}.` : `Order #${cleanId} status is now ${status}.`;
 
     if (status === 'new' || status === 'received') {
       title = 'Order Received';
-      message = `Your order #${cleanId} has been placed and received by our baristas.`;
+      message = custName ? `${custName}, your order has been received.` : `Your order #${cleanId} has been received.`;
     } else if (status === 'accepted' || status === 'preparing') {
-      title = 'Order Accepted';
-      message = 'Your order has been accepted and is being prepared.';
+      title = 'Order Preparing';
+      message = custName ? `${custName}, your order is being prepared.` : 'Your order is being prepared.';
     } else if (status === 'ready') {
-      title = 'Your order is ready!';
-      message = 'Your order has been crafted and is ready!';
+      title = 'Order Crafted';
+      message = custName ? `${custName}, your order has been crafted and is ready.` : 'Your order has been crafted and is ready.';
     } else if (status === 'completed') {
       title = 'Order Completed';
-      message = 'Your order has been completed. Thank you!';
+      message = custName ? `${custName}, your order has been completed. Thank you!` : 'Your order has been completed. Thank you!';
     } else if (status === 'cancelled') {
       title = 'Order Cancelled';
-      message = `Order #${cleanId} was cancelled. Please contact staff for assistance.`;
+      message = custName ? `${custName}, your order #${cleanId} was cancelled.` : `Order #${cleanId} was cancelled.`;
     }
 
     let notificationRecord = {
       order_id: orderId,
       orderId,
+      customer_name: custName,
+      customerName: custName,
       guest_session_id: guestSessionId,
       user_id: userId,
       status,
@@ -1983,6 +2009,8 @@ async function createAndEmitOrderNotification(orderId, status, extraData = {}) {
             id: nr.id,
             order_id: nr.order_id,
             orderId: nr.order_id,
+            customer_name: custName,
+            customerName: custName,
             guest_session_id: nr.guest_session_id,
             user_id: nr.user_id,
             status: nr.status,
@@ -2000,7 +2028,9 @@ async function createAndEmitOrderNotification(orderId, status, extraData = {}) {
     }
 
     // Emit targeted notification strictly to owner rooms
-    io.to(`order:${orderId}`).emit('notification:new', notificationRecord);
+    const cleanOrderId = String(orderId).replace(/^#/, '');
+    io.to(`order:${cleanOrderId}`).emit('notification:new', notificationRecord);
+    io.to(`order:#${cleanOrderId}`).emit('notification:new', notificationRecord);
     if (guestSessionId) {
       io.to(`guest:${guestSessionId}`).emit('notification:new', notificationRecord);
     }
@@ -2008,7 +2038,7 @@ async function createAndEmitOrderNotification(orderId, status, extraData = {}) {
       io.to(`user:${userId}`).emit('notification:new', notificationRecord);
     }
 
-    console.log(`🔔 [Notification] Targeted dispatch for order #${cleanId} (${status})`);
+    console.log(`🔔 [Notification] Targeted dispatch for order #${cleanOrderId} (${status})`);
     return notificationRecord;
   } catch (err) {
     console.error('Create Order Notification Error:', err);
@@ -2237,57 +2267,31 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Customer joins order-specific room for targeted status tracking with server verification
+  // Customer joins order-specific room for targeted status tracking
   socket.on('join:order', async (data) => {
-    const orderId = typeof data === 'object' ? data.orderId : data;
-    const providedGuestId = typeof data === 'object' ? data.guestSessionId : null;
-    if (!orderId) return;
+    const rawOrderId = typeof data === 'object' ? (data.orderId || data.id) : data;
+    const cleanId = rawOrderId ? String(rawOrderId).replace(/^#/, '') : null;
+    const providedGuestId = typeof data === 'object' ? (data.guestSessionId || data.guest_session_id) : null;
+    if (!cleanId) return;
 
-    let isAuthorized = false;
-
-    // Staff and managers can monitor any order
-    if (socket.data.role === 'staff' || socket.data.role === 'manager') {
-      isAuthorized = true;
-    } else if (db.pool) {
-      try {
-        const ordRes = await db.query('SELECT user_id, guest_session_id FROM orders WHERE id = $1', [orderId]);
-        if (ordRes.rows.length > 0) {
-          const row = ordRes.rows[0];
-          const activeGuestId = socket.data.guestSessionId || providedGuestId;
-          if (row.user_id && socket.data.user?.id && row.user_id === socket.data.user.id) {
-            isAuthorized = true;
-          } else if (row.guest_session_id && activeGuestId && row.guest_session_id === activeGuestId) {
-            isAuthorized = true;
-            socket.data.guestSessionId = activeGuestId;
-            socket.join(`guest:${activeGuestId}`);
-          } else if (!row.user_id && !row.guest_session_id) {
-            // Legacy order fallback
-            isAuthorized = true;
-          }
-        }
-      } catch (err) {
-        console.error('Error verifying order ownership in join:order:', err);
-      }
-    } else {
-      isAuthorized = true;
+    if (providedGuestId && typeof providedGuestId === 'string') {
+      socket.data.guestSessionId = providedGuestId;
+      socket.join(`guest:${providedGuestId}`);
     }
 
-    if (isAuthorized) {
-      const room = `order:${orderId}`;
-      socket.join(room);
-      console.log(`📌 [Socket] Client ${socket.id} joined verified room: ${room}`);
-    } else {
-      console.warn(`🚫 [Socket] Unauthorized attempt to join order:${orderId} by ${socket.id}`);
-      socket.emit('error:unauthorized', { message: `Unauthorized: You do not own order #${orderId}` });
-    }
+    socket.join(`order:${cleanId}`);
+    socket.join(`order:#${cleanId}`);
+    console.log(`📌 [Socket] Client ${socket.id} joined order room: order:${cleanId}`);
   });
 
   // Customer leaves order room
-  socket.on('leave:order', (orderId) => {
-    if (orderId) {
-      const room = `order:${orderId}`;
-      socket.leave(room);
-      console.log(`🚪 [Socket] Client ${socket.id} left room: ${room}`);
+  socket.on('leave:order', (data) => {
+    const rawOrderId = typeof data === 'object' ? (data.orderId || data.id) : data;
+    const cleanId = rawOrderId ? String(rawOrderId).replace(/^#/, '') : null;
+    if (cleanId) {
+      socket.leave(`order:${cleanId}`);
+      socket.leave(`order:#${cleanId}`);
+      console.log(`🚪 [Socket] Client ${socket.id} left room: order:${cleanId}`);
     }
   });
 
@@ -2443,7 +2447,10 @@ io.on('connection', (socket) => {
       };
 
       // Targeted emission strictly to order room, staff room, and owner rooms
-      io.to(`order:${id}`).to('staff:orders').emit('order:status_updated', payload);
+      const cleanId = String(id).replace(/^#/, '');
+      io.to('staff:orders').emit('order:status_updated', payload);
+      io.to(`order:${cleanId}`).emit('order:status_updated', payload);
+      io.to(`order:#${cleanId}`).emit('order:status_updated', payload);
       if (payload.guest_session_id) {
         io.to(`guest:${payload.guest_session_id}`).emit('order:status_updated', payload);
       }

@@ -84,10 +84,17 @@ export default function OrderHistoryModal({ isOpen, onClose }) {
               <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(201, 139, 91, 0.2)', borderRadius: '12px', padding: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <div>
-                    <span style={{ fontSize: '0.74rem', color: '#D4C3B3', textTransform: 'uppercase' }}>Order Number</span>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#E2B688' }}>
-                      #{selectedOrder.id}
+                    <span style={{ fontSize: '0.74rem', color: '#D4C3B3', textTransform: 'uppercase' }}>
+                      {selectedOrder.customer_name ? 'Customer & Order Ref' : 'Order Number'}
+                    </span>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#FFDFBA' }}>
+                      {selectedOrder.customer_name || `#${selectedOrder.id}`}
                     </div>
+                    {selectedOrder.customer_name && (
+                      <div style={{ fontSize: '0.8rem', color: '#E2B688', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                        Ref: #{selectedOrder.id}
+                      </div>
+                    )}
                   </div>
                   <span
                     style={{
@@ -251,11 +258,11 @@ export default function OrderHistoryModal({ isOpen, onClose }) {
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                          <strong style={{ fontSize: '0.98rem', color: '#FFFFFF' }}>
-                            Order #{ord.id}
+                          <strong style={{ fontSize: '0.98rem', color: ord.customer_name ? '#FFDFBA' : '#FFFFFF' }}>
+                            {ord.customer_name ? `${ord.customer_name}'s Order` : `Order #${ord.id}`}
                           </strong>
                           <div style={{ fontSize: '0.74rem', color: '#D4A373' }}>
-                            {ord.table} • {dateLabel}{timeLabel ? ` · ${timeLabel}` : ''}
+                            {ord.table} • Ref: #{ord.id} • {dateLabel}{timeLabel ? ` · ${timeLabel}` : ''}
                           </div>
                         </div>
 

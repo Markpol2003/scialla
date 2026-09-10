@@ -53,6 +53,7 @@ export default function Orders() {
       const q = searchQuery.toLowerCase();
       return (
         String(ord.id || '').toLowerCase().includes(q) ||
+        String(ord.customer_name || ord.customerName || '').toLowerCase().includes(q) ||
         String(ord.table || '').toLowerCase().includes(q) ||
         String(ord.accepted_by_name || '').toLowerCase().includes(q) ||
         String(ord.completed_by_name || '').toLowerCase().includes(q)
@@ -354,9 +355,20 @@ export default function Orders() {
                 newOrders.map((ord) => (
                   <div key={ord.id} className="staff-order-card card-new">
                     <div className="card-header-bar">
-                      <span className="order-id-pill">#{ord.id}</span>
-                      <span className="order-table-tag">{ord.table}</span>
-                      <span className="order-time-tag">{ord.timestamp}</span>
+                      <div className="order-header-main" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <strong className="order-customer-title" style={{ fontSize: '1.05rem', color: '#FFFFFF', fontWeight: 800 }}>
+                          {ord.customer_name || ord.customerName || `#${ord.id}`}
+                        </strong>
+                        {(ord.customer_name || ord.customerName) && (
+                          <span className="order-id-pill font-mono" style={{ fontSize: '0.8rem', color: '#E2B688', opacity: 0.9 }}>
+                            Ref: #{ord.id}
+                          </span>
+                        )}
+                      </div>
+                      <div className="order-header-meta" style={{ textAlign: 'right' }}>
+                        <span className="order-table-tag" style={{ display: 'block', fontWeight: 700 }}>{ord.table}</span>
+                        <span className="order-time-tag" style={{ fontSize: '0.78rem', color: '#A08070' }}>{ord.timestamp}</span>
+                      </div>
                     </div>
 
                     <div className="card-items-list">
@@ -409,9 +421,20 @@ export default function Orders() {
                 preparingOrders.map((ord) => (
                   <div key={ord.id} className="staff-order-card card-preparing">
                     <div className="card-header-bar">
-                      <span className="order-id-pill">#{ord.id}</span>
-                      <span className="order-table-tag">{ord.table}</span>
-                      <span className="order-time-tag">{ord.timestamp}</span>
+                      <div className="order-header-main" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <strong className="order-customer-title" style={{ fontSize: '1.05rem', color: '#FFFFFF', fontWeight: 800 }}>
+                          {ord.customer_name || ord.customerName || `#${ord.id}`}
+                        </strong>
+                        {(ord.customer_name || ord.customerName) && (
+                          <span className="order-id-pill font-mono" style={{ fontSize: '0.8rem', color: '#E2B688', opacity: 0.9 }}>
+                            Ref: #{ord.id}
+                          </span>
+                        )}
+                      </div>
+                      <div className="order-header-meta" style={{ textAlign: 'right' }}>
+                        <span className="order-table-tag" style={{ display: 'block', fontWeight: 700 }}>{ord.table}</span>
+                        <span className="order-time-tag" style={{ fontSize: '0.78rem', color: '#A08070' }}>{ord.timestamp}</span>
+                      </div>
                     </div>
 
                     {ord.accepted_by_name && (
@@ -470,8 +493,20 @@ export default function Orders() {
                 readyOrders.map((ord) => (
                   <div key={ord.id} className="staff-order-card card-ready">
                     <div className="card-header-bar">
-                      <span className="order-id-pill">#{ord.id}</span>
-                      <span className="order-table-tag">{ord.table}</span>
+                      <div className="order-header-main" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <strong className="order-customer-title" style={{ fontSize: '1.05rem', color: '#FFFFFF', fontWeight: 800 }}>
+                          {ord.customer_name || ord.customerName || `#${ord.id}`}
+                        </strong>
+                        {(ord.customer_name || ord.customerName) && (
+                          <span className="order-id-pill font-mono" style={{ fontSize: '0.8rem', color: '#E2B688', opacity: 0.9 }}>
+                            Ref: #{ord.id}
+                          </span>
+                        )}
+                      </div>
+                      <div className="order-header-meta" style={{ textAlign: 'right' }}>
+                        <span className="order-table-tag" style={{ display: 'block', fontWeight: 700 }}>{ord.table}</span>
+                        <span className="order-time-tag" style={{ fontSize: '0.78rem', color: '#A08070' }}>{ord.timestamp}</span>
+                      </div>
                     </div>
 
                     {ord.accepted_by_name && (
@@ -553,11 +588,14 @@ export default function Orders() {
                 >
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ background: '#2D160C', color: '#E2B688', padding: '3px 9px', borderRadius: '6px', fontWeight: 800, fontSize: '0.85rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <strong style={{ color: '#FFDFBA', fontSize: '1rem', fontWeight: 800 }}>
+                          {ord.customer_name || ord.customerName || `#${ord.id}`}
+                        </strong>
+                        <span style={{ background: '#2D160C', color: '#E2B688', padding: '2px 7px', borderRadius: '5px', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}>
                           #{ord.id}
                         </span>
-                        <span style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '0.88rem' }}>{ord.table}</span>
+                        <span style={{ color: '#FFFFFF', fontWeight: 600, fontSize: '0.84rem' }}>{ord.table}</span>
                       </div>
                       <span style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 800 }}>
                         COMPLETED

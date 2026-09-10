@@ -14,6 +14,8 @@ export default function Checkout({
 }) {
   const { placeOrder } = useApp();
 
+  const [customerName, setCustomerName] = useState('');
+  const [nameError, setNameError] = useState('');
   const [isPaid, setIsPaid] = useState(false);
   const [createdOrder, setCreatedOrder] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,10 +36,31 @@ export default function Checkout({
   const formattedDate = `${datePart} • ${timePart}`;
   const orderNum = `SC-${Math.floor(1000 + Math.random() * 9000)}`;
 
+  const sanitizeName = (str) => {
+    if (!str) return '';
+    return str
+      .replace(/[<>]/g, '') // remove html tag characters
+      .trim()
+      .slice(0, 40);
+  };
+
   const handlePay = async () => {
+    const cleanName = sanitizeName(customerName);
+    if (!cleanName) {
+      setNameError('Please enter your name or nickname to confirm.');
+      return;
+    }
+    if (cleanName.length > 40) {
+      setNameError('Name cannot exceed 40 characters.');
+      return;
+    }
+
+    setNameError('');
     setIsSubmitting(true);
     const res = await placeOrder({
       orderNum,
+      customer_name: cleanName,
+      customerName: cleanName,
       table: tableDisplayLabel,
       items: cart,
       total: totalAmount,
@@ -50,15 +73,28 @@ export default function Checkout({
       return;
     }
 
-    setCreatedOrder(res?.order || { id: orderNum, table: tableDisplayLabel, paymentMethod: null, total: totalAmount });
+    setCreatedOrder(
+      res?.order || {
+        id: orderNum,
+        customer_name: cleanName,
+        customerName: cleanName,
+        table: tableDisplayLabel,
+        paymentMethod: null,
+        total: totalAmount
+      }
+    );
     setIsPaid(true);
   };
 
   const handleFinish = () => {
     setIsPaid(false);
+    setCustomerName('');
+    setNameError('');
     onOrderPlaced();
     onClose();
   };
+
+  const confirmedName = createdOrder?.customer_name || createdOrder?.customerName || sanitizeName(customerName);
 
   return createPortal(
     <div className="receipt-modal-backdrop" onClick={() => !isPaid && onClose()} style={{ zIndex: 999999 }}>
@@ -73,6 +109,12 @@ export default function Checkout({
           <div className="receipt-header-divider" />
 
           <div className="receipt-meta-list">
+            {isPaid && confirmedName && (
+              <div className="receipt-meta-row">
+                <span className="receipt-meta-label">Customer</span>
+                <span className="receipt-meta-val highlight-customer">{confirmedName}</span>
+              </div>
+            )}
             <div className="receipt-meta-row">
               <span className="receipt-meta-label">Destination</span>
               <span className="receipt-meta-val highlight-destination">{tableDisplayLabel}</span>
@@ -90,6 +132,34 @@ export default function Checkout({
 
         {!isPaid ? (
           <>
+            {/* Customer Name Input Field Group */}
+            <div className="checkout-name-field-group">
+              <label htmlFor="customer-name-input" className="checkout-name-label">
+                Your Name <span className="required-star">*</span>
+              </label>
+              <input
+                id="customer-name-input"
+                type="text"
+                className={`checkout-name-input ${nameError ? 'input-error' : ''}`}
+                placeholder="e.g. Mark or nickname"
+                value={customerName}
+                maxLength={40}
+                onChange={(e) => {
+                  setCustomerName(e.target.value);
+                  if (nameError) setNameError('');
+                }}
+                disabled={isSubmitting}
+                autoFocus
+              />
+              <p className="checkout-name-helper">
+                {nameError ? (
+                  <span className="error-text">{nameError}</span>
+                ) : (
+                  'This name will be used to identify your order.'
+                )}
+              </p>
+            </div>
+
             <div className="receipt-items-scroll">
               {cart.map((item, idx) => {
                 const hasAddons = Array.isArray(item.addons) && item.addons.length > 0;
@@ -152,17 +222,21 @@ export default function Checkout({
             <div className="success-icon-badge">✓</div>
             <h3 className="success-title">Order Confirmed</h3>
             <p className="success-msg">
-              Your order has been sent to the kitchen for <strong>{tableDisplayLabel}</strong>.
+              Thank you <strong>{confirmedName}</strong>! Your order has been sent to the kitchen for <strong>{tableDisplayLabel}</strong>.
             </p>
 
             <div className="success-receipt-summary">
               <div className="success-line">
-                <span className="success-label">Order Reference:</span>
-                <strong className="success-val-order">#{createdOrder?.id || orderNum}</strong>
+                <span className="success-label">Customer:</span>
+                <strong className="success-val-customer">{confirmedName}</strong>
               </div>
               <div className="success-line">
                 <span className="success-label">Destination:</span>
                 <strong className="success-val-dest">{tableDisplayLabel}</strong>
+              </div>
+              <div className="success-line">
+                <span className="success-label">Order Reference:</span>
+                <strong className="success-val-order">#{createdOrder?.id || orderNum}</strong>
               </div>
               <div className="success-line">
                 <span className="success-label">Total:</span>

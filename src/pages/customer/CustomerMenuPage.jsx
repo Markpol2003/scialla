@@ -38,6 +38,8 @@ export default function CustomerMenuPage() {
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const [orderMeta, setOrderMeta] = useState({ orderNum: '', dateStr: '' });
+  const [customerName, setCustomerName] = useState('');
+  const [nameError, setNameError] = useState('');
   const [selectedSizes, setSelectedSizes] = useState({});
   const [isMobileBarDismissed, setIsMobileBarDismissed] = useState(false);
 
@@ -139,10 +141,22 @@ export default function CustomerMenuPage() {
     : `Table #${tableNumber || '01'}`;
 
   const handlePay = async () => {
+    const trimmed = (customerName || '').trim();
+    if (!trimmed) {
+      setNameError('Please enter your name or nickname to confirm your order.');
+      return;
+    }
+    if (trimmed.length > 40) {
+      setNameError('Name must be 40 characters or less.');
+      return;
+    }
+    setNameError('');
 
     // Dispatch order into shared AppContext store so Staff & Manager UIs instantly reflect it!
     const result = await placeOrder({
       orderNum: orderMeta.orderNum,
+      customer_name: trimmed,
+      customerName: trimmed,
       table: tableDisplayLabel,
       items: cart,
       total: totalAmount,
@@ -153,6 +167,8 @@ export default function CustomerMenuPage() {
 
   const handleNewOrder = () => {
     setCart([]);
+    setCustomerName('');
+    setNameError('');
     setIsReceiptOpen(false);
     setIsPaid(false);
   };
@@ -185,8 +201,17 @@ export default function CustomerMenuPage() {
               <div className="tracker-header">
                 <span className="pulse-indicator" />
                 <div className="tracker-meta">
-                  <strong className="tracker-title">Live Order Tracker #{lastCustomerOrder.id}</strong>
+                  <strong className="tracker-title">
+                    {lastCustomerOrder.customer_name
+                      ? `${lastCustomerOrder.customer_name}'s Order`
+                      : `Live Order Tracker #${lastCustomerOrder.id}`}
+                  </strong>
                   <span className="tracker-table-badge">{lastCustomerOrder.table}</span>
+                  {lastCustomerOrder.customer_name && (
+                    <span className="tracker-ref-badge" style={{ fontSize: '0.75rem', color: '#E2B688', background: 'rgba(201, 139, 91, 0.2)', padding: '2px 8px', borderRadius: '6px', fontFamily: 'var(--font-mono)' }}>
+                      Ref: #{lastCustomerOrder.id}
+                    </span>
+                  )}
                 </div>
 
                 <button
@@ -199,46 +224,46 @@ export default function CustomerMenuPage() {
                 </button>
               </div>
 
-              {/* Unique 4-Step Laser Progress Stepper */}
+              {/* Unique 4-Step Laser Progress Stepper: Received -> Preparing -> Crafted -> Completed */}
               <div className="tracker-progress-stepper">
-                <div className={`stepper-node ${['new', 'received', 'pending', 'preparing', 'accepted', 'ready', 'completed'].includes(normStatus) ? 'active' : ''}`}>
-                  <span className="node-dot">1</span>
+                <div className={`stepper-node active ${isPreparing || isReady || isCompleted ? 'done' : ''}`}>
+                  <span className="node-dot">{(isPreparing || isReady || isCompleted) ? '✓' : '1'}</span>
                   <span className="node-label">Received</span>
                 </div>
                 <div className={`stepper-line ${['preparing', 'accepted', 'ready', 'completed'].includes(normStatus) ? 'active-line' : ''}`} />
-                <div className={`stepper-node ${['preparing', 'accepted', 'ready', 'completed'].includes(normStatus) ? 'active' : ''}`}>
-                  <span className="node-dot">2</span>
+                <div className={`stepper-node ${['preparing', 'accepted', 'ready', 'completed'].includes(normStatus) ? 'active' : ''} ${isReady || isCompleted ? 'done' : ''}`}>
+                  <span className="node-dot">{(isReady || isCompleted) ? '✓' : '2'}</span>
                   <span className="node-label">Preparing</span>
                 </div>
                 <div className={`stepper-line ${['ready', 'completed'].includes(normStatus) ? 'active-line' : ''}`} />
-                <div className={`stepper-node ${['ready', 'completed'].includes(normStatus) ? 'active' : ''}`}>
-                  <span className="node-dot">3</span>
+                <div className={`stepper-node ${['ready', 'completed'].includes(normStatus) ? 'active' : ''} ${isCompleted ? 'done' : ''}`}>
+                  <span className="node-dot">{isCompleted ? '✓' : '3'}</span>
                   <span className="node-label">Crafted</span>
                 </div>
                 <div className={`stepper-line ${isCompleted ? 'active-line' : ''}`} />
-                <div className={`stepper-node ${isCompleted ? 'active' : ''}`}>
-                  <span className="node-dot">4</span>
+                <div className={`stepper-node ${isCompleted ? 'active done' : ''}`}>
+                  <span className="node-dot">{isCompleted ? '✓' : '4'}</span>
                   <span className="node-label">Completed</span>
                 </div>
               </div>
 
               <div className="tracker-status-step">
                 {isReceived && (
-                  <span className="status-pill status-new">Order Received • Waiting for barista</span>
+                  <span className="status-pill status-new">Your order has been received.</span>
                 )}
                 {isPreparing && (
                   <span className="status-pill status-prep">
-                    Accepted & Preparing{lastCustomerOrder.accepted_by_name ? ` • Crafted by ${lastCustomerOrder.accepted_by_name}` : ''}
+                    Your order is being prepared.{lastCustomerOrder.accepted_by_name ? ` • Handled by ${lastCustomerOrder.accepted_by_name}` : ''}
                   </span>
                 )}
                 {isReady && (
                   <span className="status-pill status-ready">
-                    Crafted • Ready for pickup!{lastCustomerOrder.accepted_by_name ? ` (Crafted by ${lastCustomerOrder.accepted_by_name})` : ''}
+                    Your order has been crafted and is ready.{lastCustomerOrder.accepted_by_name ? ` (Crafted by ${lastCustomerOrder.accepted_by_name})` : ''}
                   </span>
                 )}
                 {isCompleted && (
                   <span className="status-pill status-complete">
-                    Completed{lastCustomerOrder.completed_by_name ? ` by ${lastCustomerOrder.completed_by_name}` : ''} • Thank you for ordering from Scialla Cafe!
+                    Your order has been completed. Thank you!{lastCustomerOrder.completed_by_name ? ` • Delivered by ${lastCustomerOrder.completed_by_name}` : ''}
                   </span>
                 )}
               </div>
@@ -589,9 +614,35 @@ export default function CustomerMenuPage() {
                   <p style={{ fontSize: '0.78rem', color: '#7a6e62' }}>Confirm your order?</p>
                   <span className="receipt-table-pill">{tableDisplayLabel}</span>
                   <div className="receipt-meta">
-                    <span>Order: {orderMeta.orderNum}</span>
+                    <span>Order Ref: {orderMeta.orderNum}</span>
                     <span>{orderMeta.dateStr}</span>
                   </div>
+                </div>
+
+                {/* Customer Name Input */}
+                <div className="checkout-name-field-group" style={{ margin: '14px 0', textAlign: 'left' }}>
+                  <label className="checkout-name-label" htmlFor="menu-customer-name" style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: '#FFDFBA', marginBottom: '4px' }}>
+                    Your Name <span className="required-star" style={{ color: '#FF7B7B' }}>*</span>
+                  </label>
+                  <input
+                    id="menu-customer-name"
+                    type="text"
+                    className="checkout-name-input"
+                    placeholder="Enter your name or nickname (e.g. Mark)"
+                    value={customerName}
+                    onChange={(e) => {
+                      setCustomerName(e.target.value);
+                      if (nameError) setNameError('');
+                    }}
+                    maxLength={40}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(0,0,0,0.4)', border: nameError ? '1.5px solid #FF7B7B' : '1px solid rgba(201,139,91,0.4)', color: '#fff', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                  />
+                  <span className="checkout-name-helper" style={{ fontSize: '0.74rem', color: '#A08070', display: 'block', marginTop: '3px' }}>
+                    This name will be used to identify your order.
+                  </span>
+                  {nameError && (
+                    <span className="error-text" style={{ color: '#FF7B7B', fontSize: '0.75rem', display: 'block', marginTop: '3px' }}>{nameError}</span>
+                  )}
                 </div>
 
                 <table className="receipt-table">
@@ -650,13 +701,19 @@ export default function CustomerMenuPage() {
                 </p>
 
                 <div className="success-receipt-summary">
-                  <div className="success-line">
-                    <span className="success-label">Order Reference:</span>
-                    <strong className="success-val-order">#{orderMeta.orderNum}</strong>
-                  </div>
+                  {customerName && (
+                    <div className="success-line">
+                      <span className="success-label">Customer:</span>
+                      <strong className="success-val-customer" style={{ color: '#FFDFBA', fontWeight: 800 }}>{customerName}</strong>
+                    </div>
+                  )}
                   <div className="success-line">
                     <span className="success-label">Destination:</span>
                     <strong className="success-val-dest">{tableDisplayLabel}</strong>
+                  </div>
+                  <div className="success-line">
+                    <span className="success-label">Order Reference:</span>
+                    <strong className="success-val-order">#{orderMeta.orderNum}</strong>
                   </div>
                   <div className="success-line">
                     <span className="success-label">Total:</span>

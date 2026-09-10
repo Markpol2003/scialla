@@ -389,15 +389,41 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   font-size: 0.82rem;
   padding-bottom: 2px;
+}
+
+.order-header-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.order-customer-title {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #FFDFBA !important;
+  letter-spacing: 0.3px;
+}
+
+.order-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .order-id-pill {
   font-weight: 800;
   font-family: var(--font-mono);
   color: #E2B688 !important;
-  font-size: 0.95rem;
+  font-size: 0.82rem;
+  background: rgba(201, 139, 91, 0.12);
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid rgba(201, 139, 91, 0.25);
 }
 
 .order-table-tag {
@@ -5426,6 +5452,20 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+  }
+
+  .order-card-customer {
+    font-size: 1.05rem;
+    font-weight: 900;
+    color: #FFDFBA;
+    letter-spacing: 0.3px;
+  }
+
+  .order-card-ref-sub {
+    font-family: var(--font-mono);
+    color: #E2B688;
+    font-size: 0.8rem;
+    font-weight: 700;
   }
 
   .order-card-ref {

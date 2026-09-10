@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS guest_sessions (
 -- Orders Table
 CREATE TABLE IF NOT EXISTS orders (
     id VARCHAR(50) PRIMARY KEY,
+    customer_name VARCHAR(100),
     table_name VARCHAR(50) NOT NULL,
     timestamp VARCHAR(50),
     total NUMERIC(10, 2) NOT NULL,
