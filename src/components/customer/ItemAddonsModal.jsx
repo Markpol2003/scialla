@@ -140,15 +140,15 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
         onClick={(e) => e.stopPropagation()}
         style={{
           background: '#FFFFFF',
-          color: '#1A0C06',
-          border: '1px solid #E4DAD0',
+          color: '#2D2118',
+          border: '1.5px solid #EADFD5',
           borderRadius: isMobile ? '20px 20px 0 0' : '20px',
           width: '100%',
           maxWidth: isMobile ? '100%' : '440px',
           maxHeight: isMobile ? '88vh' : '85vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 24px 60px rgba(44, 24, 16, 0.28), 0 4px 16px rgba(44, 24, 16, 0.08)',
+          boxShadow: '0 24px 60px rgba(122, 74, 46, 0.2), 0 4px 16px rgba(122, 74, 46, 0.08)',
           overflow: 'hidden',
           fontFamily: "var(--font-body, 'Inter', sans-serif)",
           animation: isMobile
@@ -164,7 +164,7 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
                 width: '36px',
                 height: '4px',
                 borderRadius: '2px',
-                backgroundColor: '#D4C6BA'
+                backgroundColor: '#EADFD5'
               }}
             />
           </div>
@@ -177,7 +177,7 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
             alignItems: 'flex-start',
             justifyContent: 'space-between',
             padding: '16px 20px 14px',
-            borderBottom: '1.5px solid #F0E8E0',
+            borderBottom: '1.5px solid #EADFD5',
             background: '#FFFFFF'
           }}
         >
@@ -187,7 +187,7 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
                 margin: 0,
                 fontSize: '1.15rem',
                 fontWeight: 800,
-                color: '#1A0C06',
+                color: '#2D2118',
                 lineHeight: 1.25,
                 letterSpacing: '-0.2px'
               }}
@@ -199,7 +199,7 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
                 margin: '4px 0 0',
                 fontSize: '0.84rem',
                 fontWeight: 600,
-                color: '#6A584D'
+                color: '#75685E'
               }}
             >
               {item.size ? `${item.size} • ` : ''}Base ₱{basePrice.toFixed(2)}
@@ -211,12 +211,12 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
             onClick={onClose}
             aria-label="Close customization modal"
             style={{
-              background: '#F8F4EE',
-              border: '1px solid #E4DAD0',
+              background: '#FFF9F2',
+              border: '1px solid #EADFD5',
               borderRadius: '50%',
               width: '32px',
               height: '32px',
-              color: '#5C4635',
+              color: '#75685E',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -235,15 +235,15 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
         <div
           style={{
             padding: '14px 20px 8px',
-            background: '#FAF6F2',
-            borderBottom: '1px solid #F0E8E0'
+            background: '#FFF9F2',
+            borderBottom: '1px solid #EADFD5'
           }}
         >
           <div
             style={{
               fontSize: '0.92rem',
               fontWeight: 800,
-              color: '#1A0C06',
+              color: '#2D2118',
               letterSpacing: '0.1px'
             }}
           >
@@ -252,7 +252,7 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
           <div
             style={{
               fontSize: '0.78rem',
-              color: '#7D675B',
+              color: '#75685E',
               marginTop: '2px',
               fontWeight: 500
             }}
@@ -272,7 +272,7 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
             display: 'flex',
             flexDirection: 'column',
             gap: '8px',
-            background: '#FAF6F2'
+            background: '#FFF9F2'
           }}
         >
           {availableAddons.map((addon) => {
@@ -297,12 +297,12 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
                   minHeight: '50px',
                   padding: '11px 14px',
                   borderRadius: '12px',
-                  border: isSelected ? '1.5px solid #8B6F4E' : '1.5px solid #E8DDD4',
-                  background: isSelected ? '#F4EAE0' : '#FFFFFF',
+                  border: isSelected ? '1.5px solid #F59E42' : '1.5px solid #EADFD5',
+                  background: isSelected ? '#FFF0DF' : '#FFFFFF',
                   cursor: 'pointer',
                   boxShadow: isSelected
-                    ? '0 2px 8px rgba(139, 111, 78, 0.15)'
-                    : '0 1px 3px rgba(44, 24, 16, 0.03)',
+                    ? '0 2px 8px rgba(245, 158, 66, 0.2)'
+                    : '0 1px 3px rgba(122, 74, 46, 0.03)',
                   transition: 'all 0.15s ease'
                 }}
               >
@@ -311,7 +311,7 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
                   style={{
                     fontSize: '0.92rem',
                     fontWeight: isSelected ? 800 : 600,
-                    color: isSelected ? '#1A0C06' : '#2B1810',
+                    color: '#2D2118',
                     lineHeight: 1.3
                   }}
                 >
@@ -323,8 +323,8 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
                   <span
                     style={{
                       fontSize: '0.88rem',
-                      fontWeight: isSelected ? 800 : 700,
-                      color: isSelected ? '#1A0C06' : '#5C4635',
+                      fontWeight: 800,
+                      color: isSelected ? '#F59E42' : '#7A4A2E',
                       fontFamily: "var(--font-mono, 'Space Mono', monospace)"
                     }}
                   >
@@ -336,8 +336,8 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
                       width: '22px',
                       height: '22px',
                       borderRadius: '50%',
-                      border: isSelected ? '1.5px solid #8B6F4E' : '1.5px solid #C4B2A3',
-                      background: isSelected ? '#8B6F4E' : '#FFFFFF',
+                      border: isSelected ? '1.5px solid #F59E42' : '1.5px solid #D8C9BC',
+                      background: isSelected ? '#F59E42' : '#FFFFFF',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -360,7 +360,7 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
         <div
           style={{
             padding: '14px 18px 16px',
-            borderTop: '1.5px solid #E8DDD4',
+            borderTop: '1.5px solid #EADFD5',
             background: '#FFFFFF',
             display: 'flex',
             alignItems: 'center',
@@ -374,9 +374,9 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
             style={{
               padding: '11px 18px',
               borderRadius: '10px',
-              border: '1.5px solid #D4C6BA',
-              background: '#FFFFFF',
-              color: '#5C4635',
+              border: '1.5px solid #EADFD5',
+              background: '#FFF9F2',
+              color: '#75685E',
               fontSize: '0.88rem',
               fontWeight: 700,
               cursor: 'pointer',
@@ -393,8 +393,9 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
               flex: 1,
               height: '44px',
               borderRadius: '10px',
-              border: '1px solid #1A0C06',
-              background: 'linear-gradient(180deg, #3B2718 0%, #24140B 100%)',
+              border: 'none',
+              borderBottom: '2px solid #D97706',
+              background: '#F59E42',
               color: '#FFFFFF',
               fontSize: '0.92rem',
               fontWeight: 800,
@@ -403,7 +404,7 @@ function AddonEditor({ item, onClose, onSave, menuCategories }) {
               justifyContent: 'center',
               gap: '6px',
               cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(44, 24, 16, 0.25)',
+              boxShadow: '0 4px 14px rgba(245, 158, 66, 0.35)',
               transition: 'transform 0.15s ease, box-shadow 0.15s ease'
             }}
           >

@@ -332,7 +332,7 @@ export default function CustomerLayout({ onNavigate }) {
                 </strong>
                 <span className="tracker-table-badge">{lastCustomerOrder.table}</span>
                 {lastCustomerOrder.customer_name && (
-                  <span className="tracker-ref-badge" style={{ fontSize: '0.75rem', color: '#E2B688', background: 'rgba(201, 139, 91, 0.2)', padding: '2px 8px', borderRadius: '6px', fontFamily: 'var(--font-mono)' }}>
+                  <span className="tracker-ref-badge" style={{ fontSize: '0.75rem', color: '#7A4A2E', background: '#FFF0DF', border: '1px solid #EADFD5', padding: '2px 8px', borderRadius: '6px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
                     Ref: #{lastCustomerOrder.id}
                   </span>
                 )}
@@ -656,10 +656,10 @@ export default function CustomerLayout({ onNavigate }) {
       {isClearConfirmOpen && (
         <div className="receipt-modal-backdrop" onClick={() => setIsClearConfirmOpen(false)} style={{ zIndex: 100002 }}>
           <div className="auth-modal-card" style={{ maxWidth: '340px', padding: '22px 20px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 8px', fontSize: '1.08rem', fontWeight: 800, color: '#1A0C06' }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: '1.08rem', fontWeight: 800, color: '#2D2118' }}>
               Clear your current order?
             </h3>
-            <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: '#6A584D', lineHeight: 1.4 }}>
+            <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: '#75685E', lineHeight: 1.4 }}>
               This will remove all {totalItemCount} items from your unsubmitted order.
             </p>
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -669,9 +669,9 @@ export default function CustomerLayout({ onNavigate }) {
                   flex: 1,
                   padding: '11px 14px',
                   borderRadius: '10px',
-                  border: '1.5px solid var(--border-medium)',
-                  background: '#F8F4EE',
-                  color: '#6A584D',
+                  border: '1.5px solid #EADFD5',
+                  background: '#FFF9F2',
+                  color: '#75685E',
                   fontWeight: 700,
                   fontSize: '0.85rem',
                   cursor: 'pointer'

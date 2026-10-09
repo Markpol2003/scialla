@@ -175,9 +175,9 @@ export default function Checkout({
                     {hasAddons && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', paddingLeft: '22px' }}>
                         {item.addons.map((a, aIdx) => (
-                          <div key={aIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#D4A373' }}>
+                          <div key={aIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#75685E' }}>
                             <span>+ {a.name}</span>
-                            <span style={{ color: '#E2B688', fontFamily: 'var(--font-mono)' }}>₱{parseFloat(a.price).toFixed(2)}</span>
+                            <span style={{ color: '#7A4A2E', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>₱{parseFloat(a.price).toFixed(2)}</span>
                           </div>
                         ))}
                       </div>

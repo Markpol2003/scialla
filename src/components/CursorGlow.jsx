@@ -46,23 +46,23 @@ export default function CursorGlow() {
         if (glowRef.current) {
           glowRef.current.style.width = '360px';
           glowRef.current.style.height = '360px';
-          glowRef.current.style.background = 'radial-gradient(circle, rgba(201, 139, 91, 0.35) 0%, rgba(201, 139, 91, 0.12) 40%, rgba(139, 90, 43, 0) 70%)';
+          glowRef.current.style.background = 'radial-gradient(circle, rgba(245, 158, 66, 0.25) 0%, rgba(255, 209, 102, 0.10) 40%, rgba(245, 158, 66, 0) 70%)';
         }
         if (dotRef.current) {
           dotRef.current.style.width = '14px';
           dotRef.current.style.height = '14px';
-          dotRef.current.style.boxShadow = '0 0 16px 4px rgba(243, 229, 171, 0.9), 0 0 24px 8px rgba(201, 139, 91, 0.6)';
+          dotRef.current.style.boxShadow = '0 0 16px 4px rgba(255, 209, 102, 0.9), 0 0 24px 8px rgba(245, 158, 66, 0.5)';
         }
       } else {
         if (glowRef.current) {
           glowRef.current.style.width = '280px';
           glowRef.current.style.height = '280px';
-          glowRef.current.style.background = 'radial-gradient(circle, rgba(201, 139, 91, 0.22) 0%, rgba(201, 139, 91, 0.08) 40%, rgba(139, 90, 43, 0) 70%)';
+          glowRef.current.style.background = 'radial-gradient(circle, rgba(245, 158, 66, 0.16) 0%, rgba(255, 209, 102, 0.06) 40%, rgba(245, 158, 66, 0) 70%)';
         }
         if (dotRef.current) {
           dotRef.current.style.width = '8px';
           dotRef.current.style.height = '8px';
-          dotRef.current.style.boxShadow = '0 0 10px 2px rgba(243, 229, 171, 0.8), 0 0 18px 4px rgba(201, 139, 91, 0.45)';
+          dotRef.current.style.boxShadow = '0 0 10px 2px rgba(255, 209, 102, 0.8), 0 0 18px 4px rgba(245, 158, 66, 0.35)';
         }
       }
     };
@@ -119,7 +119,7 @@ export default function CursorGlow() {
           height: '280px',
           borderRadius: '50%',
           background:
-            'radial-gradient(circle, rgba(201, 139, 91, 0.22) 0%, rgba(201, 139, 91, 0.08) 40%, rgba(139, 90, 43, 0) 70%)',
+            'radial-gradient(circle, rgba(245, 158, 66, 0.16) 0%, rgba(255, 209, 102, 0.06) 40%, rgba(245, 158, 66, 0) 70%)',
           pointerEvents: 'none',
           zIndex: 999990,
           opacity: 0,
@@ -139,8 +139,8 @@ export default function CursorGlow() {
           width: '8px',
           height: '8px',
           borderRadius: '50%',
-          backgroundColor: '#F3E5AB',
-          boxShadow: '0 0 10px 2px rgba(243, 229, 171, 0.8), 0 0 18px 4px rgba(201, 139, 91, 0.45)',
+          backgroundColor: '#FFD166',
+          boxShadow: '0 0 10px 2px rgba(255, 209, 102, 0.8), 0 0 18px 4px rgba(245, 158, 66, 0.35)',
           pointerEvents: 'none',
           zIndex: 999991,
           opacity: 0,

@@ -29,13 +29,243 @@ const getCategorySubtitle = (id, title) => {
   return 'Smooth, bold & handcrafted store favorites';
 };
 
+const getTagBadgeClass = (tag, isOutOfStock) => {
+  if (isOutOfStock) return 'badge-sold-out';
+  const t = String(tag || '').toLowerCase();
+  if (t.includes('popular')) return 'badge-popular';
+  if (t.includes('best') || t.includes('seller')) return 'badge-best-seller';
+  if (t.includes('signature')) return 'badge-signature';
+  if (t.includes('fresh') || t.includes('fruit')) return 'badge-fresh';
+  if (t.includes('indulgent') || t.includes('rich')) return 'badge-indulgent';
+  if (t.includes('special')) return 'badge-special';
+  if (t.includes('classic')) return 'badge-classic';
+  return 'badge-popular';
+};
+
+function CategoryCarouselSection({
+  section,
+  selectedSizes,
+  onSizeSelect,
+  onOpenProductModal,
+  onAdd,
+  cart
+}) {
+  const scrollRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScrollState = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    // Left arrow enabled if scrolled past 4px
+    setCanScrollLeft(scrollLeft > 4);
+    // Right arrow enabled if there is scrollable content remaining
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 6);
+  };
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    checkScrollState();
+
+    const handleScroll = () => {
+      checkScrollState();
+    };
+
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', checkScrollState);
+
+    // Re-check after layout settles and images load
+    const t1 = setTimeout(checkScrollState, 100);
+    const t2 = setTimeout(checkScrollState, 400);
+
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', checkScrollState);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [section.items]);
+
+  const scrollRow = (direction) => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    // Scroll by width of one card + gap for precise item-by-item stepping
+    const firstCard = el.querySelector('.coffee-card-3d');
+    const cardWidth = firstCard ? firstCard.getBoundingClientRect().width : 220;
+    const gap = 14;
+    const scrollAmount = cardWidth + gap;
+
+    el.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth'
+    });
+
+    setTimeout(checkScrollState, 350);
+  };
+
+  return (
+    <section className="category-block animate-fade-slide">
+      <div className="category-title-bar">
+        <div className="category-heading-group">
+          <div className="category-heading-top-line">
+            <h2 className="category-heading-title">{section.category}</h2>
+            <span className="category-count">
+              {section.items.length} {section.items.length === 1 ? 'item' : 'items'}
+            </span>
+          </div>
+          <p className="category-heading-subtitle">
+            {getCategorySubtitle(section.id, section.category)}
+          </p>
+          <div className="category-heading-accent-line" />
+        </div>
+
+        {/* Desktop Carousel Header Arrows */}
+        <div className="carousel-arrows">
+          <button
+            type="button"
+            className={`carousel-arrow-btn ${!canScrollLeft ? 'disabled' : ''}`}
+            onClick={() => scrollRow('left')}
+            disabled={!canScrollLeft}
+            aria-label={`Scroll ${section.category} left`}
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            className={`carousel-arrow-btn ${!canScrollRight ? 'disabled' : ''}`}
+            onClick={() => scrollRow('right')}
+            disabled={!canScrollRight}
+            aria-label={`Scroll ${section.category} right`}
+          >
+            ›
+          </button>
+        </div>
+      </div>
+
+      <div className="cards-carousel-wrapper">
+        {/* Floating Mobile Left Arrow Button */}
+        <button
+          type="button"
+          className={`mobile-carousel-nav-btn mobile-nav-prev ${!canScrollLeft ? 'disabled' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            scrollRow('left');
+          }}
+          disabled={!canScrollLeft}
+          aria-label={`Previous ${section.category}`}
+        >
+          <span className="mobile-nav-arrow-icon" aria-hidden="true">◀</span>
+        </button>
+
+        {/* Subtle Edge Fades */}
+        <div className={`carousel-fade-left ${canScrollLeft ? 'active' : ''}`} aria-hidden="true" />
+
+        {/* Horizontal Scroll Cards Grid (Swipe & Snap enabled) */}
+        <div
+          className="cards-grid"
+          ref={scrollRef}
+        >
+          {section.items.map((item) => {
+            const activeSize = item.sizes ? (selectedSizes[item.id] || item.sizes[0]) : null;
+            const activePrice = activeSize ? activeSize.price : item.price;
+            const cartItemId = activeSize ? `${item.id}-${activeSize.size}` : item.id;
+            const cartItem = cart.find((c) => c.id === cartItemId);
+            const qty = cartItem ? cartItem.qty : 0;
+            const isOutOfStock = !item.inStock;
+            const cardImg = productImageUrl(item.image);
+
+            return (
+              <div
+                key={item.id}
+                className={`coffee-card-3d ${item.featured ? 'featured-signature' : ''} ${isOutOfStock ? 'card-out-of-stock' : ''}`}
+              >
+                <div className="card-bg-image-wrapper" onClick={() => onOpenProductModal(item)}>
+                  <img
+                    src={cardImg}
+                    alt={item.name}
+                    className="card-bg-image"
+                    onError={productImageFallback}
+                  />
+                </div>
+
+                <div className="card-top" onClick={() => onOpenProductModal(item)} style={{ cursor: 'pointer' }}>
+                  <div className="card-header-row">
+                    <h3 className="card-name">{item.name}</h3>
+                    <span className={`tag-badge ${getTagBadgeClass(item.tag, isOutOfStock)}`}>
+                      ● {isOutOfStock ? 'Sold Out' : item.tag}
+                    </span>
+                  </div>
+                  <p className="card-desc">{item.description}</p>
+                </div>
+
+                {item.sizes ? (
+                  <div className="drink-size-selector-row">
+                    {item.sizes.map((s) => (
+                      <button
+                        key={s.size}
+                        type="button"
+                        className={`size-pill-btn ${(activeSize?.size === s.size) ? 'active' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSizeSelect(item.id, s);
+                        }}
+                      >
+                        {s.label || s.size} (₱{s.price})
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="drink-size-selector-row empty-size-placeholder" />
+                )}
+
+                <div className="card-bottom">
+                  <div className="card-price" onClick={() => onOpenProductModal(item)} style={{ cursor: 'pointer' }}>
+                    <span className="currency-sym">₱</span>
+                    <span>{activePrice.toFixed(2)}</span>
+                  </div>
+                  <button
+                    className={`btn-3d-add ${qty > 0 ? 'in-cart' : ''}`}
+                    onClick={() => onAdd(item, activeSize, 1)}
+                    disabled={isOutOfStock}
+                  >
+                    {isOutOfStock ? 'Unavailable' : qty > 0 ? `+ Add (${qty})` : '+ Add'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className={`carousel-fade-right ${canScrollRight ? 'active' : ''}`} aria-hidden="true" />
+
+        {/* Floating Mobile Right Arrow Button */}
+        <button
+          type="button"
+          className={`mobile-carousel-nav-btn mobile-nav-next ${!canScrollRight ? 'disabled' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            scrollRow('right');
+          }}
+          disabled={!canScrollRight}
+          aria-label={`Next ${section.category}`}
+        >
+          <span className="mobile-nav-arrow-icon" aria-hidden="true">▶</span>
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export default function Menu({ onAddToCart, cart }) {
   const { menuCategories } = useApp();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMsg, setToastMsg] = useState('');
   const [selectedSizes, setSelectedSizes] = useState({});
-  const scrollRefs = useRef({});
 
   const cleanQuery = searchQuery.trim().toLowerCase();
 
@@ -109,14 +339,6 @@ export default function Menu({ onAddToCart, cart }) {
     triggerToast(`Added ${cartItemName} (${customQty}) to order`);
   };
 
-  const scrollRow = (catId, direction) => {
-    const el = scrollRefs.current[catId];
-    if (el) {
-      const scrollAmount = direction === 'left' ? -280 : 280;
-      el.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
-  };
-
   return (
     <div className="scialla-content">
       {toastMsg && (
@@ -150,123 +372,17 @@ export default function Menu({ onAddToCart, cart }) {
         </div>
       )}
 
-      {/* Every category renders as a horizontal scroll section */}
+      {/* Every category renders as its own separate horizontal carousel */}
       {displayedCategories.map((section) => (
-        <section key={`${section.id}-${selectedCategory}-${searchQuery}`} className="category-block animate-fade-slide">
-          <div className="category-title-bar">
-            <div className="category-heading-group">
-              <div className="category-heading-top-line">
-                <h2 className="category-heading-title">{section.category}</h2>
-                <span className="category-count">
-                  {section.items.length} {section.items.length === 1 ? 'item' : 'items'}
-                </span>
-              </div>
-              <p className="category-heading-subtitle">
-                {getCategorySubtitle(section.id, section.category)}
-              </p>
-              <div className="category-heading-accent-line" />
-            </div>
-
-            <div className="carousel-arrows">
-              <button
-                type="button"
-                className="carousel-arrow-btn"
-                onClick={() => scrollRow(section.id, 'left')}
-                aria-label="Scroll left"
-              >
-                ‹
-              </button>
-              <button
-                type="button"
-                className="carousel-arrow-btn"
-                onClick={() => scrollRow(section.id, 'right')}
-                aria-label="Scroll right"
-              >
-                ›
-              </button>
-            </div>
-          </div>
-
-
-          <div className="cards-carousel-wrapper">
-            <div className="carousel-fade-left" aria-hidden="true" />
-            <div
-              className="cards-grid"
-              ref={(el) => { scrollRefs.current[section.id] = el; }}
-            >
-              {section.items.map((item) => {
-                const activeSize = item.sizes ? (selectedSizes[item.id] || item.sizes[0]) : null;
-                const activePrice = activeSize ? activeSize.price : item.price;
-                const cartItemId = activeSize ? `${item.id}-${activeSize.size}` : item.id;
-                const cartItem = cart.find((c) => c.id === cartItemId);
-                const qty = cartItem ? cartItem.qty : 0;
-                const isOutOfStock = !item.inStock;
-                const cardImg = productImageUrl(item.image);
-
-                return (
-                  <div
-                    key={item.id}
-                    className={`coffee-card-3d ${item.featured ? 'featured-signature' : ''} ${isOutOfStock ? 'card-out-of-stock' : ''}`}
-                  >
-                    <div className="card-bg-image-wrapper" onClick={() => handleOpenProductModal(item)}>
-                      <img
-                        src={cardImg}
-                        alt={item.name}
-                        className="card-bg-image"
-                        onError={productImageFallback}
-                      />
-                    </div>
-
-                    <div className="card-top" onClick={() => handleOpenProductModal(item)} style={{ cursor: 'pointer' }}>
-                      <div className="card-header-row">
-                        <h3 className="card-name">{item.name}</h3>
-                        <span className="tag-badge">
-                          ● {isOutOfStock ? 'Sold Out' : item.tag}
-                        </span>
-                      </div>
-                      <p className="card-desc">{item.description}</p>
-                    </div>
-
-                    {item.sizes ? (
-                      <div className="drink-size-selector-row">
-                        {item.sizes.map((s) => (
-                          <button
-                            key={s.size}
-                            type="button"
-                            className={`size-pill-btn ${(activeSize?.size === s.size) ? 'active' : ''}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSizeSelect(item.id, s);
-                            }}
-                          >
-                            {s.label || s.size} (₱{s.price})
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="drink-size-selector-row empty-size-placeholder" />
-                    )}
-
-                    <div className="card-bottom">
-                      <div className="card-price" onClick={() => handleOpenProductModal(item)} style={{ cursor: 'pointer' }}>
-                        <span className="currency-sym">₱</span>
-                        <span>{activePrice.toFixed(2)}</span>
-                      </div>
-                      <button
-                        className={`btn-3d-add ${qty > 0 ? 'in-cart' : ''}`}
-                        onClick={() => handleAdd(item, activeSize, 1)}
-                        disabled={isOutOfStock}
-                      >
-                        {isOutOfStock ? 'Unavailable' : qty > 0 ? `+ Add (${qty})` : '+ Add'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="carousel-fade-right" aria-hidden="true" />
-          </div>
-        </section>
+        <CategoryCarouselSection
+          key={`${section.id}-${selectedCategory}-${searchQuery}`}
+          section={section}
+          selectedSizes={selectedSizes}
+          onSizeSelect={handleSizeSelect}
+          onOpenProductModal={handleOpenProductModal}
+          onAdd={handleAdd}
+          cart={cart}
+        />
       ))}
 
       {/* PRODUCT CUSTOMIZATION MODAL */}
@@ -334,3 +450,4 @@ export default function Menu({ onAddToCart, cart }) {
     </div>
   );
 }
+

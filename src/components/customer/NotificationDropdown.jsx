@@ -52,14 +52,15 @@ export default function NotificationDropdown({ isOpen, onClose }) {
       return (
         <span
           style={{
-            background: 'linear-gradient(135deg, #E2B688 0%, #C98B5B 100%)',
-            color: '#120A05',
+            background: '#FFF0DF',
+            color: '#D97706',
+            border: '1px solid rgba(245, 158, 66, 0.4)',
             fontSize: '0.65rem',
             fontWeight: 800,
             padding: '2px 7px',
             borderRadius: '12px',
             letterSpacing: '0.5px',
-            boxShadow: '0 2px 6px rgba(226, 182, 136, 0.4)',
+            boxShadow: '0 1px 4px rgba(245, 158, 66, 0.2)',
             display: 'inline-flex',
             alignItems: 'center',
             gap: '3px'
@@ -73,9 +74,9 @@ export default function NotificationDropdown({ isOpen, onClose }) {
       return (
         <span
           style={{
-            background: 'rgba(234, 179, 8, 0.18)',
-            border: '1px solid rgba(234, 179, 8, 0.4)',
-            color: '#FACC15',
+            background: '#FEF3C7',
+            border: '1px solid #FDE68A',
+            color: '#B45309',
             fontSize: '0.65rem',
             fontWeight: 700,
             padding: '1px 6px',
@@ -93,9 +94,9 @@ export default function NotificationDropdown({ isOpen, onClose }) {
       return (
         <span
           style={{
-            background: 'rgba(56, 189, 248, 0.18)',
-            border: '1px solid rgba(56, 189, 248, 0.4)',
-            color: '#38BDF8',
+            background: '#E0F2FE',
+            border: '1px solid #BAE6FD',
+            color: '#0284C7',
             fontSize: '0.65rem',
             fontWeight: 700,
             padding: '1px 6px',
@@ -113,9 +114,9 @@ export default function NotificationDropdown({ isOpen, onClose }) {
       return (
         <span
           style={{
-            background: 'rgba(74, 222, 128, 0.18)',
-            border: '1px solid rgba(74, 222, 128, 0.4)',
-            color: '#4ADE80',
+            background: '#DCFCE7',
+            border: '1px solid #BBF7D0',
+            color: '#15803D',
             fontSize: '0.65rem',
             fontWeight: 700,
             padding: '1px 6px',
@@ -133,9 +134,9 @@ export default function NotificationDropdown({ isOpen, onClose }) {
       return (
         <span
           style={{
-            background: 'rgba(239, 68, 68, 0.18)',
-            border: '1px solid rgba(239, 68, 68, 0.4)',
-            color: '#F87171',
+            background: '#FEE2E2',
+            border: '1px solid #FECACA',
+            color: '#DC2626',
             fontSize: '0.65rem',
             fontWeight: 700,
             padding: '1px 6px',
@@ -152,9 +153,9 @@ export default function NotificationDropdown({ isOpen, onClose }) {
     return (
       <span
         style={{
-          background: 'rgba(201, 139, 91, 0.15)',
-          border: '1px solid rgba(201, 139, 91, 0.3)',
-          color: '#E2B688',
+          background: '#FFF1E3',
+          border: '1px solid #EADFD5',
+          color: '#7A4A2E',
           fontSize: '0.65rem',
           fontWeight: 700,
           padding: '1px 6px',
@@ -176,12 +177,12 @@ export default function NotificationDropdown({ isOpen, onClose }) {
         right: '10px',
         width: '340px',
         maxWidth: 'calc(100vw - 20px)',
-        background: 'linear-gradient(180deg, #26150C 0%, #160B06 100%)',
-        border: '1.5px solid #4D2E1D',
+        background: '#FFFFFF',
+        border: '1.5px solid #EADFD5',
         borderRadius: '16px',
         padding: '16px',
-        color: '#FFFFFF',
-        boxShadow: '0 20px 48px rgba(0, 0, 0, 0.9)',
+        color: '#2D2118',
+        boxShadow: '0 16px 36px rgba(122, 74, 46, 0.12), 0 2px 8px rgba(122, 74, 46, 0.06)',
         zIndex: 999998,
         display: 'flex',
         flexDirection: 'column',
@@ -195,7 +196,7 @@ export default function NotificationDropdown({ isOpen, onClose }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          borderBottom: '1px solid rgba(201, 139, 91, 0.2)',
+          borderBottom: '1px solid #EADFD5',
           paddingBottom: '10px'
         }}
       >
@@ -205,24 +206,24 @@ export default function NotificationDropdown({ isOpen, onClose }) {
               width: '28px',
               height: '28px',
               borderRadius: '8px',
-              background: 'rgba(201, 139, 91, 0.15)',
+              background: '#FFF0DF',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
             }}
           >
-            <Bell size={15} color="#E2B688" />
+            <Bell size={15} color="#F59E42" />
           </div>
           <div>
-            <strong style={{ fontSize: '0.92rem', color: '#FFFFFF', display: 'block', lineHeight: 1.1 }}>
+            <strong style={{ fontSize: '0.92rem', color: '#2D2118', display: 'block', lineHeight: 1.1 }}>
               Notifications
             </strong>
           </div>
           {unreadNotificationsCount > 0 && (
             <span
               style={{
-                background: '#C98B5B',
-                color: '#120A05',
+                background: '#F59E42',
+                color: '#FFFFFF',
                 fontSize: '0.68rem',
                 fontWeight: 800,
                 padding: '1px 6px',
@@ -243,12 +244,12 @@ export default function NotificationDropdown({ isOpen, onClose }) {
                   onClick={markNotificationsAsRead}
                   title="Mark all as read"
                   style={{
-                    background: 'rgba(201, 139, 91, 0.12)',
-                    border: '1px solid rgba(201, 139, 91, 0.25)',
+                    background: '#FFF0DF',
+                    border: '1px solid #F59E42',
                     borderRadius: '6px',
-                    color: '#FFDFBA',
+                    color: '#7A4A2E',
                     fontSize: '0.72rem',
-                    fontWeight: 600,
+                    fontWeight: 700,
                     cursor: 'pointer',
                     padding: '3px 7px',
                     display: 'flex',
@@ -267,7 +268,7 @@ export default function NotificationDropdown({ isOpen, onClose }) {
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#8c7b70',
+                  color: '#75685E',
                   fontSize: '0.72rem',
                   cursor: 'pointer',
                   padding: '3px 5px',
@@ -284,7 +285,7 @@ export default function NotificationDropdown({ isOpen, onClose }) {
             style={{
               background: 'none',
               border: 'none',
-              color: '#A08070',
+              color: '#75685E',
               cursor: 'pointer',
               padding: '3px',
               display: 'flex',
@@ -313,7 +314,7 @@ export default function NotificationDropdown({ isOpen, onClose }) {
             style={{
               textAlign: 'center',
               padding: '32px 12px',
-              color: '#8c7b70',
+              color: '#75685E',
               fontSize: '0.82rem',
               display: 'flex',
               flexDirection: 'column',
@@ -321,9 +322,9 @@ export default function NotificationDropdown({ isOpen, onClose }) {
               gap: '6px'
             }}
           >
-            <Bell size={24} style={{ opacity: 0.3 }} />
-            <span>No order updates yet</span>
-            <span style={{ fontSize: '0.72rem', color: '#6A554A' }}>
+            <Bell size={24} style={{ opacity: 0.35, color: '#75685E' }} />
+            <span style={{ fontWeight: 600 }}>No order updates yet</span>
+            <span style={{ fontSize: '0.72rem', color: '#9E8E82' }}>
               Your order updates will appear here in real time.
             </span>
           </div>
@@ -344,21 +345,21 @@ export default function NotificationDropdown({ isOpen, onClose }) {
                 }}
                 style={{
                   background: isReady
-                    ? 'linear-gradient(135deg, rgba(201, 139, 91, 0.28) 0%, rgba(77, 46, 29, 0.45) 100%)'
+                    ? '#FFF0DF'
                     : isRead
-                    ? 'rgba(0, 0, 0, 0.25)'
-                    : 'linear-gradient(135deg, rgba(201, 139, 91, 0.12) 0%, rgba(45, 23, 14, 0.3) 100%)',
+                    ? '#FFFFFF'
+                    : '#FFF9F2',
                   border: isReady
-                    ? '1.5px solid #E2B688'
+                    ? '1.5px solid #F59E42'
                     : isRead
-                    ? '1px solid rgba(201, 139, 91, 0.12)'
-                    : '1px solid rgba(201, 139, 91, 0.35)',
+                    ? '1px solid #EADFD5'
+                    : '1px solid #EADFD5',
                   borderRadius: '10px',
                   padding: isReady ? '10px 12px' : '9px 11px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '4px',
-                  boxShadow: isReady ? '0 4px 18px rgba(201, 139, 91, 0.25)' : 'none',
+                  boxShadow: isReady ? '0 2px 8px rgba(245, 158, 66, 0.15)' : 'none',
                   cursor: isRead ? 'default' : 'pointer',
                   transition: 'all 0.2s ease',
                   position: 'relative'
@@ -372,7 +373,7 @@ export default function NotificationDropdown({ isOpen, onClose }) {
                         style={{
                           fontSize: '0.72rem',
                           fontWeight: 800,
-                          color: isReady ? '#FFDFBA' : '#C98B5B',
+                          color: '#7A4A2E',
                           letterSpacing: '0.3px'
                         }}
                       >
@@ -383,15 +384,15 @@ export default function NotificationDropdown({ isOpen, onClose }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
-                    <span style={{ fontSize: '0.68rem', color: isReady ? '#FFDFBA' : '#8c7b70' }}>{timeAgo}</span>
+                    <span style={{ fontSize: '0.68rem', color: '#75685E' }}>{timeAgo}</span>
                     {!isRead && (
                       <span
                         style={{
                           width: '7px',
                           height: '7px',
                           borderRadius: '50%',
-                          background: isReady ? '#FFDFBA' : '#C98B5B',
-                          boxShadow: '0 0 6px rgba(201, 139, 91, 0.8)'
+                          background: '#F59E42',
+                          boxShadow: '0 0 6px rgba(245, 158, 66, 0.6)'
                         }}
                       />
                     )}
@@ -401,9 +402,9 @@ export default function NotificationDropdown({ isOpen, onClose }) {
                 {/* Notification Message */}
                 <div
                   style={{
-                    fontSize: isReady ? '0.8rem' : '0.75rem',
-                    fontWeight: isReady ? 700 : 500,
-                    color: isReady ? '#FFFFFF' : isRead ? '#B5A599' : '#E8D8CC',
+                    fontSize: isReady ? '0.82rem' : '0.78rem',
+                    fontWeight: isReady ? 700 : isRead ? 400 : 600,
+                    color: '#2D2118',
                     lineHeight: 1.35
                   }}
                 >
