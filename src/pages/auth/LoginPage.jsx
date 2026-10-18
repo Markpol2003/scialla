@@ -33,9 +33,13 @@ export default function LoginPage({ targetRole = 'staff', onNavigate, onClose })
     setLoading(false);
 
     if (result && result.success) {
+      const destRole = result.user?.role || selectedRole;
+      const targetPath = destRole === 'manager' ? '/manager' : destRole === 'staff' ? '/staff' : '/';
       if (onNavigate) {
-        const destRole = result.user?.role || selectedRole;
-        onNavigate(destRole === 'manager' ? '/manager' : destRole === 'staff' ? '/staff' : '/');
+        onNavigate(targetPath);
+      } else {
+        window.history.pushState({}, '', targetPath);
+        window.dispatchEvent(new PopStateEvent('popstate'));
       }
     } else {
       setErrorMsg(result?.message || 'Invalid credentials or account inactive.');

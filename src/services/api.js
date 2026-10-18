@@ -21,6 +21,23 @@ function getAuthHeaders() {
   };
 }
 
+// Safe JSON response parser — handles HTML error pages (e.g. Render 502/503 gateway errors)
+// that would otherwise throw a SyntaxError when calling .json() on an HTML body.
+async function safeParseJson(res) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (res.status === 503 || res.status === 502) {
+      return { success: false, message: 'Server is temporarily unavailable. Please try again shortly.' };
+    }
+    if (res.status >= 500) {
+      return { success: false, message: `Server error (${res.status}). Please try again.` };
+    }
+    return { success: false, message: text.slice(0, 120) || 'Unexpected server response.' };
+  }
+}
+
 export const api = {
   baseUrl: API_BASE_URL,
 
@@ -32,23 +49,24 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-      return await res.json();
+      return await safeParseJson(res);
     } catch (err) {
-      return { success: false, message: 'Unable to connect to backend server.' };
+      return { success: false, message: 'Unable to connect to the Scialla server. Check your connection.' };
     }
   },
 
-  // Staff Login
+  // Staff Login (accepts username or email as identifier)
   async staffLogin(identifier, password) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/auth/staff/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // Send same value in both fields — server uses whichever matches first
         body: JSON.stringify({ username: identifier, email: identifier, password })
       });
-      return await res.json();
+      return await safeParseJson(res);
     } catch (err) {
-      return { success: false, message: 'Unable to connect to backend server.' };
+      return { success: false, message: 'Unable to connect to the Scialla server. Check your connection.' };
     }
   },
 
@@ -112,11 +130,16 @@ export const api = {
       const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
         headers: getAuthHeaders()
       });
-      if (!res.ok) return null;
-      const data = await res.json();
+      if (res.status === 401 || res.status === 403) {
+        return { unauthorized: true };
+      }
+      if (!res.ok) {
+        return { error: true, status: res.status };
+      }
+      const data = await safeParseJson(res);
       return data.user || null;
     } catch {
-      return null;
+      return { error: true, network: true };
     }
   },
 

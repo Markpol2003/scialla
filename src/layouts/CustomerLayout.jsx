@@ -6,6 +6,7 @@ import Checkout from '../pages/customer/Checkout';
 import OrderHistoryModal from '../components/customer/OrderHistoryModal';
 import NotificationDropdown from '../components/customer/NotificationDropdown';
 import ItemAddonsModal from '../components/customer/ItemAddonsModal';
+import UserProfileDropdown from '../components/UserProfileDropdown';
 import { Clock3, Bell, X } from 'lucide-react';
 import '../CoffeeMenu.css';
 
@@ -217,6 +218,9 @@ export default function CustomerLayout({ onNavigate }) {
                 onClose={() => setIsNotificationsOpen(false)}
               />
             </div>
+
+            {/* User Profile Dropdown (visible when authenticated as staff/manager) */}
+            <UserProfileDropdown onNavigate={onNavigate} />
           </div>
         </div>
       </header>

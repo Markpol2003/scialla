@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import logoImg from '../logo.png';
 
-export default function AuthModal() {
+export default function AuthModal({ onNavigate }) {
   const {
     isAuthModalOpen,
     setIsAuthModalOpen,
@@ -25,7 +25,16 @@ export default function AuthModal() {
     setLoading(true);
     const res = await login(email, password, selectedRole);
     setLoading(false);
-    if (!res || !res.success) {
+    if (res && res.success) {
+      const destRole = res.user?.role || selectedRole;
+      const targetPath = destRole === 'manager' ? '/manager' : destRole === 'staff' ? '/staff' : '/';
+      if (onNavigate) {
+        onNavigate(targetPath);
+      } else {
+        window.history.pushState({}, '', targetPath);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
+    } else {
       setErrorMsg(res?.message || 'Invalid credentials or inactive account.');
     }
   };

@@ -38,10 +38,22 @@ function shouldAcceptStatusUpdate(currentStatus, incomingStatus) {
 import initialCategories from '../../shared/catalog.json';
 
 export function AppProvider({ children }) {
-  const [activeRole, setActiveRole] = useState('customer'); // 'customer' | 'staff' | 'manager'
   const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('scialla_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('scialla_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [activeRole, setActiveRole] = useState(() => {
+    try {
+      const saved = localStorage.getItem('scialla_user');
+      const u = saved ? JSON.parse(saved) : null;
+      return u?.role || 'customer';
+    } catch {
+      return 'customer';
+    }
   });
   const [guestSessionId, setGuestSessionId] = useState(() => {
     try {
@@ -396,13 +408,13 @@ export function AppProvider({ children }) {
     // 2. Validate stored token on load with backend
     const token = localStorage.getItem('scialla_token');
     if (token) {
-      api.getCurrentUser().then((user) => {
-        if (user) {
-          setCurrentUser(user);
-          setActiveRole(user.role);
-          refreshOrders();
-        } else {
+      api.getCurrentUser().then((res) => {
+        if (res && res.unauthorized) {
           logout();
+        } else if (res && !res.error && res.id) {
+          setCurrentUser(res);
+          setActiveRole(res.role);
+          refreshOrders();
         }
       });
     }
