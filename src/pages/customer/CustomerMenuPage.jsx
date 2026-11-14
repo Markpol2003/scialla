@@ -17,7 +17,7 @@ export default function CustomerMenuPage() {
   };
 
   const occupiedTables = (orders || [])
-    .filter((o) => ['new', 'preparing', 'ready'].includes(o.status))
+    .filter((o) => ['pending_manager_approval', 'approved', 'preparing', 'ready'].includes(o.status))
     .filter((o) => o.table && !o.table.toLowerCase().includes('takeout'))
     .map((o) => {
       const match = String(o.table).match(/\d+/);
@@ -37,6 +37,8 @@ export default function CustomerMenuPage() {
   // Confirm Order & Receipt Modal State
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitLockRef = useRef(false);
   const [orderMeta, setOrderMeta] = useState({ orderNum: '', dateStr: '' });
   const [customerName, setCustomerName] = useState('');
   const [nameError, setNameError] = useState('');
@@ -129,7 +131,7 @@ export default function CustomerMenuPage() {
       hour: '2-digit',
       minute: '2-digit'
     });
-    const randomOrderNum = `SC-${Math.floor(1000 + Math.random() * 9000)}`;
+    const randomOrderNum = `SC-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
     setOrderMeta({ orderNum: randomOrderNum, dateStr: formattedDate });
     setIsPaid(false);
@@ -141,6 +143,7 @@ export default function CustomerMenuPage() {
     : `Table #${tableNumber || '01'}`;
 
   const handlePay = async () => {
+    if (submitLockRef.current) return;
     const trimmed = (customerName || '').trim();
     if (!trimmed) {
       setNameError('Please enter your name or nickname to confirm your order.');
@@ -153,16 +156,23 @@ export default function CustomerMenuPage() {
     setNameError('');
 
     // Dispatch order into shared AppContext store so Staff & Manager UIs instantly reflect it!
-    const result = await placeOrder({
-      orderNum: orderMeta.orderNum,
-      customer_name: trimmed,
-      customerName: trimmed,
-      table: tableDisplayLabel,
-      items: cart,
-      total: totalAmount,
-      paymentMethod: null
-    });
-    if (result?.success) setIsPaid(true);
+    submitLockRef.current = true;
+    setIsSubmitting(true);
+    try {
+      const result = await placeOrder({
+        orderNum: orderMeta.orderNum,
+        customer_name: trimmed,
+        customerName: trimmed,
+        table: tableDisplayLabel,
+        items: cart,
+        total: totalAmount,
+        paymentMethod: null
+      });
+      if (result?.success) setIsPaid(true);
+    } finally {
+      submitLockRef.current = false;
+      setIsSubmitting(false);
+    }
   };
 
   const handleNewOrder = () => {
@@ -687,17 +697,18 @@ export default function CustomerMenuPage() {
                     type="button"
                     className="btn-3d-pay"
                     onClick={handlePay}
+                    disabled={isSubmitting}
                   >
-                    Confirm Order
+                    {isSubmitting ? 'Submitting Order...' : 'Submit Order'}
                   </button>
                 </div>
               </>
             ) : (
               <div className="receipt-success-state">
                 <div className="success-icon-badge">✓</div>
-                <h3 className="success-title">Order Confirmed</h3>
+                <h3 className="success-title">Awaiting Manager Approval</h3>
                 <p className="success-msg">
-                  Your order has been sent to the kitchen for <strong>{tableDisplayLabel}</strong>.
+                  Your order is pending Manager approval for <strong>{tableDisplayLabel}</strong>. Payment is due at the counter after approval.
                 </p>
 
                 <div className="success-receipt-summary">
@@ -718,6 +729,10 @@ export default function CustomerMenuPage() {
                   <div className="success-line">
                     <span className="success-label">Total:</span>
                     <strong className="success-val-total">₱{totalAmount.toFixed(2)}</strong>
+                  </div>
+                  <div className="success-line">
+                    <span className="success-label">Payment:</span>
+                    <strong className="success-val-total">Unpaid · Cash at counter</strong>
                   </div>
                   {lastCustomerOrder && (lastCustomerOrder.accepted_by_name || lastCustomerOrder.completed_by_name) && (
                     <div className="success-staff-block">

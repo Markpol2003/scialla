@@ -18,13 +18,13 @@ export default function Sales() {
 
   // Single consistent set of today's completed orders
   const completedOrdersList = orders.filter((o) => {
-    if (o.status !== 'completed') return false;
+    if (o.status !== 'served' || o.paymentStatus !== 'paid') return false;
     const dateVal = o.completed_at || o.createdAt || o.timestamp || o.created_at;
     return isTodayInManila(dateVal);
   });
 
   const activeOrdersList = orders.filter((o) => {
-    if (o.status !== 'new' && o.status !== 'preparing' && o.status !== 'ready') return false;
+    if (!['approved', 'preparing', 'ready'].includes(o.status)) return false;
     const dateVal = o.createdAt || o.timestamp || o.created_at;
     return isTodayInManila(dateVal);
   });
@@ -111,7 +111,7 @@ export default function Sales() {
       <div className="manager-box">
         <div className="box-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <h2>Monthly Breakdown</h2>
-          <span className="box-tag">2026</span>
+          <span className="box-tag">{new Date().toLocaleDateString('en-US', { year: 'numeric', timeZone: 'Asia/Manila' })}</span>
         </div>
 
         <div className="table-scroll-container">

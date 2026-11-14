@@ -9,7 +9,7 @@ export default function StaffLayout({ onNavigate }) {
   const [currentTab, setCurrentTab] = useState('orders');
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
-  const newOrdersCount = (orders || []).filter((o) => o.status === 'new').length;
+  const newOrdersCount = (orders || []).filter((o) => o.status === 'approved').length;
 
   const handleTabChange = (tab) => {
     setCurrentTab(tab);

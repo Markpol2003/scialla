@@ -40,8 +40,10 @@ CREATE TABLE IF NOT EXISTS orders (
     table_name VARCHAR(50) NOT NULL,
     timestamp VARCHAR(50),
     total NUMERIC(10, 2) NOT NULL,
+    amount_already_paid NUMERIC(10, 2) NOT NULL DEFAULT 0,
     payment_method VARCHAR(50),
-    status VARCHAR(50) DEFAULT 'new',
+    status VARCHAR(50) DEFAULT 'pending_manager_approval',
+    payment_status VARCHAR(50) NOT NULL DEFAULT 'unpaid',
     guest_session_id VARCHAR(64) REFERENCES guest_sessions(id) ON DELETE SET NULL,
     user_id INTEGER,
     items_json TEXT,
@@ -61,11 +63,85 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE TABLE IF NOT EXISTS order_items (
     id SERIAL PRIMARY KEY,
     order_id VARCHAR(50) REFERENCES orders(id) ON DELETE CASCADE,
+    order_item_id VARCHAR(64) UNIQUE,
     item_id VARCHAR(50),
     name VARCHAR(255) NOT NULL,
     size VARCHAR(50) DEFAULT '',
     qty INTEGER NOT NULL,
     price NUMERIC(10, 2) NOT NULL
+);
+
+-- Customer size-change requests are separate from order progress; only managers may review them.
+CREATE TABLE IF NOT EXISTS order_size_change_requests (
+    id SERIAL PRIMARY KEY,
+    order_id VARCHAR(50) NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    item_index INTEGER NOT NULL,
+    item_id VARCHAR(50),
+    item_name VARCHAR(255) NOT NULL,
+    original_size VARCHAR(50) NOT NULL,
+    requested_size VARCHAR(50) NOT NULL,
+    original_price NUMERIC(10, 2) NOT NULL,
+    requested_price NUMERIC(10, 2) NOT NULL,
+    customer_name VARCHAR(100),
+    user_id INTEGER,
+    guest_session_id VARCHAR(64),
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    requested_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reviewed_by_id INTEGER,
+    reviewed_by_name VARCHAR(150),
+    reviewed_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS order_size_change_requests_order_idx
+    ON order_size_change_requests (order_id, requested_at DESC);
+CREATE INDEX IF NOT EXISTS order_size_change_requests_status_idx
+    ON order_size_change_requests (status, requested_at DESC);
+
+-- Immutable order and cash events used by the Manager audit view.
+CREATE TABLE IF NOT EXISTS order_audit_log (
+    id BIGSERIAL PRIMARY KEY,
+    order_id VARCHAR(50),
+    actor_id INTEGER,
+    actor_role VARCHAR(30) NOT NULL,
+    action VARCHAR(60) NOT NULL,
+    before_data JSONB,
+    after_data JSONB,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS order_audit_log_order_idx ON order_audit_log (order_id, created_at DESC);
+
+-- Staff cash reports remain pending until a Manager verifies them.
+CREATE TABLE IF NOT EXISTS cash_collection_reports (
+    id BIGSERIAL PRIMARY KEY,
+    order_id VARCHAR(50) NOT NULL,
+    staff_id INTEGER NOT NULL,
+    staff_name VARCHAR(150),
+    amount_reported NUMERIC(10, 2) NOT NULL CHECK (amount_reported > 0),
+    status VARCHAR(40) NOT NULL DEFAULT 'pending_manager_verification',
+    reported_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reviewed_by_id INTEGER,
+    reviewed_by_name VARCHAR(150),
+    reviewed_at TIMESTAMP,
+    review_note TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS cash_collection_one_pending_per_order_idx
+    ON cash_collection_reports (order_id) WHERE status = 'pending_manager_verification';
+CREATE INDEX IF NOT EXISTS cash_collection_status_idx
+    ON cash_collection_reports (status, reported_at DESC);
+
+CREATE TABLE IF NOT EXISTS cash_reconciliations (
+    id BIGSERIAL PRIMARY KEY,
+    manager_id INTEGER NOT NULL,
+    manager_name VARCHAR(150),
+    opened_at TIMESTAMP NOT NULL,
+    closed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    opening_cash NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    closing_cash NUMERIC(10, 2) NOT NULL,
+    expected_cash NUMERIC(10, 2) NOT NULL,
+    reported_cash NUMERIC(10, 2) NOT NULL,
+    verified_cash NUMERIC(10, 2) NOT NULL,
+    variance NUMERIC(10, 2) NOT NULL,
+    note TEXT
 );
 
 -- Password Reset Verification Codes Table

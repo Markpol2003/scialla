@@ -14,6 +14,13 @@ export default function Dashboard() {
 
   return (
     <div className="manager-dashboard-overview">
+      <header className="portal-page-heading">
+        <div>
+          <span className="portal-page-eyebrow">MANAGEMENT</span>
+          <h1>Store overview</h1>
+          <p>Sales performance and recent order activity.</p>
+        </div>
+      </header>
       {/* KPI Cards Row */}
       <div className="kpi-cards-row">
         <div className="kpi-card highlight-revenue">
@@ -38,7 +45,7 @@ export default function Dashboard() {
         <div className="manager-box">
           <div className="box-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <h2>Monthly Breakdown</h2>
-            <span className="box-tag">2026</span>
+            <span className="box-tag">{new Date().toLocaleDateString('en-US', { year: 'numeric', timeZone: 'Asia/Manila' })}</span>
           </div>
 
           <div className="table-scroll-container">
@@ -110,12 +117,12 @@ export default function Dashboard() {
                       <td>{ord.table}</td>
                       <td>₱{parseFloat(ord.total || 0).toFixed(2)}</td>
                       <td>
-                        <span className={`status-badge badge-${ord.status === 'completed' ? 'ok' : 'warning'}`}>
+                        <span className={`status-badge badge-${ord.status === 'served' ? 'ok' : 'warning'}`}>
                           {ord.status.toUpperCase()}
                         </span>
                       </td>
                       <td>
-                        {ord.status === 'completed' ? (
+                        {ord.status === 'served' ? (
                           <span style={{ color: '#86efac', fontWeight: 600 }}>
                             {ord.completed_by_name || '—'}
                           </span>

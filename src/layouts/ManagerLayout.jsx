@@ -5,8 +5,10 @@ import Orders from '../pages/manager/Orders';
 import Products from '../pages/manager/Products';
 import Staff from '../pages/manager/Staff';
 import UserProfileDropdown from '../components/UserProfileDropdown';
+import { useApp } from '../context/AppContext';
 
 export default function ManagerLayout({ onNavigate }) {
+  const { orders = [] } = useApp();
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
@@ -41,6 +43,7 @@ export default function ManagerLayout({ onNavigate }) {
     { id: 'products', label: 'Products' },
     { id: 'staff', label: 'Staff' }
   ];
+  const pendingApprovalCount = orders.filter((order) => order.status === 'pending_manager_approval').length;
 
   return (
     <div className="portal-layout-container">
@@ -121,7 +124,14 @@ export default function ManagerLayout({ onNavigate }) {
                 className={`sidebar-nav-item ${currentTab === item.id ? 'active' : ''}`}
                 onClick={() => handleTabChange(item.id)}
               >
-                {item.label}
+                <span className="manager-nav-label">
+                  {item.label}
+                  {item.id === 'orders' && pendingApprovalCount > 0 && (
+                    <span className="sidebar-count manager-pending-count" aria-label={`${pendingApprovalCount} orders pending approval`}>
+                      {pendingApprovalCount}
+                    </span>
+                  )}
+                </span>
               </button>
             ))}
           </div>

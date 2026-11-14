@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Coffee } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -19,8 +19,16 @@ export default function Checkout({
   const [isPaid, setIsPaid] = useState(false);
   const [createdOrder, setCreatedOrder] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const orderIdRef = useRef(null);
+  const submitLockRef = useRef(false);
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    orderIdRef.current = null;
+    return null;
+  }
+  if (!orderIdRef.current) {
+    orderIdRef.current = `SC-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  }
 
   const now = new Date();
   const datePart = now.toLocaleDateString('en-US', {
@@ -34,7 +42,7 @@ export default function Checkout({
     hour12: true
   });
   const formattedDate = `${datePart} • ${timePart}`;
-  const orderNum = `SC-${Math.floor(1000 + Math.random() * 9000)}`;
+  const orderNum = orderIdRef.current;
 
   const sanitizeName = (str) => {
     if (!str) return '';
@@ -45,6 +53,7 @@ export default function Checkout({
   };
 
   const handlePay = async () => {
+    if (submitLockRef.current) return;
     const cleanName = sanitizeName(customerName);
     if (!cleanName) {
       setNameError('Please enter your name or nickname to confirm.');
@@ -56,17 +65,23 @@ export default function Checkout({
     }
 
     setNameError('');
+    submitLockRef.current = true;
     setIsSubmitting(true);
-    const res = await placeOrder({
-      orderNum,
-      customer_name: cleanName,
-      customerName: cleanName,
-      table: tableDisplayLabel,
-      items: cart,
-      total: totalAmount,
-      paymentMethod: null
-    });
-    setIsSubmitting(false);
+    let res;
+    try {
+      res = await placeOrder({
+        orderNum,
+        customer_name: cleanName,
+        customerName: cleanName,
+        table: tableDisplayLabel,
+        items: cart,
+        total: totalAmount,
+        paymentMethod: null
+      });
+    } finally {
+      submitLockRef.current = false;
+      setIsSubmitting(false);
+    }
 
     if (res && res.success === false) {
       // Out of stock error caught
@@ -104,7 +119,7 @@ export default function Checkout({
             <Coffee size={15} className="receipt-brand-icon" />
             <h2 className="receipt-brand-title">SCIALLA CAFE</h2>
           </div>
-          <p className="receipt-subtitle">{isPaid ? 'Official Guest Receipt' : 'Confirm your order?'}</p>
+          <p className="receipt-subtitle">{isPaid ? 'Order Submitted' : 'Confirm your order?'}</p>
           <p className="receipt-tagline">Crafted coffee, served simply.</p>
           <div className="receipt-header-divider" />
 
@@ -213,16 +228,16 @@ export default function Checkout({
                 onClick={handlePay}
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Submitting Order...' : 'Confirm Order'}
+                {isSubmitting ? 'Submitting Order...' : 'Submit Order'}
               </button>
             </div>
           </>
         ) : (
           <div className="receipt-success-state">
             <div className="success-icon-badge">✓</div>
-            <h3 className="success-title">Order Confirmed</h3>
+            <h3 className="success-title">Awaiting Manager Approval</h3>
             <p className="success-msg">
-              Thank you <strong>{confirmedName}</strong>! Your order has been sent to the kitchen for <strong>{tableDisplayLabel}</strong>.
+              Thank you <strong>{confirmedName}</strong>! Your order is pending Manager approval for <strong>{tableDisplayLabel}</strong>. Payment is due at the counter after approval.
             </p>
 
             <div className="success-receipt-summary">
@@ -241,6 +256,10 @@ export default function Checkout({
               <div className="success-line">
                 <span className="success-label">Total:</span>
                 <strong className="success-val-total">₱{totalAmount.toFixed(2)}</strong>
+              </div>
+              <div className="success-line">
+                <span className="success-label">Payment:</span>
+                <strong className="success-val-total">Unpaid · Cash at counter</strong>
               </div>
               {(createdOrder?.accepted_by_name || createdOrder?.completed_by_name) && (
                 <div className="success-staff-block">

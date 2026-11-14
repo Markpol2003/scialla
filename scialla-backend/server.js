@@ -197,8 +197,10 @@ async function initDatabaseMigrations() {
         table_name VARCHAR(50) NOT NULL,
         timestamp VARCHAR(50),
         total NUMERIC(10, 2) NOT NULL,
+        amount_already_paid NUMERIC(10, 2) NOT NULL DEFAULT 0,
         payment_method VARCHAR(50),
-        status VARCHAR(50) DEFAULT 'new',
+        status VARCHAR(50) DEFAULT 'pending_manager_approval',
+        payment_status VARCHAR(50) NOT NULL DEFAULT 'unpaid',
         guest_session_id VARCHAR(64),
         user_id INTEGER,
         items_json TEXT,
@@ -215,6 +217,21 @@ async function initDatabaseMigrations() {
 
     // Allow orders without payment selection; preserve historical payment values.
     await db.query(`ALTER TABLE orders ALTER COLUMN payment_method DROP NOT NULL;`);
+    await db.query(`ALTER TABLE orders ALTER COLUMN status SET DEFAULT 'pending_manager_approval';`);
+    const paymentStatusColumn = await db.query(
+      "SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'orders' AND column_name = 'payment_status'"
+    );
+    if (paymentStatusColumn.rows.length === 0) {
+      await db.query(`ALTER TABLE orders ADD COLUMN payment_status VARCHAR(50) NOT NULL DEFAULT 'unpaid';`);
+    }
+    const paymentTrackingColumn = await db.query(
+      "SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'orders' AND column_name = 'amount_already_paid'"
+    );
+    if (paymentTrackingColumn.rows.length === 0) {
+      await db.query(`ALTER TABLE orders ADD COLUMN amount_already_paid NUMERIC(10, 2) NOT NULL DEFAULT 0;`);
+    }
+    await db.query(`UPDATE orders SET status = CASE status WHEN 'new' THEN 'approved' WHEN 'completed' THEN 'served' ELSE status END WHERE status IN ('new', 'completed');`);
+    await db.query(`UPDATE orders SET payment_status = CASE WHEN amount_already_paid >= total AND total > 0 THEN 'paid' ELSE 'unpaid' END WHERE status NOT IN ('cancelled', 'pending_manager_approval') AND payment_status = 'unpaid';`);
 
     // Add missing columns to orders if it already existed
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_name VARCHAR(100);`);
@@ -237,16 +254,92 @@ async function initDatabaseMigrations() {
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;`);
     await db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
 
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS order_size_change_requests (
+        id SERIAL PRIMARY KEY,
+        order_id VARCHAR(50) NOT NULL,
+        item_index INTEGER NOT NULL,
+        item_id VARCHAR(50),
+        item_name VARCHAR(255) NOT NULL,
+        original_size VARCHAR(50) NOT NULL,
+        requested_size VARCHAR(50) NOT NULL,
+        original_price NUMERIC(10, 2) NOT NULL,
+        requested_price NUMERIC(10, 2) NOT NULL,
+        customer_name VARCHAR(100),
+        user_id INTEGER,
+        guest_session_id VARCHAR(64),
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        requested_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        reviewed_by_id INTEGER,
+        reviewed_by_name VARCHAR(150),
+        reviewed_at TIMESTAMP
+      );
+    `);
+    await db.query(`CREATE INDEX IF NOT EXISTS order_size_change_requests_order_idx ON order_size_change_requests (order_id, requested_at DESC);`);
+    await db.query(`CREATE INDEX IF NOT EXISTS order_size_change_requests_status_idx ON order_size_change_requests (status, requested_at DESC);`);
+
     // 5. Order Items Table
     await db.query(`
       CREATE TABLE IF NOT EXISTS order_items (
         id SERIAL PRIMARY KEY,
         order_id VARCHAR(50) NOT NULL,
+        order_item_id VARCHAR(64) UNIQUE,
         item_id VARCHAR(50),
         name VARCHAR(255) NOT NULL,
         size VARCHAR(50) DEFAULT '',
         qty INTEGER NOT NULL,
         price NUMERIC(10, 2) NOT NULL
+      );
+    `);
+    await db.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS order_item_id VARCHAR(64);`);
+    await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS order_items_order_item_id_idx ON order_items (order_item_id) WHERE order_item_id IS NOT NULL;`);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS order_audit_log (
+        id BIGSERIAL PRIMARY KEY,
+        order_id VARCHAR(50),
+        actor_id INTEGER,
+        actor_role VARCHAR(30) NOT NULL,
+        action VARCHAR(60) NOT NULL,
+        before_data JSONB,
+        after_data JSONB,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await db.query(`CREATE INDEX IF NOT EXISTS order_audit_log_order_idx ON order_audit_log (order_id, created_at DESC);`);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS cash_collection_reports (
+        id BIGSERIAL PRIMARY KEY,
+        order_id VARCHAR(50) NOT NULL,
+        staff_id INTEGER NOT NULL,
+        staff_name VARCHAR(150),
+        amount_reported NUMERIC(10, 2) NOT NULL CHECK (amount_reported > 0),
+        status VARCHAR(40) NOT NULL DEFAULT 'pending_manager_verification',
+        reported_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        reviewed_by_id INTEGER,
+        reviewed_by_name VARCHAR(150),
+        reviewed_at TIMESTAMP,
+        review_note TEXT
+      );
+    `);
+    await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS cash_collection_one_pending_per_order_idx ON cash_collection_reports (order_id) WHERE status = 'pending_manager_verification';`);
+    await db.query(`CREATE INDEX IF NOT EXISTS cash_collection_status_idx ON cash_collection_reports (status, reported_at DESC);`);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS cash_reconciliations (
+        id BIGSERIAL PRIMARY KEY,
+        manager_id INTEGER NOT NULL,
+        manager_name VARCHAR(150),
+        opened_at TIMESTAMP NOT NULL,
+        closed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        opening_cash NUMERIC(10, 2) NOT NULL DEFAULT 0,
+        closing_cash NUMERIC(10, 2) NOT NULL,
+        expected_cash NUMERIC(10, 2) NOT NULL,
+        reported_cash NUMERIC(10, 2) NOT NULL,
+        verified_cash NUMERIC(10, 2) NOT NULL,
+        variance NUMERIC(10, 2) NOT NULL,
+        note TEXT
       );
     `);
 
@@ -1315,16 +1408,26 @@ const ADDON_PRICES = {
 // Memory store fallback for development / offline resilience
 const memoryOrdersMap = new Map();
 
+async function writeOrderAudit(executor, req, orderId, action, beforeData = null, afterData = null) {
+  await executor.query(
+    `INSERT INTO order_audit_log (order_id, actor_id, actor_role, action, before_data, after_data)
+     VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)`,
+    [orderId, req.user?.id || null, req.user?.role || 'customer', action,
+      beforeData == null ? null : JSON.stringify(beforeData), afterData == null ? null : JSON.stringify(afterData)]
+  );
+}
+
 // Helper: Save & Format Order in PostgreSQL with Ownership and Audit Trail
 async function saveOrderToDatabase(orderData, userId = null, guestSessionId = null) {
-  const orderId = orderData.id || orderData.orderNum || `SC-${Math.floor(1000 + Math.random() * 9000)}`;
+  const orderId = orderData.id || orderData.orderNum || `SC-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
   const tableName = orderData.table || orderData.table_name || 'Table 1';
   const timestamp = orderData.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const items = orderData.items || [];
   const calculatedTotal = items.reduce((acc, it) => acc + (parseFloat(it.price) || 0) * (parseInt(it.qty || it.quantity || 1, 10) || 1), 0);
   const total = orderData.total !== undefined && orderData.total !== null ? (parseFloat(orderData.total) || 0) : calculatedTotal;
-  const paymentMethod = orderData.paymentMethod || orderData.payment_method || null;
-  const status = orderData.status || 'new';
+  const paymentMethod = 'Cash';
+  const customerName = orderData.customer_name || orderData.customerName || null;
+  const status = 'pending_manager_approval';
   const assignedUserId = userId || orderData.user_id || null;
   const assignedGuestId = guestSessionId || orderData.guest_session_id || orderData.guestSessionId || null;
   const acceptedById = orderData.accepted_by_id || orderData.accepted_by_staff_id || orderData.staff_id || null;
@@ -1333,6 +1436,7 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
   const completedById = orderData.completed_by_id || orderData.completed_by_staff_id || null;
   const completedByName = orderData.completed_by_name || orderData.completed_by || null;
   const completedAt = orderData.completed_at || null;
+  let createdAt = new Date().toISOString();
 
   // Resolve current add-on catalog prices for newly submitted order snapshots.
   let addonPrices = ADDON_PRICES;
@@ -1350,7 +1454,7 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
     const itemSize = item.size || item.selectedSize || '';
     const itemQty = parseInt(item.qty || item.quantity || item.count || 1, 10) || 1;
     const itemPrice = parseFloat(item.price || 0) || 0;
-    const itemId = String(item.id || item.item_id || item.originalId || '');
+    const itemId = String(item.originalId || item.item_id || item.id || '').replace(/-\d+\s*oz$/i, '');
 
     // Authoritative add-on sanitation
     const itemAddons = (Array.isArray(item.addons) ? item.addons : [])
@@ -1368,6 +1472,7 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
       .filter(Boolean);
 
     return {
+      order_item_id: crypto.randomUUID(),
       id: itemId,
       item_id: itemId,
       name: cleanName,
@@ -1386,74 +1491,64 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
   const itemsJson = JSON.stringify(formattedItems);
 
   if (db.pool) {
-    // Ensure guest session is registered if present
-    if (assignedGuestId) {
-      try {
-        await db.query(
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      if (assignedGuestId) {
+        await client.query(
           'INSERT INTO guest_sessions (id, created_at, last_active) VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET last_active = CURRENT_TIMESTAMP',
           [assignedGuestId]
         );
-      } catch (err) {
-        console.warn('Guest session registration note:', err.message);
       }
-    }
-
-    try {
-      await db.query(
+      const inserted = await client.query(
         `INSERT INTO orders (
-           id, table_name, timestamp, total, payment_method, status,
+           id, customer_name, table_name, timestamp, total, amount_already_paid, payment_method, payment_status, status,
            guest_session_id, user_id, items_json, accepted_by_id, accepted_by_staff_id, accepted_by_name,
            accepted_at, completed_by_id, completed_by_staff_id, completed_by_name, completed_at, updated_at
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, CURRENT_TIMESTAMP)
-         ON CONFLICT (id) DO UPDATE SET
-           status = EXCLUDED.status,
-           total = EXCLUDED.total,
-           table_name = EXCLUDED.table_name,
-           guest_session_id = COALESCE(EXCLUDED.guest_session_id, orders.guest_session_id),
-           user_id = COALESCE(EXCLUDED.user_id, orders.user_id),
-           items_json = EXCLUDED.items_json,
-           accepted_by_id = COALESCE(EXCLUDED.accepted_by_id, orders.accepted_by_id, orders.accepted_by_staff_id),
-           accepted_by_staff_id = COALESCE(EXCLUDED.accepted_by_staff_id, orders.accepted_by_staff_id, orders.accepted_by_id),
-           accepted_by_name = COALESCE(EXCLUDED.accepted_by_name, orders.accepted_by_name),
-           accepted_at = COALESCE(EXCLUDED.accepted_at, orders.accepted_at),
-           completed_by_id = COALESCE(EXCLUDED.completed_by_id, orders.completed_by_id, orders.completed_by_staff_id),
-           completed_by_staff_id = COALESCE(EXCLUDED.completed_by_staff_id, orders.completed_by_staff_id, orders.completed_by_id),
-           completed_by_name = COALESCE(EXCLUDED.completed_by_name, orders.completed_by_name),
-           completed_at = COALESCE(EXCLUDED.completed_at, orders.completed_at),
-           updated_at = CURRENT_TIMESTAMP`,
+         VALUES ($1, $2, $3, $4, $5, 0, $6, 'unpaid', $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, CURRENT_TIMESTAMP)
+         ON CONFLICT (id) DO NOTHING RETURNING id, created_at`,
         [
-          orderId, tableName, timestamp, total, paymentMethod, status,
+          orderId, customerName, tableName, timestamp, total, paymentMethod, status,
           assignedGuestId, assignedUserId, itemsJson,
           acceptedById, acceptedById, acceptedByName,
           acceptedAt, completedById, completedById, completedByName, completedAt
         ]
       );
-    } catch (err) {
-      console.error('Error inserting order row into orders table:', err);
-    }
-
-    // Delete existing items for order re-inserts if any
-    try {
-      await db.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
+      if (!inserted.rows.length) {
+        const duplicateError = new Error('Order reference already exists.');
+        duplicateError.code = 'DUPLICATE_ORDER_ID';
+        throw duplicateError;
+      }
       for (const item of formattedItems) {
-        await db.query(
-          'INSERT INTO order_items (order_id, item_id, name, size, qty, price) VALUES ($1, $2, $3, $4, $5, $6)',
-          [orderId, item.id, item.name, item.size, item.qty, item.price]
+        await client.query(
+          'INSERT INTO order_items (order_id, order_item_id, item_id, name, size, qty, price) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [orderId, item.order_item_id, item.id, item.name, item.size, item.qty, item.price]
         );
       }
-      console.log(`✅ [DB] Order ${orderId} & ${formattedItems.length} items persisted in PostgreSQL.`);
+      await client.query('COMMIT');
+      createdAt = new Date(inserted.rows[0].created_at).toISOString();
     } catch (err) {
-      console.warn('Note on order_items table insert:', err.message);
+      await client.query('ROLLBACK').catch(() => {});
+      console.error('Error inserting customer order and items:', err);
+      throw err;
+    } finally {
+      client.release();
     }
+
   }
 
   const orderResult = {
     id: orderId,
     orderId,
+    customer_name: customerName,
+    customerName,
     table: tableName,
     timestamp,
     total,
+    amountAlreadyPaid: 0,
+    additionalPayable: 0,
+    paymentStatus: 'unpaid',
     paymentMethod,
     status,
     guest_session_id: assignedGuestId,
@@ -1466,8 +1561,8 @@ async function saveOrderToDatabase(orderData, userId = null, guestSessionId = nu
     completed_by_staff_id: completedById,
     completed_by_name: completedByName,
     completed_at: completedAt,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt,
+    updatedAt: createdAt,
     items: formattedItems
   };
 
@@ -1480,9 +1575,12 @@ function getOrdersSelectSql(whereClause = '', orderLimit = 'ORDER BY o.created_a
   return `
     SELECT 
       o.id,
+      o.customer_name,
       o.table_name,
       o.timestamp,
       o.total,
+      o.amount_already_paid,
+      o.payment_status,
       o.payment_method,
       o.status,
       o.guest_session_id,
@@ -1525,17 +1623,23 @@ function getOrdersSelectSql(whereClause = '', orderLimit = 'ORDER BY o.created_a
 // Get Orders (Filtered by Role / Ownership with Full Staff Audit Trail)
 app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
   try {
-    const isStaffOrManager = req.user && (req.user.role === 'staff' || req.user.role === 'manager');
+    const isManager = req.user?.role === 'manager';
+    const isStaff = req.user?.role === 'staff';
+    const isStaffOrManager = isStaff || isManager;
     const guestSessionId = req.headers['x-guest-session'] || req.query.guestSessionId;
     const userId = req.user ? req.user.id : null;
 
     let ordersQuery = getOrdersSelectSql('', 'ORDER BY o.created_at DESC');
     let queryParams = [];
 
+    if (isStaff) {
+      ordersQuery = getOrdersSelectSql("WHERE o.status IN ('approved', 'preparing', 'ready', 'served')", 'ORDER BY o.created_at DESC');
+    }
+
     // If customer / guest, filter strictly to orders they own
     if (!isStaffOrManager) {
       if (userId && guestSessionId) {
-        ordersQuery = getOrdersSelectSql('WHERE o.user_id = $1 OR o.guest_session_id = $2', 'ORDER BY o.created_at DESC');
+        ordersQuery = getOrdersSelectSql('WHERE (o.user_id = $1 OR o.guest_session_id = $2)', 'ORDER BY o.created_at DESC');
         queryParams = [userId, guestSessionId];
       } else if (userId) {
         ordersQuery = getOrdersSelectSql('WHERE o.user_id = $1', 'ORDER BY o.created_at DESC');
@@ -1544,7 +1648,7 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
         ordersQuery = getOrdersSelectSql('WHERE o.guest_session_id = $1', 'ORDER BY o.created_at DESC');
         queryParams = [guestSessionId];
       } else {
-        ordersQuery = getOrdersSelectSql('', 'ORDER BY o.created_at DESC LIMIT 50');
+        ordersQuery = getOrdersSelectSql('WHERE FALSE', 'ORDER BY o.created_at DESC');
       }
     }
 
@@ -1595,9 +1699,14 @@ app.get('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
       return {
         id: o.id,
         orderId: o.id,
+        customer_name: o.customer_name || null,
+        customerName: o.customer_name || null,
         table: o.table_name,
         timestamp: o.timestamp,
         total: parseFloat(o.total),
+        amountAlreadyPaid: parseFloat(o.amount_already_paid) || 0,
+        paymentStatus: o.payment_status || 'unpaid',
+        additionalPayable: Number(Math.max(0, parseFloat(o.total) - (parseFloat(o.amount_already_paid) || 0)).toFixed(2)),
         paymentMethod: o.payment_method,
         status: o.status,
         guest_session_id: o.guest_session_id,
@@ -1635,6 +1744,9 @@ app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
     }
 
     const orderRow = orderRes.rows[0];
+    if (!canAccessCustomerOrder(req, orderRow)) {
+      return res.status(403).json({ success: false, message: 'You cannot view this order.' });
+    }
     let formattedItems = [];
     if (orderRow.items_json) {
       try {
@@ -1672,9 +1784,14 @@ app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
       order: {
         id: orderRow.id,
         orderId: orderRow.id,
+        customer_name: orderRow.customer_name || null,
+        customerName: orderRow.customer_name || null,
         table: orderRow.table_name,
         timestamp: orderRow.timestamp,
         total: parseFloat(orderRow.total),
+        amountAlreadyPaid: parseFloat(orderRow.amount_already_paid) || 0,
+        paymentStatus: orderRow.payment_status || 'unpaid',
+        additionalPayable: Number(Math.max(0, parseFloat(orderRow.total) - (parseFloat(orderRow.amount_already_paid) || 0)).toFixed(2)),
         paymentMethod: orderRow.payment_method,
         status: orderRow.status,
         guest_session_id: orderRow.guest_session_id,
@@ -1698,9 +1815,208 @@ app.get('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
   }
 });
 
+function canAccessCustomerOrder(req, order) {
+  if (req.user && ['staff', 'manager'].includes(req.user.role)) return true;
+  if (req.user?.role === 'customer') return String(order.user_id) === String(req.user.id);
+  const guestSessionId = req.headers['x-guest-session'];
+  return Boolean(guestSessionId && order.guest_session_id && guestSessionId === order.guest_session_id);
+}
+
+function formatSizeChangeRequest(row) {
+  return {
+    id: row.id,
+    orderId: row.order_id,
+    itemIndex: row.item_index,
+    itemId: row.item_id,
+    itemName: row.item_name,
+    originalSize: row.original_size,
+    requestedSize: row.requested_size,
+    originalPrice: Number(row.original_price),
+    requestedPrice: Number(row.requested_price),
+    customerName: row.customer_name || 'Guest customer',
+    status: row.status,
+    requestedAt: row.requested_at,
+    reviewedByName: row.reviewed_by_name || null,
+    reviewedAt: row.reviewed_at || null
+  };
+}
+
+// Customer submits a size-change request. The order itself stays untouched until a manager reviews it.
+app.post('/api/orders/:id/size-change-requests', requireDatabase, optionalAuth, async (req, res) => {
+  const orderId = req.params.id;
+  const itemIndex = Number(req.body?.itemIndex);
+  const requestedSize = String(req.body?.requestedSize || '').trim();
+  try {
+    if (req.user && req.user.role !== 'customer') {
+      return res.status(403).json({ success: false, message: 'Only the order customer can request a size change.' });
+    }
+    if (!Number.isInteger(itemIndex) || itemIndex < 0 || !requestedSize) {
+      return res.status(400).json({ success: false, message: 'Choose an order item and requested size.' });
+    }
+    const orderRes = await db.query('SELECT id, customer_name, user_id, guest_session_id, items_json, status FROM orders WHERE id = $1', [orderId]);
+    if (!orderRes.rows.length) return res.status(404).json({ success: false, message: 'Order not found.' });
+    const order = orderRes.rows[0];
+    if (!canAccessCustomerOrder(req, order)) return res.status(403).json({ success: false, message: 'You cannot request a change for this order.' });
+    if (!['approved', 'preparing', 'ready'].includes(order.status)) {
+      return res.status(409).json({ success: false, message: 'This order can no longer be changed.' });
+    }
+    let items = [];
+    try { items = JSON.parse(order.items_json || '[]'); } catch {}
+    const item = items[itemIndex];
+    if (!item) return res.status(404).json({ success: false, message: 'Order item not found.' });
+    if (!item.size || item.size === requestedSize) return res.status(400).json({ success: false, message: 'Choose a different size.' });
+    const productId = String(item.originalId || item.item_id || item.id || '').replace(/-\d+\s*oz$/i, '');
+    const productRes = await db.query('SELECT sizes FROM product_stock WHERE item_id = $1', [productId]);
+    let sizes = productRes.rows[0]?.sizes || [];
+    if (typeof sizes === 'string') { try { sizes = JSON.parse(sizes); } catch { sizes = []; } }
+    const requestedOption = Array.isArray(sizes) ? sizes.find((size) => size.size === requestedSize) : null;
+    if (!requestedOption) return res.status(400).json({ success: false, message: 'That size is not available for this item.' });
+    const pending = await db.query(
+      "SELECT id FROM order_size_change_requests WHERE order_id = $1 AND item_index = $2 AND status = 'pending' LIMIT 1",
+      [orderId, itemIndex]
+    );
+    if (pending.rows.length) return res.status(409).json({ success: false, message: 'A size-change request for this item is already pending.' });
+    const userId = req.user?.id || null;
+    const guestSessionId = req.user ? null : req.headers['x-guest-session'];
+    const inserted = await db.query(
+      `INSERT INTO order_size_change_requests
+        (order_id, item_index, item_id, item_name, original_size, requested_size, original_price, requested_price, customer_name, user_id, guest_session_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [orderId, itemIndex, productId || null, item.name || item.rawName || 'Item', item.size,
+        requestedOption.size, Number(item.price) || 0, Number(requestedOption.price) || 0, order.customer_name, userId, guestSessionId]
+    );
+    const request = formatSizeChangeRequest(inserted.rows[0]);
+    await writeOrderAudit(db, req, orderId, 'size_change_requested', null, request);
+    io.to('manager:orders').emit('size-change-request:updated', request);
+    io.to('staff:orders').emit('size-change-request:updated', request);
+    if (order.guest_session_id) io.to(`guest:${order.guest_session_id}`).emit('size-change-request:updated', request);
+    if (order.user_id) io.to(`user:${order.user_id}`).emit('size-change-request:updated', request);
+    return res.status(201).json({ success: true, request });
+  } catch (err) {
+    console.error('Create Size Change Request Error:', err);
+    return res.status(500).json({ success: false, message: 'Unable to submit size-change request.' });
+  }
+});
+
+// Staff and manager may view request status; only manager may make a decision.
+app.get('/api/size-change-requests', requireDatabase, verifyToken, async (req, res) => {
+  if (!['staff', 'manager'].includes(req.user.role)) return res.status(403).json({ success: false, message: 'Staff or manager authorization is required.' });
+  try {
+    const result = await db.query('SELECT * FROM order_size_change_requests ORDER BY requested_at DESC');
+    return res.json({ success: true, requests: result.rows.map(formatSizeChangeRequest) });
+  } catch (err) {
+    console.error('Get Size Change Requests Error:', err);
+    return res.status(500).json({ success: false, message: 'Unable to load size-change requests.' });
+  }
+});
+
+app.get('/api/orders/:id/size-change-requests', requireDatabase, optionalAuth, async (req, res) => {
+  try {
+    const orderRes = await db.query('SELECT user_id, guest_session_id FROM orders WHERE id = $1', [req.params.id]);
+    if (!orderRes.rows.length) return res.status(404).json({ success: false, message: 'Order not found.' });
+    if (!canAccessCustomerOrder(req, orderRes.rows[0])) return res.status(403).json({ success: false, message: 'You cannot view this order.' });
+    const result = await db.query('SELECT * FROM order_size_change_requests WHERE order_id = $1 ORDER BY requested_at DESC', [req.params.id]);
+    return res.json({ success: true, requests: result.rows.map(formatSizeChangeRequest) });
+  } catch (err) {
+    console.error('Get Order Size Change Requests Error:', err);
+    return res.status(500).json({ success: false, message: 'Unable to load size-change requests.' });
+  }
+});
+
+app.patch('/api/size-change-requests/:requestId', verifyToken, verifyManager, requireDatabase, async (req, res) => {
+  const decision = String(req.body?.status || '').toLowerCase();
+  if (!['approved', 'rejected'].includes(decision)) {
+    return res.status(400).json({ success: false, message: 'Decision must be approved or rejected.' });
+  }
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    const requestRes = await client.query('SELECT * FROM order_size_change_requests WHERE id = $1 FOR UPDATE', [req.params.requestId]);
+    if (!requestRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ success: false, message: 'Size-change request not found.' }); }
+    const requestRow = requestRes.rows[0];
+    if (requestRow.status !== 'pending') { await client.query('ROLLBACK'); return res.status(409).json({ success: false, message: 'This request has already been reviewed.' }); }
+
+    let updatedOrder = null;
+    if (decision === 'approved') {
+      const orderRes = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [requestRow.order_id]);
+      if (!orderRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ success: false, message: 'Order not found.' }); }
+      const order = orderRes.rows[0];
+      let items = [];
+      try { items = JSON.parse(order.items_json || '[]'); } catch {}
+      const item = items[requestRow.item_index];
+      const currentProductId = item ? String(item.originalId || item.item_id || item.id || '').replace(/-\d+\s*oz$/i, '') : '';
+      if (!item || currentProductId !== String(requestRow.item_id || '') || item.size !== requestRow.original_size) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ success: false, message: 'The order item changed since this request was submitted.' });
+      }
+      const oldPrice = Number(item.price) || Number(requestRow.original_price) || 0;
+      const newPrice = Number(requestRow.requested_price) || 0;
+      const qty = Number(item.qty || item.quantity || 1);
+      item.order_item_id = item.order_item_id || crypto.randomUUID();
+      item.size = requestRow.requested_size;
+      item.price = newPrice;
+      items[requestRow.item_index] = item;
+      const nextTotal = Number((Number(order.total) + (newPrice - oldPrice) * qty).toFixed(2));
+      const nextPaymentStatus = Number(order.amount_already_paid || 0) >= nextTotal ? 'paid' : 'unpaid';
+      await client.query('UPDATE orders SET total = $1, items_json = $2, payment_status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4', [nextTotal, JSON.stringify(items), nextPaymentStatus, requestRow.order_id]);
+      const itemUpdate = await client.query('UPDATE order_items SET size = $1, price = $2, order_item_id = $3 WHERE order_id = $4 AND order_item_id = $5',
+        [requestRow.requested_size, newPrice, item.order_item_id, requestRow.order_id, item.order_item_id]);
+      if (itemUpdate.rowCount === 0) {
+        await client.query('UPDATE order_items SET size = $1, price = $2, order_item_id = $3 WHERE order_id = $4 AND item_id = $5 AND size = $6',
+          [requestRow.requested_size, newPrice, item.order_item_id, requestRow.order_id, requestRow.item_id, requestRow.original_size]);
+      }
+      updatedOrder = {
+        id: order.id, orderId: order.id, customer_name: order.customer_name, customerName: order.customer_name,
+        table: order.table_name, timestamp: order.timestamp, total: nextTotal,
+        amountAlreadyPaid: Number(order.amount_already_paid) || 0,
+        additionalPayable: Number(Math.max(0, nextTotal - Number(order.amount_already_paid || 0)).toFixed(2)),
+        paymentMethod: order.payment_method, status: order.status, user_id: order.user_id,
+        paymentStatus: nextPaymentStatus,
+        guest_session_id: order.guest_session_id, items
+      };
+    }
+
+    const reviewerId = req.user.id;
+    const reviewer = await client.query('SELECT first_name, last_name FROM managers WHERE id = $1', [reviewerId]);
+    const reviewerName = reviewer.rows[0] ? `${reviewer.rows[0].first_name} ${reviewer.rows[0].last_name}`.trim() : 'Manager';
+    const reviewed = await client.query(
+      `UPDATE order_size_change_requests SET status = $1, reviewed_by_id = $2, reviewed_by_name = $3, reviewed_at = CURRENT_TIMESTAMP
+       WHERE id = $4 RETURNING *`, [decision, reviewerId, reviewerName, req.params.requestId]
+    );
+    await writeOrderAudit(client, req, requestRow.order_id, decision === 'approved' ? 'size_change_approved' : 'size_change_rejected',
+      { requestId: requestRow.id, size: requestRow.original_size, status: requestRow.status },
+      { requestId: requestRow.id, size: requestRow.requested_size, status: decision });
+    await client.query('COMMIT');
+    const request = formatSizeChangeRequest(reviewed.rows[0]);
+    io.to('manager:orders').emit('size-change-request:updated', request);
+    io.to('staff:orders').emit('size-change-request:updated', request);
+    if (updatedOrder) {
+      io.to(`order:${updatedOrder.id}`).emit('order:updated', updatedOrder);
+      if (decision === 'approved') {
+        io.to('staff:orders').emit('order:updated', updatedOrder);
+        io.to('manager:orders').emit('order:updated', updatedOrder);
+      }
+      if (updatedOrder.guest_session_id) io.to(`guest:${updatedOrder.guest_session_id}`).emit('order:updated', updatedOrder);
+      if (updatedOrder.user_id) io.to(`user:${updatedOrder.user_id}`).emit('order:updated', updatedOrder);
+    }
+    const notificationPayload = updatedOrder || { id: requestRow.order_id, user_id: requestRow.user_id, guest_session_id: requestRow.guest_session_id };
+    await createAndEmitOrderNotification(requestRow.order_id, decision === 'approved' ? 'size_change_approved' : 'size_change_rejected', notificationPayload);
+    return res.json({ success: true, request, order: updatedOrder });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Review Size Change Request Error:', err);
+    return res.status(500).json({ success: false, message: 'Unable to review size-change request.' });
+  } finally {
+    client.release();
+  }
+});
+
 // Create Order (HTTP POST) - Public for Customer Checkout with Stock Validation
 app.post('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
   try {
+    if (req.user && req.user.role !== 'customer') {
+      return res.status(403).json({ success: false, message: 'Only customers can submit new orders.' });
+    }
     const userId = req.user ? req.user.id : null;
     const guestSessionId = req.headers['x-guest-session'] || req.body.guestSessionId || req.body.guest_session_id || null;
     const orderItems = req.body.items || [];
@@ -1731,8 +2047,8 @@ app.post('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
 
     const fullOrder = await saveOrderToDatabase(req.body, userId, guestSessionId);
 
-    // Emit real-time Socket.IO event strictly to staff dashboards and customer's room
-    io.to('staff:orders').emit('order:created', fullOrder);
+    // New customer orders wait in the Manager queue until approval.
+    io.to('manager:orders').emit('order:created', fullOrder);
     io.to(`order:${fullOrder.id}`).emit('order:created', fullOrder);
     if (guestSessionId) {
       io.to(`guest:${guestSessionId}`).emit('order:created', fullOrder);
@@ -1744,26 +2060,368 @@ app.post('/api/orders', requireDatabase, optionalAuth, async (req, res) => {
     console.log(`📡 [Socket] Targeted emission for new order ${fullOrder.id} (Staff + Owner)`);
 
     // Emit initial lifecycle notification
-    await createAndEmitOrderNotification(fullOrder.id, 'new', fullOrder);
+    await writeOrderAudit(db, req, fullOrder.id, 'order_created', null, fullOrder);
+    io.to('manager:orders').emit('notification:manager_new_order', {
+      orderId: fullOrder.id, customerName: fullOrder.customer_name, requestedAt: fullOrder.createdAt
+    });
+    await createAndEmitOrderNotification(fullOrder.id, 'pending_manager_approval', fullOrder);
 
     return res.status(201).json({ success: true, order: fullOrder });
   } catch (err) {
     console.error('Create Order Error:', err);
-    return res.status(400).json({ success: false, message: 'Invalid order payload.' });
+    if (err.code === 'DUPLICATE_ORDER_ID') return res.status(409).json({ success: false, message: 'Order reference already exists. Please submit again.' });
+    return res.status(500).json({ success: false, message: 'Unable to save the order. Please retry.' });
   }
 });
 
-// Update Order Status (PATCH) - Atomic Multi-Staff Concurrency Handling & Registered Staff Identity
-app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => {
+app.patch('/api/orders/:id/approval', verifyToken, verifyManager, requireDatabase, async (req, res) => {
+  const decision = String(req.body?.decision || '').toLowerCase();
+  if (!['approve', 'reject', 'cancel'].includes(decision)) {
+    return res.status(400).json({ success: false, message: 'Choose approve, reject, or cancel.' });
+  }
+  const orderId = req.params.id;
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    const orderRes = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [orderId]);
+    if (!orderRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ success: false, message: 'Order not found.' }); }
+    const current = orderRes.rows[0];
+    if (decision !== 'cancel' && current.status !== 'pending_manager_approval') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, message: 'Only pending orders can be approved or rejected.' });
+    }
+    if (decision === 'cancel' && current.status === 'cancelled') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, message: 'This order is already cancelled.' });
+    }
+    const nextStatus = decision === 'approve' ? 'approved' : 'cancelled';
+    await client.query('UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [nextStatus, orderId]);
+    const action = decision === 'approve' ? 'order_approved' : decision === 'reject' ? 'order_rejected' : 'order_cancelled';
+    await writeOrderAudit(client, req, orderId, action, { status: current.status }, { status: nextStatus });
+    await client.query('COMMIT');
+    const order = {
+      id: current.id, orderId: current.id, customer_name: current.customer_name, customerName: current.customer_name,
+      table: current.table_name, timestamp: current.timestamp, total: Number(current.total),
+      amountAlreadyPaid: Number(current.amount_already_paid) || 0, paymentStatus: current.payment_status || 'unpaid',
+      status: nextStatus, user_id: current.user_id, guest_session_id: current.guest_session_id,
+      items: JSON.parse(current.items_json || '[]'), updatedAt: new Date().toISOString()
+    };
+    if (decision === 'approve') io.to('staff:orders').emit('order:created', order);
+    io.to('manager:orders').emit('order:updated', order);
+    io.to(`order:${orderId}`).emit('order:updated', order);
+    if (order.guest_session_id) io.to(`guest:${order.guest_session_id}`).emit('order:updated', order);
+    if (order.user_id) io.to(`user:${order.user_id}`).emit('order:updated', order);
+    await createAndEmitOrderNotification(orderId, decision === 'approve' ? 'approved' : decision === 'reject' ? 'rejected' : 'cancelled', order);
+    return res.json({ success: true, order });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Order Approval Error:', err);
+    return res.status(500).json({ success: false, message: 'Unable to review order.' });
+  } finally {
+    client.release();
+  }
+});
+
+// Manager-only order edits; payment collection remains a separate Staff report and Manager verification flow.
+app.patch('/api/orders/:id/adjustment', verifyToken, verifyManager, requireDatabase, async (req, res) => {
+  const orderId = req.params.id;
+  const { items, action } = req.body || {};
+  const client = await db.pool.connect();
+  try {
+    if (action !== 'adjust') return res.status(400).json({ success: false, message: 'Use the cash collection workflow to report or verify payments.' });
+    if (!Array.isArray(items) || !items.length) return res.status(400).json({ success: false, message: 'An order must contain at least one item.' });
+    await client.query('BEGIN');
+    const currentRes = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [orderId]);
+    if (!currentRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ success: false, message: 'Order not found.' }); }
+    const current = currentRes.rows[0];
+    if (current.status === 'cancelled' || current.status === 'served') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, message: 'This order can no longer be edited.' });
+    }
+    let oldItems = [];
+    try { oldItems = JSON.parse(current.items_json || '[]'); } catch {}
+    const nextItems = items.map((item) => {
+      const name = String(item.name || item.rawName || item.product_name || 'Item').trim().slice(0, 255);
+      const qty = Math.max(1, parseInt(item.qty || item.quantity || 1, 10) || 1);
+      const price = Math.max(0, Number(item.price) || 0);
+      const orderItemId = item.order_item_id || item.orderItemId || crypto.randomUUID();
+      const itemId = String(item.originalId || item.item_id || item.id || '');
+      return { ...item, id: itemId, item_id: itemId, originalId: item.originalId || itemId,
+        order_item_id: orderItemId, name, rawName: name, product_name: name, productName: name,
+        item_name: name, qty, quantity: qty, price, size: String(item.size || '').slice(0, 50) };
+    });
+    const nextTotal = Number(nextItems.reduce((sum, item) => {
+      const addonTotal = Array.isArray(item.addons) ? item.addons.reduce((addonSum, addon) => addonSum + (Number(addon.price) || 0), 0) : 0;
+      return sum + (item.price + addonTotal) * item.qty;
+    }, 0).toFixed(2));
+    const paymentStatus = Number(current.amount_already_paid || 0) >= nextTotal ? 'paid' : 'unpaid';
+    await client.query('UPDATE orders SET total = $1, items_json = $2, payment_status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4', [nextTotal, JSON.stringify(nextItems), paymentStatus, orderId]);
+    await client.query("UPDATE cash_collection_reports SET status = 'voided', review_note = 'Order was modified before cash verification.' WHERE order_id = $1 AND status = 'pending_manager_verification'", [orderId]);
+    await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
+    for (const item of nextItems) {
+      await client.query(
+        'INSERT INTO order_items (order_id, order_item_id, item_id, name, size, qty, price) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+        [orderId, item.order_item_id, item.item_id, item.name, item.size, item.qty, item.price]
+      );
+    }
+    await writeOrderAudit(client, req, orderId, 'order_modified',
+      { total: Number(current.total), items: oldItems }, { total: nextTotal, items: nextItems });
+    await client.query('COMMIT');
+    const savedRes = await db.query(getOrdersSelectSql('WHERE o.id = $1', ''), [orderId]);
+    const saved = savedRes.rows[0];
+    const savedItems = saved.items_json ? JSON.parse(saved.items_json) : nextItems;
+    const order = {
+      id: saved.id, orderId: saved.id, customer_name: saved.customer_name, customerName: saved.customer_name,
+      table: saved.table_name, timestamp: saved.timestamp, total: Number(saved.total),
+      amountAlreadyPaid: Number(saved.amount_already_paid) || 0, paymentStatus: saved.payment_status,
+      paymentMethod: saved.payment_method,
+      status: saved.status, guest_session_id: saved.guest_session_id, user_id: saved.user_id,
+      accepted_by_name: saved.accepted_by_name || null, accepted_at: saved.accepted_at,
+      completed_by_name: saved.completed_by_name || null, completed_at: saved.completed_at,
+      createdAt: saved.created_at, updatedAt: saved.updated_at, items: savedItems
+    };
+    io.to(`order:${orderId}`).to('staff:orders').emit('order:updated', order);
+    io.to('manager:orders').emit('order:updated', order);
+    if (order.guest_session_id) io.to(`guest:${order.guest_session_id}`).emit('order:adjusted', order);
+    if (order.user_id) io.to(`user:${order.user_id}`).emit('order:adjusted', order);
+    return res.json({ success: true, order });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Order Adjustment Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to update order payment or items.' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/orders/:id/cash-reports', verifyToken, async (req, res, next) => {
+  if (req.user.role !== 'staff') return res.status(403).json({ success: false, message: 'Only Staff can report collected cash.' });
+  return next();
+}, requireDatabase, async (req, res) => {
+  const amount = Number(req.body?.amount);
+  if (!Number.isFinite(amount) || amount <= 0 || Math.round(amount * 100) !== amount * 100) {
+    return res.status(400).json({ success: false, message: 'Enter a positive cash amount with up to two decimals.' });
+  }
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    const orderRes = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [req.params.id]);
+    if (!orderRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ success: false, message: 'Order not found.' }); }
+    const order = orderRes.rows[0];
+    if (['pending_manager_approval', 'cancelled'].includes(order.status)) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, message: 'Cash can only be reported for an approved order.' });
+    }
+    const staffRes = await client.query('SELECT first_name, last_name FROM staff WHERE id = $1', [req.user.id]);
+    const staffName = staffRes.rows[0] ? `${staffRes.rows[0].first_name} ${staffRes.rows[0].last_name}`.trim() : req.user.name || 'Staff';
+    const insertRes = await client.query(
+      `INSERT INTO cash_collection_reports (order_id, staff_id, staff_name, amount_reported)
+       VALUES ($1,$2,$3,$4) RETURNING *`, [order.id, req.user.id, staffName, amount]
+    );
+    await client.query("UPDATE orders SET payment_status = 'pending_manager_verification', updated_at = CURRENT_TIMESTAMP WHERE id = $1", [order.id]);
+    await writeOrderAudit(client, req, order.id, 'cash_collection_reported', null, { reportId: insertRes.rows[0].id, amount, status: 'pending_manager_verification' });
+    await client.query('COMMIT');
+    const report = { ...insertRes.rows[0], customer_name: order.customer_name, total: Number(order.total), expected_amount: Number(order.total) - Number(order.amount_already_paid || 0) };
+    io.to('manager:orders').emit('cash:reported', report);
+    return res.status(201).json({ success: true, report });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    if (err.code === '23505') return res.status(409).json({ success: false, message: 'A cash collection is already awaiting Manager verification for this order.' });
+    console.error('Cash Report Error:', err);
+    return res.status(500).json({ success: false, message: 'Unable to record cash collection.' });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/cash-reports', verifyToken, requireDatabase, async (req, res) => {
+  if (!['staff', 'manager'].includes(req.user.role)) return res.status(403).json({ success: false, message: 'Staff or Manager authorization is required.' });
+  try {
+    const staffFilter = req.user.role === 'staff' ? 'WHERE r.staff_id = $1' : '';
+    const params = req.user.role === 'staff' ? [req.user.id] : [];
+    const result = await db.query(
+      `SELECT r.*, o.customer_name, o.total, o.amount_already_paid, o.payment_status, o.status AS order_status,
+              GREATEST(0, o.total - o.amount_already_paid) AS expected_amount
+       FROM cash_collection_reports r JOIN orders o ON o.id = r.order_id
+       ${staffFilter} ORDER BY r.reported_at DESC`, params
+    );
+    return res.json({ success: true, reports: result.rows });
+  } catch (err) {
+    console.error('Get Cash Reports Error:', err);
+    return res.status(500).json({ success: false, message: 'Unable to load cash collection reports.' });
+  }
+});
+
+app.patch('/api/cash-reports/:reportId', verifyToken, verifyManager, requireDatabase, async (req, res) => {
+  const decision = String(req.body?.decision || '').toLowerCase();
+  if (!['verify', 'flag', 'refund'].includes(decision)) return res.status(400).json({ success: false, message: 'Choose verify, flag, or refund.' });
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    const reportRes = await client.query('SELECT * FROM cash_collection_reports WHERE id = $1 FOR UPDATE', [req.params.reportId]);
+    if (!reportRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ success: false, message: 'Cash report not found.' }); }
+    const report = reportRes.rows[0];
+    const orderRes = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [report.order_id]);
+    if (!orderRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ success: false, message: 'Order not found.' }); }
+    const order = orderRes.rows[0];
+    const managerRes = await client.query('SELECT first_name,last_name FROM managers WHERE id = $1', [req.user.id]);
+    const managerName = managerRes.rows[0] ? `${managerRes.rows[0].first_name} ${managerRes.rows[0].last_name}`.trim() : 'Manager';
+    let nextPaymentStatus;
+    let reportStatus;
+    let action;
+    let nextAmountAlreadyPaid = Number(order.amount_already_paid) || 0;
+    if (decision === 'verify' || decision === 'flag') {
+      if (report.status !== 'pending_manager_verification') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ success: false, message: 'This cash report has already been reviewed.' });
+      }
+      const expected = Number((Number(order.total) - Number(order.amount_already_paid || 0)).toFixed(2));
+      if (decision === 'flag' || Number(report.amount_reported) !== expected) {
+        reportStatus = 'payment_discrepancy';
+        nextPaymentStatus = 'payment_discrepancy';
+        action = 'cash_discrepancy_flagged';
+      } else {
+        reportStatus = 'verified';
+        nextPaymentStatus = 'paid';
+        action = 'cash_payment_verified';
+        nextAmountAlreadyPaid = Number((nextAmountAlreadyPaid + Number(report.amount_reported)).toFixed(2));
+      }
+    } else {
+      if (report.status !== 'verified') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ success: false, message: 'Only a verified cash payment can be refunded.' });
+      }
+      reportStatus = 'refunded';
+      nextPaymentStatus = 'refunded';
+      action = 'cash_refunded';
+      nextAmountAlreadyPaid = Number(Math.max(0, nextAmountAlreadyPaid - Number(report.amount_reported)).toFixed(2));
+    }
+    const updatedReport = await client.query(
+      `UPDATE cash_collection_reports SET status = $1, reviewed_by_id = $2, reviewed_by_name = $3,
+       reviewed_at = CURRENT_TIMESTAMP, review_note = $4 WHERE id = $5 RETURNING *`,
+      [reportStatus, req.user.id, managerName, String(req.body?.note || '').slice(0, 500), report.id]
+    );
+    await client.query('UPDATE orders SET amount_already_paid = $1, payment_status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3', [nextAmountAlreadyPaid, nextPaymentStatus, order.id]);
+    await writeOrderAudit(client, req, order.id, action,
+      { reportId: report.id, paymentStatus: order.payment_status, amountAlreadyPaid: Number(order.amount_already_paid) || 0 },
+      { reportId: report.id, reportStatus, paymentStatus: nextPaymentStatus, amountReported: Number(report.amount_reported) });
+    await client.query('COMMIT');
+    const payload = {
+      ...updatedReport.rows[0], orderId: order.id, customer_name: order.customer_name,
+      total: Number(order.total), paymentStatus: nextPaymentStatus,
+      amountAlreadyPaid: nextAmountAlreadyPaid
+    };
+    io.to('manager:orders').emit('cash:updated', payload);
+    io.to('staff:orders').emit('cash:updated', payload);
+    io.to(`order:${order.id}`).emit('cash:updated', payload);
+    if (order.guest_session_id) io.to(`guest:${order.guest_session_id}`).emit('cash:updated', payload);
+    if (order.user_id) io.to(`user:${order.user_id}`).emit('cash:updated', payload);
+    const updatedOrder = { id: order.id, orderId: order.id, paymentStatus: nextPaymentStatus, amountAlreadyPaid: payload.amountAlreadyPaid };
+    io.to('staff:orders').to('manager:orders').to(`order:${order.id}`).emit('order:updated', updatedOrder);
+    if (order.guest_session_id) io.to(`guest:${order.guest_session_id}`).emit('order:updated', updatedOrder);
+    if (order.user_id) io.to(`user:${order.user_id}`).emit('order:updated', updatedOrder);
+    return res.json({ success: true, report: payload, discrepancy: reportStatus === 'payment_discrepancy' });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Cash Review Error:', err);
+    return res.status(500).json({ success: false, message: 'Unable to review cash payment.' });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/cash-reconciliation', verifyToken, verifyManager, requireDatabase, async (req, res) => {
+  try {
+    const [summary, staffTotals, lastClose, reports] = await Promise.all([
+      db.query(`SELECT
+        COALESCE(SUM(amount_reported) FILTER (WHERE status <> 'voided'),0) AS reported_total,
+        COALESCE(SUM(amount_reported) FILTER (WHERE status = 'verified'),0) AS verified_total,
+        COUNT(*) FILTER (WHERE status = 'pending_manager_verification') AS pending_count,
+        COUNT(*) FILTER (WHERE status = 'payment_discrepancy') AS discrepancy_count
+        FROM cash_collection_reports`),
+      db.query(`SELECT staff_id, staff_name,
+        COALESCE(SUM(amount_reported) FILTER (WHERE status <> 'voided'),0) AS reported,
+        COALESCE(SUM(amount_reported) FILTER (WHERE status = 'verified'),0) AS verified
+        FROM cash_collection_reports GROUP BY staff_id, staff_name ORDER BY staff_name`),
+      db.query('SELECT closed_at, closing_cash FROM cash_reconciliations ORDER BY closed_at DESC LIMIT 1'),
+      db.query(`SELECT r.*, o.customer_name, o.total,
+        GREATEST(0,o.total-o.amount_already_paid) AS expected_amount
+        FROM cash_collection_reports r JOIN orders o ON o.id=r.order_id
+        WHERE r.status IN ('pending_manager_verification','payment_discrepancy') ORDER BY r.reported_at`)
+    ]);
+    return res.json({ success: true, summary: summary.rows[0], staffTotals: staffTotals.rows, lastClose: lastClose.rows[0] || null, reports: reports.rows });
+  } catch (err) {
+    console.error('Cash Reconciliation Fetch Error:', err);
+    return res.status(500).json({ success: false, message: 'Unable to load cash reconciliation.' });
+  }
+});
+
+app.post('/api/cash-reconciliation', verifyToken, verifyManager, requireDatabase, async (req, res) => {
+  const openingCash = Number(req.body?.openingCash);
+  const closingCash = Number(req.body?.closingCash);
+  if (![openingCash, closingCash].every((value) => Number.isFinite(value) && value >= 0 && Math.round(value * 100) === value * 100)) {
+    return res.status(400).json({ success: false, message: 'Enter valid opening and closing cash amounts.' });
+  }
+  try {
+    const lastRes = await db.query('SELECT closed_at FROM cash_reconciliations ORDER BY closed_at DESC LIMIT 1');
+    const openedAt = lastRes.rows[0]?.closed_at || new Date(new Date().setHours(0, 0, 0, 0));
+    const [amountsRes, managerRes] = await Promise.all([
+      db.query(`SELECT
+        COALESCE(SUM(amount_reported) FILTER (WHERE status <> 'voided'),0) AS reported,
+        COALESCE(SUM(amount_reported) FILTER (WHERE status = 'verified'),0) AS verified
+        FROM cash_collection_reports WHERE reported_at > $1`, [openedAt]),
+      db.query('SELECT first_name,last_name FROM managers WHERE id = $1', [req.user.id])
+    ]);
+    const amounts = amountsRes.rows[0];
+    const expectedCash = Number((openingCash + Number(amounts.verified || 0)).toFixed(2));
+    const variance = Number((closingCash - expectedCash).toFixed(2));
+    const managerName = managerRes.rows[0] ? `${managerRes.rows[0].first_name} ${managerRes.rows[0].last_name}`.trim() : 'Manager';
+    const saved = await db.query(
+      `INSERT INTO cash_reconciliations (manager_id, manager_name, opened_at, opening_cash, closing_cash, expected_cash, reported_cash, verified_cash, variance, note)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [req.user.id, managerName, openedAt, openingCash, closingCash, expectedCash, Number(amounts.reported || 0), Number(amounts.verified || 0), variance, String(req.body?.note || '').slice(0, 500)]
+    );
+    await writeOrderAudit(db, req, null, 'cash_reconciliation_closed', null, saved.rows[0]);
+    io.to('manager:orders').emit('cash:reconciled', saved.rows[0]);
+    return res.status(201).json({ success: true, reconciliation: saved.rows[0] });
+  } catch (err) {
+    console.error('Cash Reconciliation Save Error:', err);
+    return res.status(500).json({ success: false, message: 'Unable to save cash reconciliation.' });
+  }
+});
+
+app.get('/api/order-audit', verifyToken, verifyManager, requireDatabase, async (req, res) => {
+  try {
+    const orderId = req.query.orderId || null;
+    const result = await db.query(
+      `SELECT * FROM order_audit_log WHERE ($1::varchar IS NULL OR order_id = $1) ORDER BY created_at DESC LIMIT 300`, [orderId]
+    );
+    return res.json({ success: true, audit: result.rows });
+  } catch (err) {
+    console.error('Order Audit Fetch Error:', err);
+    return res.status(500).json({ success: false, message: 'Unable to load the audit log.' });
+  }
+});
+
+// Update fulfillment status only. Approval and cancellation use Manager-only actions.
+app.patch('/api/orders/:id', requireDatabase, verifyToken, async (req, res) => {
   const orderId = req.params.id;
   const { status: rawStatus, staffName: clientStaffName } = req.body;
+  if (!['staff', 'manager'].includes(req.user.role)) {
+    return res.status(403).json({ success: false, message: 'Staff or manager authorization is required.' });
+  }
+  if (req.user.role === 'staff' && !['preparing', 'ready', 'served', 'completed', 'accepted'].includes(rawStatus)) {
+    return res.status(403).json({ success: false, message: 'Staff cannot approve, cancel, or change payment status.' });
+  }
 
   if (!rawStatus) {
     return res.status(400).json({ success: false, message: 'Status is required.' });
   }
 
-  // Canonicalize status: Accept transitions order directly into 'preparing'
-  const status = rawStatus === 'accepted' ? 'preparing' : rawStatus;
+  const status = rawStatus === 'completed' ? 'served' : rawStatus === 'accepted' ? 'preparing' : rawStatus;
+  if (!['preparing', 'ready', 'served'].includes(status)) {
+    return res.status(400).json({ success: false, message: 'Unsupported order status.' });
+  }
 
   try {
     let updatedAt = new Date().toISOString();
@@ -1778,8 +2436,12 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
 
       const currentOrder = currentRes.rows[0];
 
-      // Multi-Staff Concurrency Check: If staff tries to accept an order already handled
-      if (status === 'preparing' && currentOrder.status !== 'new' && currentOrder.status !== 'pending' && currentOrder.status !== 'accepted' && currentOrder.status !== 'preparing') {
+      const validTransition = status === 'preparing'
+        ? ['approved', 'preparing'].includes(currentOrder.status)
+        : status === 'ready'
+          ? ['preparing', 'ready'].includes(currentOrder.status)
+          : ['ready', 'served'].includes(currentOrder.status);
+      if (!validTransition) {
         const conflictAccId = currentOrder.accepted_by_staff_id || currentOrder.accepted_by_id || null;
         const conflictCompId = currentOrder.completed_by_staff_id || currentOrder.completed_by_id || null;
         const conflictPayload = {
@@ -1849,7 +2511,7 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
             params.push(authenticatedStaffId, authenticatedStaffId, authenticatedStaffName);
           }
         }
-      } else if (status === 'completed') {
+      } else if (status === 'served') {
         // Record registered staff who completed order (without overwriting accepted_by_*)
         if (authenticatedStaffId || authenticatedStaffName) {
           updateSql += `, completed_by_id = $${paramIdx++}, completed_by_staff_id = $${paramIdx++}, completed_by_name = $${paramIdx++}, completed_at = CURRENT_TIMESTAMP`;
@@ -1878,6 +2540,10 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
           table: finalRow.table_name,
           total: parseFloat(finalRow.total),
           paymentMethod: finalRow.payment_method,
+          paymentStatus: finalRow.payment_status || 'unpaid',
+          amountAlreadyPaid: Number(finalRow.amount_already_paid) || 0,
+          customer_name: finalRow.customer_name || null,
+          customerName: finalRow.customer_name || null,
           guest_session_id: finalRow.guest_session_id,
           user_id: finalRow.user_id,
           accepted_by_id: accId,
@@ -1891,6 +2557,7 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
           updatedAt
         };
       }
+      await writeOrderAudit(db, req, orderId, 'order_status_updated', { status: currentOrder.status }, { status });
       console.log(`💾 [DB] Order ${orderId} updated to ${status} by ${authenticatedStaffName || 'Staff'}`);
     }
 
@@ -1905,7 +2572,7 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
           memOrder.accepted_by_name = authenticatedStaffName;
           memOrder.accepted_at = updatedAt;
         }
-      } else if (status === 'completed') {
+      } else if (status === 'served') {
         memOrder.completed_by_id = authenticatedStaffId;
         memOrder.completed_by_staff_id = authenticatedStaffId;
         memOrder.completed_by_name = authenticatedStaffName;
@@ -1921,10 +2588,10 @@ app.patch('/api/orders/:id', requireDatabase, optionalAuth, async (req, res) => 
       accepted_by_staff_id: status === 'preparing' ? authenticatedStaffId : null,
       accepted_by_name: status === 'preparing' ? (authenticatedStaffName || clientStaffName || null) : null,
       accepted_at: status === 'preparing' ? updatedAt : null,
-      completed_by_id: status === 'completed' ? authenticatedStaffId : null,
-      completed_by_staff_id: status === 'completed' ? authenticatedStaffId : null,
-      completed_by_name: status === 'completed' ? (authenticatedStaffName || clientStaffName || null) : null,
-      completed_at: status === 'completed' ? updatedAt : null,
+      completed_by_id: status === 'served' ? authenticatedStaffId : null,
+      completed_by_staff_id: status === 'served' ? authenticatedStaffId : null,
+      completed_by_name: status === 'served' ? (authenticatedStaffName || clientStaffName || null) : null,
+      completed_at: status === 'served' ? updatedAt : null,
       updatedAt
     };
 
@@ -1989,18 +2656,30 @@ async function createAndEmitOrderNotification(orderId, status, extraData = {}) {
     let title = 'Order Update';
     let message = `Order #${cleanId} status is now ${status}.`;
 
-    if (status === 'new' || status === 'received') {
-      title = 'Order Received';
-      message = `Your order #${cleanId} has been placed and received by our baristas.`;
+    if (status === 'pending_manager_approval' || status === 'new' || status === 'received') {
+      title = 'Order Awaiting Approval';
+      message = `Your order #${cleanId} is waiting for Manager approval.`;
+    } else if (status === 'approved') {
+      title = 'Order Approved';
+      message = `Your order #${cleanId} was approved and sent to Staff for preparation.`;
+    } else if (status === 'rejected') {
+      title = 'Order Not Approved';
+      message = `Your order #${cleanId} was not approved. Please contact the cafe for assistance.`;
     } else if (status === 'accepted' || status === 'preparing') {
       title = 'Order Accepted';
       message = 'Your order has been accepted and is being prepared.';
     } else if (status === 'ready') {
       title = 'Your order is ready!';
       message = 'Your order has been crafted and is ready!';
-    } else if (status === 'completed') {
-      title = 'Order Completed';
-      message = 'Your order has been completed. Thank you!';
+    } else if (status === 'served' || status === 'completed') {
+      title = 'Order Served';
+      message = 'Your order has been served. Thank you!';
+    } else if (status === 'size_change_approved') {
+      title = 'Size Change Approved';
+      message = `Your requested size change for order #${cleanId} was approved.`;
+    } else if (status === 'size_change_rejected') {
+      title = 'Size Change Not Approved';
+      message = `Your requested size change for order #${cleanId} was not approved. The original size remains on your order.`;
     } else if (status === 'cancelled') {
       title = 'Order Cancelled';
       message = `Order #${cleanId} was cancelled. Please contact staff for assistance.`;
@@ -2017,17 +2696,14 @@ async function createAndEmitOrderNotification(orderId, status, extraData = {}) {
       is_read: false,
       created_at: new Date().toISOString()
     };
+    let shouldEmit = true;
 
     if (db.pool) {
       try {
         const notifRes = await db.query(
           `INSERT INTO customer_notifications (order_id, guest_session_id, user_id, status, title, message, is_read, created_at)
            VALUES ($1, $2, $3, $4, $5, $6, FALSE, CURRENT_TIMESTAMP)
-           ON CONFLICT (order_id, status) DO UPDATE SET
-             title = EXCLUDED.title,
-             message = EXCLUDED.message,
-             is_read = FALSE,
-             created_at = CURRENT_TIMESTAMP
+           ON CONFLICT (order_id, status) DO NOTHING
            RETURNING *`,
           [orderId, guestSessionId, userId, status, title, message]
         );
@@ -2047,6 +2723,8 @@ async function createAndEmitOrderNotification(orderId, status, extraData = {}) {
             accepted_by_name: extraData.accepted_by_name || (order ? order.accepted_by_name : null),
             completed_by_name: extraData.completed_by_name || (order ? order.completed_by_name : null)
           };
+        } else {
+          shouldEmit = false;
         }
       } catch (err) {
         console.warn('Customer notification persistence note:', err.message);
@@ -2054,6 +2732,7 @@ async function createAndEmitOrderNotification(orderId, status, extraData = {}) {
     }
 
     // Emit targeted notification strictly to owner rooms
+    if (!shouldEmit) return notificationRecord;
     io.to(`order:${orderId}`).emit('notification:new', notificationRecord);
     if (guestSessionId) {
       io.to(`guest:${guestSessionId}`).emit('notification:new', notificationRecord);
@@ -2189,6 +2868,7 @@ async function registerAuthenticatedSocket(socket, decoded) {
   if (decoded.role === 'staff' || decoded.role === 'manager') {
     socket.join('staff:orders');
   }
+  if (decoded.role === 'manager') socket.join('manager:orders');
 
   socket.join(`user:${decoded.id}`);
 
@@ -2274,6 +2954,7 @@ io.on('connection', (socket) => {
       });
     }
     socket.leave('staff:orders');
+    socket.leave('manager:orders');
     if (socket.data.user?.id) {
       socket.leave(`user:${socket.data.user.id}`);
     }
@@ -2348,11 +3029,12 @@ io.on('connection', (socket) => {
   // Order creation via Socket.IO
   socket.on('order:create', async (orderData) => {
     try {
+      if (['staff', 'manager'].includes(socket.data.role)) return;
       const userId = socket.data.user ? socket.data.user.id : null;
       const guestSessionId = socket.data.guestSessionId || orderData.guest_session_id || orderData.guestSessionId || null;
       const fullOrder = await saveOrderToDatabase(orderData, userId, guestSessionId);
 
-      io.to('staff:orders').emit('order:created', fullOrder);
+      io.to('manager:orders').emit('order:created', fullOrder);
       io.to(`order:${fullOrder.id}`).emit('order:created', fullOrder);
       if (guestSessionId) {
         io.to(`guest:${guestSessionId}`).emit('order:created', fullOrder);
@@ -2362,8 +3044,9 @@ io.on('connection', (socket) => {
       }
       console.log(`📡 [Socket Event] Created & emitted targeted order:created for ${fullOrder.id}`);
 
+      await writeOrderAudit(db, { user: socket.data.user || null }, fullOrder.id, 'order_created', null, fullOrder);
       // Emit initial lifecycle notification
-      createAndEmitOrderNotification(fullOrder.id, 'new', fullOrder).catch((e) => {
+      createAndEmitOrderNotification(fullOrder.id, 'pending_manager_approval', fullOrder).catch((e) => {
         console.warn('Error emitting initial socket order notification:', e.message);
       });
     } catch (err) {
@@ -2374,13 +3057,23 @@ io.on('connection', (socket) => {
   // Order status update via Socket.IO (Staff / Manager)
   socket.on('order:update_status', async ({ id, status: rawStatus, staffName: clientStaffName }) => {
     if (!id || !rawStatus) return;
-    const status = rawStatus === 'accepted' ? 'preparing' : rawStatus;
+    const status = rawStatus === 'completed' ? 'served' : rawStatus === 'accepted' ? 'preparing' : rawStatus;
+    if (!['staff', 'manager'].includes(socket.data.role)) return;
+    if (!['preparing', 'ready', 'served'].includes(status)) return;
 
     try {
       let updatedAt = new Date().toISOString();
       let updatedOrder = null;
 
       if (db.pool) {
+        const currentOrderRes = await db.query('SELECT status FROM orders WHERE id = $1', [id]);
+        const currentStatus = currentOrderRes.rows[0]?.status;
+        const validTransition = status === 'preparing'
+          ? ['approved', 'preparing'].includes(currentStatus)
+          : status === 'ready'
+            ? ['preparing', 'ready'].includes(currentStatus)
+            : ['ready', 'served'].includes(currentStatus);
+        if (!validTransition) return;
         const staffId = socket.data.user?.id || null;
         let staffName = socket.data.user?.name;
 
@@ -2415,7 +3108,7 @@ io.on('connection', (socket) => {
             updateSql += `, accepted_by_id = $${pIdx++}, accepted_by_staff_id = $${pIdx++}, accepted_by_name = $${pIdx++}, accepted_at = CURRENT_TIMESTAMP`;
             params.push(staffId, staffId, staffName);
           }
-        } else if (status === 'completed') {
+        } else if (status === 'served') {
           if (staffId || staffName) {
             updateSql += `, completed_by_id = $${pIdx++}, completed_by_staff_id = $${pIdx++}, completed_by_name = $${pIdx++}, completed_at = CURRENT_TIMESTAMP`;
             params.push(staffId, staffId, staffName);
@@ -2443,6 +3136,10 @@ io.on('connection', (socket) => {
             table: finalRow.table_name,
             total: parseFloat(finalRow.total),
             paymentMethod: finalRow.payment_method,
+            paymentStatus: finalRow.payment_status || 'unpaid',
+            amountAlreadyPaid: Number(finalRow.amount_already_paid) || 0,
+            customer_name: finalRow.customer_name || null,
+            customerName: finalRow.customer_name || null,
             guest_session_id: finalRow.guest_session_id,
             user_id: finalRow.user_id,
             accepted_by_id: accId,
@@ -2473,7 +3170,7 @@ io.on('connection', (socket) => {
             memOrder.accepted_by_name = currentStaffName;
             memOrder.accepted_at = updatedAt;
           }
-        } else if (status === 'completed') {
+        } else if (status === 'served') {
           memOrder.completed_by_id = currentStaffId;
           memOrder.completed_by_staff_id = currentStaffId;
           memOrder.completed_by_name = currentStaffName;
@@ -2489,10 +3186,10 @@ io.on('connection', (socket) => {
         accepted_by_staff_id: status === 'preparing' ? currentStaffId : null,
         accepted_by_name: status === 'preparing' ? currentStaffName : null,
         accepted_at: status === 'preparing' ? updatedAt : null,
-        completed_by_id: status === 'completed' ? currentStaffId : null,
-        completed_by_staff_id: status === 'completed' ? currentStaffId : null,
-        completed_by_name: status === 'completed' ? currentStaffName : null,
-        completed_at: status === 'completed' ? updatedAt : null,
+        completed_by_id: status === 'served' ? currentStaffId : null,
+        completed_by_staff_id: status === 'served' ? currentStaffId : null,
+        completed_by_name: status === 'served' ? currentStaffName : null,
+        completed_at: status === 'served' ? updatedAt : null,
         updatedAt
       };
 

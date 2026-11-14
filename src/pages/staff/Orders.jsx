@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import CashCollectionControl from '../../components/staff/CashCollectionControl';
 
 export default function Orders() {
-  const { orders, updateOrderStatus, currentUser } = useApp();
+  const { orders, updateOrderStatus, sizeChangeRequests } = useApp();
   const [activeTab, setActiveTab] = useState('board'); // 'board' | 'completed'
   const [completedSort, setCompletedSort] = useState('newest'); // 'newest' | 'oldest' | 'highest' | 'lowest'
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,12 +40,22 @@ export default function Orders() {
     });
   };
 
-  const newOrders = sortByOldestFirst(orders.filter((o) => o.status === 'new'));
+  const newOrders = sortByOldestFirst(orders.filter((o) => o.status === 'approved'));
   const preparingOrders = sortByOldestFirst(orders.filter((o) => o.status === 'preparing'));
   const readyOrders = sortByOldestFirst(orders.filter((o) => o.status === 'ready'));
   const activeCount = newOrders.length + preparingOrders.length + readyOrders.length;
 
-  const rawCompletedOrders = orders.filter((o) => o.status === 'completed');
+  const renderSizeChangeStatuses = (orderId) => {
+    const requests = sizeChangeRequests.filter((request) => String(request.orderId) === String(orderId));
+    if (!requests.length) return null;
+    return (
+      <div className="staff-size-change-status" style={{ margin: '6px 0', padding: '7px 9px', borderRadius: '7px', background: 'rgba(201,139,91,0.12)', color: '#E2B688', fontSize: '0.75rem' }}>
+        {requests.map((request) => <div key={request.id}>Size change ({request.originalSize} → {request.requestedSize}): <strong>{request.status.toUpperCase()}</strong></div>)}
+      </div>
+    );
+  };
+
+  const rawCompletedOrders = orders.filter((o) => o.status === 'served');
 
   // Filter and sort completed orders
   const filteredCompletedOrders = rawCompletedOrders
@@ -373,6 +384,8 @@ export default function Orders() {
 
                     <div className="card-items-list">
                       {renderItemList(ord.items, ord.total)}
+                      {renderSizeChangeStatuses(ord.id)}
+                      <CashCollectionControl order={ord} />
                     </div>
 
                     <div className="card-footer-bar">
@@ -385,14 +398,7 @@ export default function Orders() {
                           className="btn-staff-action btn-accept"
                           onClick={() => updateOrderStatus(ord.id, 'preparing')}
                         >
-                          ACCEPT ORDER
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-staff-action btn-reject"
-                          onClick={() => updateOrderStatus(ord.id, 'cancelled')}
-                        >
-                          REJECT
+                          START PREPARATION
                         </button>
                       </div>
                     </div>
@@ -458,6 +464,8 @@ export default function Orders() {
 
                     <div className="card-items-list">
                       {renderItemList(ord.items, ord.total)}
+                      {renderSizeChangeStatuses(ord.id)}
+                      <CashCollectionControl order={ord} />
                     </div>
 
                     <div className="card-footer-bar">
@@ -530,6 +538,8 @@ export default function Orders() {
 
                     <div className="card-items-list">
                       {renderItemList(ord.items, ord.total)}
+                      {renderSizeChangeStatuses(ord.id)}
+                      <CashCollectionControl order={ord} />
                     </div>
 
                     <div className="card-footer-bar">
@@ -614,6 +624,8 @@ export default function Orders() {
 
                     <div style={{ borderTop: '1px solid rgba(201, 139, 91, 0.15)', paddingTop: '8px', marginBottom: '12px' }}>
                       {renderItemList(ord.items, ord.total)}
+                      {renderSizeChangeStatuses(ord.id)}
+                      <CashCollectionControl order={ord} />
                     </div>
                   </div>
 

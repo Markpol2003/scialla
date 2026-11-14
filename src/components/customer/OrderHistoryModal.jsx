@@ -1,10 +1,35 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Clock3, X, ChevronRight, ArrowLeft } from 'lucide-react';
 
 export default function OrderHistoryModal({ isOpen, onClose }) {
-  const { customerOrderHistory } = useApp();
+  const { customerOrderHistory, orders, menuCategories, sizeChangeRequests, submitSizeChangeRequest, refreshSizeChangeRequests } = useApp();
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [requestedSizes, setRequestedSizes] = useState({});
+  const [submittingItem, setSubmittingItem] = useState(null);
+
+  useEffect(() => {
+    if (selectedOrder?.id) refreshSizeChangeRequests(selectedOrder.id);
+  }, [selectedOrder?.id]);
+
+  useEffect(() => {
+    if (!selectedOrder) return;
+    const latest = orders.find((order) => String(order.id) === String(selectedOrder.id));
+    if (latest && latest !== selectedOrder) setSelectedOrder(latest);
+  }, [orders, selectedOrder]);
+
+  const openOrder = (order) => {
+    setRequestedSizes({});
+    setSelectedOrder(order);
+  };
+
+  const requestSize = async (itemIndex) => {
+    const requestedSize = requestedSizes[itemIndex];
+    if (!requestedSize || !selectedOrder) return;
+    setSubmittingItem(itemIndex);
+    await submitSizeChangeRequest(selectedOrder.id, itemIndex, requestedSize);
+    setSubmittingItem(null);
+  };
 
   if (!isOpen) return null;
 
@@ -103,9 +128,9 @@ export default function OrderHistoryModal({ isOpen, onClose }) {
                       fontSize: '0.74rem',
                       fontWeight: 800,
                       textTransform: 'uppercase',
-                      background: selectedOrder.status === 'completed' ? '#DCFCE7' : '#FEF3C7',
-                      color: selectedOrder.status === 'completed' ? '#15803D' : '#B45309',
-                      border: selectedOrder.status === 'completed' ? '1px solid #BBF7D0' : '1px solid #FDE68A'
+                      background: selectedOrder.status === 'served' ? '#DCFCE7' : '#FEF3C7',
+                      color: selectedOrder.status === 'served' ? '#15803D' : '#B45309',
+                      border: selectedOrder.status === 'served' ? '1px solid #BBF7D0' : '1px solid #FDE68A'
                     }}
                   >
                     {selectedOrder.status}
@@ -120,7 +145,7 @@ export default function OrderHistoryModal({ isOpen, onClose }) {
                   {selectedOrder.paymentMethod && (
                     <div>
                       <span style={{ color: '#75685E' }}>Payment: </span>
-                      <strong style={{ color: '#2D2118' }}>{selectedOrder.paymentMethod}</strong>
+                      <strong style={{ color: '#2D2118' }}>{selectedOrder.paymentMethod} · {String(selectedOrder.paymentStatus || 'unpaid').replaceAll('_', ' ')}</strong>
                     </div>
                   )}
                   <div style={{ gridColumn: 'span 2' }}>
@@ -170,6 +195,40 @@ export default function OrderHistoryModal({ isOpen, onClose }) {
                             Size: {it.size}
                           </div>
                         )}
+                        {(() => {
+                          const productId = String(it.originalId || it.item_id || it.id || '').replace(/-\d+\s*oz$/i, '');
+                          const catalogItem = menuCategories.flatMap((category) => category.items || []).find((product) => String(product.id) === productId);
+                          const availableSizes = catalogItem?.sizes || [];
+                          const itemRequests = sizeChangeRequests.filter((request) => String(request.orderId) === String(selectedOrder.id) && Number(request.itemIndex) === idx);
+                          const latestRequest = itemRequests[0];
+                          if (!availableSizes.length) return null;
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '7px', marginTop: '8px' }}>
+                              {latestRequest && (
+                                <span style={{ fontSize: '0.72rem', fontWeight: 800, color: latestRequest.status === 'approved' ? '#15803D' : latestRequest.status === 'rejected' ? '#B91C1C' : '#B45309' }}>
+                                  Size request: {latestRequest.status.toUpperCase()}
+                                </span>
+                              )}
+                              {latestRequest?.status !== 'pending' && selectedOrder.status !== 'served' && selectedOrder.status !== 'cancelled' && (
+                                <>
+                                  <select
+                                    aria-label={`Requested size for ${it.name || it.rawName || 'item'}`}
+                                    value={requestedSizes[idx] || ''}
+                                    onChange={(event) => setRequestedSizes((prev) => ({ ...prev, [idx]: event.target.value }))}
+                                  >
+                                    <option value="">Choose a new size</option>
+                                    {availableSizes.filter((size) => size.size !== it.size).map((size) => (
+                                      <option key={size.size} value={size.size}>{size.label || size.size} — ₱{Number(size.price).toFixed(2)}</option>
+                                    ))}
+                                  </select>
+                                  <button type="button" disabled={!requestedSizes[idx] || submittingItem === idx} onClick={() => requestSize(idx)}>
+                                    {submittingItem === idx ? 'Submitting…' : 'Request Size Change'}
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })()}
                         {Array.isArray(it.addons) && it.addons.length > 0 && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', marginTop: '2px' }}>
                             {it.addons.map((a, aIdx) => (
@@ -191,10 +250,18 @@ export default function OrderHistoryModal({ isOpen, onClose }) {
               {/* Total & Staff Accountability */}
               <div style={{ background: '#FFF9F2', border: '1.5px solid #EADFD5', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.9rem', color: '#75685E', fontWeight: 600 }}>Total Amount Paid:</span>
+                  <span style={{ fontSize: '0.9rem', color: '#75685E', fontWeight: 600 }}>Order Total:</span>
                   <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#F59E42', fontFamily: 'var(--font-mono)' }}>
                     ₱{parseFloat(selectedOrder.total || 0).toFixed(2)}
                   </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', color: '#75685E' }}>Amount Paid:</span>
+                  <strong style={{ color: '#2D2118' }}>₱{Number(selectedOrder.amountAlreadyPaid || 0).toFixed(2)} · {String(selectedOrder.paymentStatus || 'unpaid').replaceAll('_', ' ')}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', color: '#75685E' }}>Additional Balance:</span>
+                  <strong style={{ color: '#2D2118' }}>₱{Math.max(0, Number(selectedOrder.total || 0) - Number(selectedOrder.amountAlreadyPaid || 0)).toFixed(2)}</strong>
                 </div>
 
                 {(selectedOrder.accepted_by_name || selectedOrder.completed_by_name) && (
@@ -230,7 +297,7 @@ export default function OrderHistoryModal({ isOpen, onClose }) {
                 </div>
               ) : (
                 customerOrderHistory.map((ord) => {
-                  const isCompleted = ord.status === 'completed';
+                  const isCompleted = ord.status === 'served';
                   const rawCreated = ord.createdAt || ord.created_at;
                   let dateLabel = 'Today';
                   if (rawCreated) {
@@ -290,7 +357,7 @@ export default function OrderHistoryModal({ isOpen, onClose }) {
 
                         <button
                           type="button"
-                          onClick={() => setSelectedOrder(ord)}
+                          onClick={() => openOrder(ord)}
                           style={{
                             background: '#FFF0DF',
                             border: '1px solid #F59E42',

@@ -3,11 +3,18 @@ import { useApp } from '../../context/AppContext';
 
 export default function Dashboard() {
   const { todayRevenue, todayOrderCount, orders } = useApp();
-  const newOrdersCount = orders.filter((o) => o.status === 'new').length;
+  const newOrdersCount = orders.filter((o) => o.status === 'approved').length;
   const prepOrdersCount = orders.filter((o) => o.status === 'preparing').length;
 
   return (
     <div className="staff-dashboard-overview">
+      <header className="portal-page-heading">
+        <div>
+          <span className="portal-page-eyebrow">TEAM WORKSPACE</span>
+          <h1>Shift overview</h1>
+          <p>Current service activity and today’s totals.</p>
+        </div>
+      </header>
       <div className="kpi-cards-row">
         <div className="kpi-card highlight-revenue">
           <span className="kpi-title">BARISTA SHIFT REVENUE</span>

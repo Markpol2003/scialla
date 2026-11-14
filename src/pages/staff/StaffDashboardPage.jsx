@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import CashCollectionControl from '../../components/staff/CashCollectionControl';
 
 export default function StaffDashboardPage() {
   const {
     orders,
     updateOrderStatus,
+    sizeChangeRequests,
     menuCategories,
     toggleItemStock,
     todayRevenue,
@@ -45,10 +47,20 @@ export default function StaffDashboardPage() {
     });
   };
 
-  const newOrders = sortByOldestFirst(orders.filter((o) => o.status === 'new'));
+  const newOrders = sortByOldestFirst(orders.filter((o) => o.status === 'approved'));
   const preparingOrders = sortByOldestFirst(orders.filter((o) => o.status === 'preparing'));
   const readyOrders = sortByOldestFirst(orders.filter((o) => o.status === 'ready'));
-  const completedOrders = orders.filter((o) => o.status === 'completed' || o.status === 'cancelled');
+  const completedOrders = orders.filter((o) => o.status === 'served' || o.status === 'cancelled');
+
+  const renderSizeChangeStatuses = (orderId) => {
+    const requests = sizeChangeRequests.filter((request) => String(request.orderId) === String(orderId));
+    if (!requests.length) return null;
+    return (
+      <div style={{ margin: '6px 0', padding: '7px 9px', borderRadius: '7px', background: 'rgba(201,139,91,0.12)', color: '#E2B688', fontSize: '0.75rem' }}>
+        {requests.map((request) => <div key={request.id}>Size change ({request.originalSize} → {request.requestedSize}): <strong>{request.status.toUpperCase()}</strong></div>)}
+      </div>
+    );
+  };
 
   const consolidateItems = (items = []) => {
     let list = items;
@@ -249,6 +261,8 @@ export default function StaffDashboardPage() {
 
                     <div className="card-items-list">
                       {renderItemList(ord.items, ord.total)}
+                      {renderSizeChangeStatuses(ord.id)}
+                      <CashCollectionControl order={ord} />
                     </div>
 
                     <div className="card-footer-bar">
@@ -260,13 +274,7 @@ export default function StaffDashboardPage() {
                           className="btn-staff-action btn-accept"
                           onClick={() => updateOrderStatus(ord.id, 'preparing')}
                         >
-                          ✓ ACCEPT ORDER
-                        </button>
-                        <button
-                          className="btn-staff-action btn-reject"
-                          onClick={() => updateOrderStatus(ord.id, 'cancelled')}
-                        >
-                          ✕ REJECT
+                          ✓ START PREPARATION
                         </button>
                       </div>
                     </div>
@@ -331,6 +339,8 @@ export default function StaffDashboardPage() {
 
                     <div className="card-items-list">
                       {renderItemList(ord.items, ord.total)}
+                      {renderSizeChangeStatuses(ord.id)}
+                      <CashCollectionControl order={ord} />
                     </div>
 
                     <div className="card-footer-bar">
@@ -401,6 +411,8 @@ export default function StaffDashboardPage() {
 
                     <div className="card-items-list">
                       {renderItemList(ord.items, ord.total)}
+                      {renderSizeChangeStatuses(ord.id)}
+                      <CashCollectionControl order={ord} />
                     </div>
 
                     <div className="card-footer-bar">

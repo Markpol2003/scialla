@@ -9,15 +9,18 @@ const WS_URL = import.meta.env.VITE_WS_URL || API_BASE_URL;
 
 // State order progression ranking (Prevents out-of-order socket events from regressing status)
 const STATUS_RANKS = {
+  pending_manager_approval: 1,
   new: 1,
   received: 1,
   pending: 1,
   accepted: 2,
-  preparing: 2,
-  ready: 3,
-  completed: 4,
-  complete: 4,
-  cancelled: 5
+  approved: 2,
+  preparing: 3,
+  ready: 4,
+  served: 5,
+  completed: 5,
+  complete: 5,
+  cancelled: 6
 };
 
 function shouldAcceptStatusUpdate(currentStatus, incomingStatus) {
@@ -26,7 +29,7 @@ function shouldAcceptStatusUpdate(currentStatus, incomingStatus) {
   const curr = String(currentStatus).toLowerCase().trim();
   const inc = String(incomingStatus).toLowerCase().trim();
   if (curr === 'cancelled') return false; // Cancelled is terminal
-  if ((curr === 'completed' || curr === 'complete') && inc !== 'completed' && inc !== 'complete' && inc !== 'cancelled') {
+  if ((curr === 'served' || curr === 'completed' || curr === 'complete') && inc !== 'served' && inc !== 'completed' && inc !== 'complete' && inc !== 'cancelled') {
     return false; // Completed cannot regress to preparing or ready
   }
   const currentRank = STATUS_RANKS[curr] || 0;
@@ -83,6 +86,10 @@ export function AppProvider({ children }) {
   });
   const [staffList, setStaffList] = useState([]);
   const [staffOnDuty, setStaffOnDuty] = useState([]);
+  const [sizeChangeRequests, setSizeChangeRequests] = useState([]);
+  const [cashReports, setCashReports] = useState([]);
+  const [cashReconciliation, setCashReconciliation] = useState(null);
+  const [orderAudit, setOrderAudit] = useState([]);
   const [lastCustomerOrder, setLastCustomerOrder] = useState(() => {
     try {
       const saved = localStorage.getItem('scialla_active_order');
@@ -154,18 +161,21 @@ export function AppProvider({ children }) {
     let defaultTitle = notif.title || 'Order Update';
     let defaultMessage = notif.message || (custName ? `${custName}, your order status is now ${status}.` : `Order #${cleanId} status is now ${status}.`);
 
-    if (status === 'new' || status === 'received') {
-      defaultTitle = 'Order Received';
-      defaultMessage = custName ? `${custName}, your order has been received.` : `Your order #${cleanId} has been placed and received by our baristas.`;
+    if (status === 'pending_manager_approval' || status === 'new' || status === 'received') {
+      defaultTitle = 'Awaiting Manager Approval';
+      defaultMessage = custName ? `${custName}, your order is waiting for Manager approval.` : `Your order #${cleanId} is waiting for Manager approval.`;
+    } else if (status === 'approved') {
+      defaultTitle = 'Order Approved';
+      defaultMessage = `Order #${cleanId} was approved and sent to Staff for preparation.`;
     } else if (status === 'accepted' || status === 'preparing') {
       defaultTitle = 'Order Preparing';
       defaultMessage = custName ? `${custName}, your order is being prepared.` : 'Your order is being prepared.';
     } else if (status === 'ready') {
       defaultTitle = 'Order Crafted';
       defaultMessage = custName ? `${custName}, your order has been crafted and is ready.` : 'Your order has been crafted and is ready!';
-    } else if (status === 'completed') {
-      defaultTitle = 'Order Completed';
-      defaultMessage = custName ? `${custName}, your order has been completed. Thank you!` : 'Your order has been completed. Thank you!';
+    } else if (status === 'served' || status === 'completed') {
+      defaultTitle = 'Order Served';
+      defaultMessage = custName ? `${custName}, your order has been served. Thank you!` : 'Your order has been served. Thank you!';
     } else if (status === 'cancelled') {
       defaultTitle = 'Order Cancelled';
       defaultMessage = custName ? `${custName}, your order #${cleanId} was cancelled.` : `Order #${cleanId} was cancelled.`;
@@ -375,23 +385,21 @@ export function AppProvider({ children }) {
 
   // Fetch orders from PostgreSQL / REST API (Source of Truth)
   const refreshOrders = async () => {
+    const requestStartedAt = Date.now();
     try {
       const data = await api.getOrders();
+      if (data == null) return;
       const orderList = Array.isArray(data) ? data : (data && Array.isArray(data.orders) ? data.orders : []);
-      if (orderList.length > 0) {
-        setOrders((prev) => {
-          const map = new Map();
-          // Server orders are the authoritative source of truth
-          orderList.forEach((ord) => map.set(ord.id, ord));
-          // Retain any optimistic local pending orders not yet saved to server
-          prev.forEach((ord) => {
-            if (!map.has(ord.id)) {
-              map.set(ord.id, ord);
-            }
-          });
-          return Array.from(map.values());
+      setOrders((prev) => {
+        const map = new Map(orderList.map((order) => [String(order.id), order]));
+        // Keep a just-arrived socket order if this DB read began before its commit.
+        prev.forEach((order) => {
+          if (!map.has(String(order.id)) && order._realtimeReceivedAt >= requestStartedAt) {
+            map.set(String(order.id), order);
+          }
         });
-      }
+        return Array.from(map.values());
+      });
     } catch (err) {
       console.warn('Failed to refresh orders from API:', err);
     }
@@ -512,11 +520,40 @@ export function AppProvider({ children }) {
 
     socketInstance.on('order:created', (newOrder) => {
       console.log('📡 Received real-time order:created:', newOrder);
+      const receivedOrder = { ...newOrder, _realtimeReceivedAt: Date.now() };
       setOrders((prev) => {
-        if (prev.some((o) => o.id === newOrder.id)) return prev;
-        return [newOrder, ...prev];
+        if (prev.some((order) => String(order.id) === String(newOrder.id))) {
+          return prev.map((order) => String(order.id) === String(newOrder.id) ? { ...order, ...receivedOrder } : order);
+        }
+        return [receivedOrder, ...prev];
       });
       refreshStaffOnDuty();
+    });
+
+    socketInstance.on('order:adjusted', (updatedOrder) => {
+      setOrders((prev) => prev.map((order) => order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order));
+      setLastCustomerOrder((prev) => prev?.id === updatedOrder.id ? { ...prev, ...updatedOrder } : prev);
+    });
+
+    socketInstance.on('size-change-request:updated', (request) => {
+      setSizeChangeRequests((prev) => [request, ...prev.filter((item) => item.id !== request.id)]);
+    });
+
+    socketInstance.on('cash:reported', (report) => {
+      setCashReports((prev) => [report, ...prev.filter((item) => String(item.id) !== String(report.id))]);
+      refreshCashReconciliation();
+    });
+    socketInstance.on('cash:updated', (report) => {
+      setCashReports((prev) => [report, ...prev.filter((item) => String(item.id) !== String(report.id))]);
+      if (report.orderId) {
+        setOrders((prev) => prev.map((order) => String(order.id) === String(report.orderId)
+          ? { ...order, paymentStatus: report.paymentStatus, amountAlreadyPaid: report.amountAlreadyPaid }
+          : order));
+        setLastCustomerOrder((prev) => prev && String(prev.id) === String(report.orderId)
+          ? { ...prev, paymentStatus: report.paymentStatus, amountAlreadyPaid: report.amountAlreadyPaid }
+          : prev);
+      }
+      refreshCashReconciliation();
     });
 
     // Targeted real-time customer notification event from server
@@ -525,8 +562,8 @@ export function AppProvider({ children }) {
       addCustomerNotification(notifData);
       if (notifData.status === 'ready') {
         triggerToast('Your order is ready!');
-      } else if (notifData.status === 'completed') {
-        triggerToast('Order completed. Thank you!');
+      } else if (notifData.status === 'served' || notifData.status === 'completed') {
+        triggerToast('Order served. Thank you!');
       } else if (notifData.status === 'cancelled') {
         triggerToast('Order was cancelled.');
       }
@@ -569,9 +606,12 @@ export function AppProvider({ children }) {
         let title = 'Order Update';
         let message = custName ? `${custName}, your order status is now ${data.status}.` : `Order #${cleanId} status is now ${data.status}.`;
 
-        if (data.status === 'new' || data.status === 'received') {
-          title = 'Order Received';
-          message = custName ? `${custName}, your order has been received.` : `Your order #${cleanId} has been placed and received by our baristas.`;
+        if (data.status === 'pending_manager_approval' || data.status === 'new' || data.status === 'received') {
+          title = 'Awaiting Manager Approval';
+          message = custName ? `${custName}, your order is waiting for Manager approval.` : `Your order #${cleanId} is waiting for Manager approval.`;
+        } else if (data.status === 'approved') {
+          title = 'Order Approved';
+          message = `Order #${cleanId} was approved and sent to Staff for preparation.`;
         } else if (data.status === 'accepted' || data.status === 'preparing') {
           title = 'Order Preparing';
           message = custName ? `${custName}, your order is being prepared.` : 'Your order is being prepared.';
@@ -579,10 +619,10 @@ export function AppProvider({ children }) {
           title = 'Order Crafted';
           message = custName ? `${custName}, your order has been crafted and is ready.` : 'Your order has been crafted and is ready!';
           triggerToast(custName ? `${custName}, your order has been crafted and is ready.` : 'Your order has been crafted and is ready!');
-        } else if (data.status === 'completed') {
-          title = 'Order Completed';
-          message = custName ? `${custName}, your order has been completed. Thank you!` : 'Your order has been completed. Thank you!';
-          triggerToast(custName ? `${custName}, your order has been completed. Thank you!` : 'Your order has been completed. Thank you!');
+        } else if (data.status === 'served' || data.status === 'completed') {
+          title = 'Order Served';
+          message = custName ? `${custName}, your order has been served. Thank you!` : 'Your order has been served. Thank you!';
+          triggerToast(message);
         } else if (data.status === 'cancelled') {
           title = 'Order Cancelled';
           message = custName ? `${custName}, your order #${cleanId} was cancelled.` : `Order #${cleanId} was cancelled.`;
@@ -623,7 +663,9 @@ export function AppProvider({ children }) {
 
     socketInstance.on('order:updated', (data) => {
       const targetId = data.id || data.orderId;
-      setOrders((prev) => prev.map((ord) => (ord.id === targetId ? { ...ord, ...data } : ord)));
+      if (!targetId) return;
+      setOrders((prev) => prev.map((ord) => (String(ord.id) === String(targetId) ? { ...ord, ...data } : ord)));
+      setLastCustomerOrder((prev) => prev && String(prev.id) === String(targetId) ? { ...prev, ...data } : prev);
       refreshStaffOnDuty();
     });
 
@@ -680,6 +722,12 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (currentUser && currentUser.role === 'manager') {
       refreshStaffList();
+      refreshCashReports();
+      refreshCashReconciliation();
+      refreshOrderAudit();
+    }
+    if (currentUser && ['staff', 'manager'].includes(currentUser.role)) {
+      refreshSizeChangeRequests();
     }
   }, [currentUser]);
 
@@ -775,7 +823,7 @@ export function AppProvider({ children }) {
 
     const nowIso = new Date().toISOString();
     const newOrder = {
-      id: orderData.orderNum || orderData.id || `SC-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: orderData.orderNum || orderData.id || `SC-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
       customer_name: cleanCustomerName,
       customerName: cleanCustomerName,
       table: orderData.table,
@@ -784,48 +832,43 @@ export function AppProvider({ children }) {
       created_at: nowIso,
       items: consolidatedItems,
       total: orderData.total,
-      paymentMethod: orderData.paymentMethod,
-      status: 'new',
+      paymentMethod: 'Cash',
+      status: 'pending_manager_approval',
+      paymentStatus: 'unpaid',
+      amountAlreadyPaid: 0,
       guest_session_id: activeGuestId,
       user_id: currentUser ? currentUser.id : null
     };
 
-    const targetId = newOrder.id;
-    setCustomerOrderIds((prev) => [targetId, ...prev.filter((id) => id !== targetId)]);
-
-    setOrders((prev) => {
-      if (prev.some((o) => o.id === targetId)) return prev;
-      return [newOrder, ...prev];
-    });
-    setLastCustomerOrder(newOrder);
-
-    const cleanTargetId = String(targetId).replace(/^#/, '');
-    addCustomerNotification({
-      orderId: cleanTargetId,
-      customer_name: cleanCustomerName,
-      customerName: cleanCustomerName,
-      title: 'Order Received',
-      message: cleanCustomerName ? `${cleanCustomerName}, your order has been received.` : `Your order #${cleanTargetId} has been placed and received by our baristas.`,
-      status: 'new'
-    });
-
     // Save to PostgreSQL via REST API (with backend stock verification)
     const response = await api.createOrder(newOrder);
     if (response && response.success === false) {
-      // Out of stock or validation failure
       triggerToast(response.message || 'Item is out of stock');
-      syncProductStock(); // Sync latest stock state into menu
+      syncProductStock();
       return { success: false, message: response.message };
     }
 
-    const created = response?.order || newOrder;
-    setOrders((prev) =>
-      prev.map((o) => (o.id === newOrder.id ? { ...newOrder, ...created } : o))
-    );
-    setLastCustomerOrder(created);
-    if (created.id) {
-      setCustomerOrderIds((prev) => (prev.includes(created.id) ? prev : [created.id, ...prev]));
+    const created = response?.order;
+    if (!response?.success || !created?.id) {
+      const message = response?.message || 'The order was not confirmed by the server.';
+      triggerToast(message);
+      return { success: false, message };
     }
+
+    const targetId = created.id;
+    setOrders((prev) => prev.some((order) => String(order.id) === String(targetId))
+      ? prev.map((order) => String(order.id) === String(targetId) ? { ...order, ...created } : order)
+      : [created, ...prev]);
+    setLastCustomerOrder(created);
+    setCustomerOrderIds((prev) => (prev.includes(created.id) ? prev : [created.id, ...prev]));
+    addCustomerNotification({
+      orderId: String(targetId).replace(/^#/, ''),
+      customer_name: created.customer_name || cleanCustomerName,
+      customerName: created.customer_name || cleanCustomerName,
+      title: 'Order Received',
+      message: cleanCustomerName ? `${cleanCustomerName}, your order is waiting for Manager approval.` : `Your order #${targetId} is waiting for Manager approval.`,
+      status: 'pending_manager_approval'
+    });
 
     // Join order room immediately on socket
     if (socket && socket.connected) {
@@ -835,13 +878,17 @@ export function AppProvider({ children }) {
       socket.emit('join:order', { orderId: created.id, guestSessionId: activeGuestId });
     }
 
-    triggerToast(`Order placed successfully! #${newOrder.id}`);
+    triggerToast(`Order submitted for Manager approval. #${created.id}`);
     return { success: true, order: created };
   };
 
   // Update order status (Staff / Manager) with server-side audit trails & registered staff full name
   const updateOrderStatus = async (orderId, newStatus) => {
-    const canonicalStatus = newStatus === 'accepted' ? 'preparing' : newStatus;
+    const canonicalStatus = newStatus === 'completed' ? 'served' : newStatus === 'accepted' ? 'preparing' : newStatus;
+    const previousOrder = orders.find((order) => String(order.id) === String(orderId));
+    const previousCustomerOrder = lastCustomerOrder && String(lastCustomerOrder.id) === String(orderId)
+      ? lastCustomerOrder
+      : null;
 
     let currentStaffName = null;
     if (currentUser) {
@@ -868,7 +915,7 @@ export function AppProvider({ children }) {
         if (canonicalStatus === 'preparing' && !updated.accepted_by_name && currentStaffName) {
           updated.accepted_by_name = currentStaffName;
           updated.accepted_at = new Date().toISOString();
-        } else if (canonicalStatus === 'completed' && currentStaffName) {
+        } else if (canonicalStatus === 'served' && currentStaffName) {
           updated.completed_by_name = currentStaffName;
           updated.completed_at = new Date().toISOString();
         }
@@ -881,7 +928,7 @@ export function AppProvider({ children }) {
         const updated = { ...prev, status: canonicalStatus };
         if (canonicalStatus === 'preparing' && !updated.accepted_by_name && currentStaffName) {
           updated.accepted_by_name = currentStaffName;
-        } else if (canonicalStatus === 'completed' && currentStaffName) {
+        } else if (canonicalStatus === 'served' && currentStaffName) {
           updated.completed_by_name = currentStaffName;
         }
         return updated;
@@ -892,8 +939,13 @@ export function AppProvider({ children }) {
     const res = await api.updateOrderStatus(orderId, canonicalStatus, currentStaffName);
     if (res && res.success === false) {
       triggerToast(`${res.message || 'Action conflict'}`);
-      if (res.order) {
-        setOrders((prev) => prev.map((ord) => (ord.id === orderId ? { ...ord, ...res.order } : ord)));
+      setOrders((prev) => prev.map((ord) => String(ord.id) === String(orderId)
+        ? (res.order ? { ...ord, ...res.order } : previousOrder || ord)
+        : ord));
+      if (previousCustomerOrder) {
+        setLastCustomerOrder((prev) => prev && String(prev.id) === String(orderId)
+          ? (res.order ? { ...prev, ...res.order } : previousCustomerOrder)
+          : prev);
       }
       return res;
     }
@@ -914,12 +966,126 @@ export function AppProvider({ children }) {
       }
     }
 
-    // Direct Socket.IO emission fallback if connected
-    if (socket && socket.connected) {
-      socket.emit('order:update_status', { id: orderId, status: canonicalStatus, staffName: currentStaffName });
-    }
-
     return res;
+  };
+
+  const adjustOrder = async (orderId, action, items) => {
+    const response = await api.adjustOrder(orderId, action, items);
+    if (!response?.success || !response.order) {
+      triggerToast(response?.message || 'Unable to update this order.');
+      return response;
+    }
+    const updated = response.order;
+    setOrders((prev) => prev.map((order) => order.id === orderId ? { ...order, ...updated } : order));
+    setLastCustomerOrder((prev) => prev?.id === orderId ? { ...prev, ...updated } : prev);
+    await refreshCashReports();
+    return response;
+  };
+
+  const refreshSizeChangeRequests = async (orderId = null) => {
+    const requests = await api.getSizeChangeRequests(orderId);
+    if (orderId) {
+      setSizeChangeRequests((prev) => [
+        ...prev.filter((request) => String(request.orderId) !== String(orderId)),
+        ...requests
+      ]);
+    } else {
+      setSizeChangeRequests(requests);
+    }
+    return requests;
+  };
+
+  const submitSizeChangeRequest = async (orderId, itemIndex, requestedSize) => {
+    const response = await api.submitSizeChangeRequest(orderId, itemIndex, requestedSize);
+    if (response?.success && response.request) {
+      setSizeChangeRequests((prev) => [response.request, ...prev.filter((request) => request.id !== response.request.id)]);
+      return response;
+    }
+    triggerToast(response?.message || 'Unable to submit size-change request.');
+    return response;
+  };
+
+  const reviewSizeChangeRequest = async (requestId, status) => {
+    const response = await api.reviewSizeChangeRequest(requestId, status);
+    if (response?.success && response.request) {
+      setSizeChangeRequests((prev) => prev.map((request) => request.id === response.request.id ? response.request : request));
+      if (response.order) {
+        setOrders((prev) => prev.map((order) => order.id === response.order.id ? { ...order, ...response.order } : order));
+        setLastCustomerOrder((prev) => prev?.id === response.order.id ? { ...prev, ...response.order } : prev);
+      }
+      return response;
+    }
+    triggerToast(response?.message || 'Unable to review size-change request.');
+    return response;
+  };
+
+  const refreshCashReports = async () => {
+    const reports = await api.getCashReports();
+    setCashReports(reports);
+    return reports;
+  };
+
+  const refreshCashReconciliation = async () => {
+    const data = await api.getCashReconciliation();
+    setCashReconciliation(data);
+    return data;
+  };
+
+  const refreshOrderAudit = async () => {
+    const audit = await api.getOrderAudit();
+    setOrderAudit(audit);
+    return audit;
+  };
+
+  const reviewOrder = async (orderId, decision) => {
+    const response = await api.reviewOrder(orderId, decision);
+    if (response?.success && response.order) {
+      const updated = response.order;
+      setOrders((prev) => prev.map((order) => String(order.id) === String(orderId) ? { ...order, ...updated } : order));
+      setLastCustomerOrder((prev) => prev && String(prev.id) === String(orderId) ? { ...prev, ...updated } : prev);
+      return response;
+    }
+    triggerToast(response?.message || 'Unable to review this order.');
+    return response;
+  };
+
+  const submitCashReport = async (orderId, amount) => {
+    const response = await api.submitCashReport(orderId, amount);
+    if (response?.success) {
+      setCashReports((prev) => [response.report, ...prev.filter((item) => String(item.id) !== String(response.report.id))]);
+      setOrders((prev) => prev.map((order) => String(order.id) === String(orderId) ? { ...order, paymentStatus: 'pending_manager_verification' } : order));
+      triggerToast('Cash collection submitted for Manager verification.');
+      return response;
+    }
+    triggerToast(response?.message || 'Unable to report collected cash.');
+    return response;
+  };
+
+  const reviewCashReport = async (reportId, decision, note = '') => {
+    const response = await api.reviewCashReport(reportId, decision, note);
+    if (response?.success) {
+      const report = response.report;
+      setCashReports((prev) => [report, ...prev.filter((item) => String(item.id) !== String(report.id))]);
+      setOrders((prev) => prev.map((order) => String(order.id) === String(report.orderId)
+        ? { ...order, paymentStatus: report.paymentStatus, amountAlreadyPaid: report.amountAlreadyPaid }
+        : order));
+      triggerToast(response.discrepancy ? 'Cash discrepancy flagged for Manager review.' : `Cash report ${decision === 'verify' ? 'verified' : 'updated'}.`);
+      await refreshCashReconciliation();
+      return response;
+    }
+    triggerToast(response?.message || 'Unable to review cash report.');
+    return response;
+  };
+
+  const closeCashReconciliation = async (data) => {
+    const response = await api.closeCashReconciliation(data);
+    if (response?.success) {
+      await refreshCashReconciliation();
+      triggerToast('Cash reconciliation saved.');
+    } else {
+      triggerToast(response?.message || 'Unable to save cash reconciliation.');
+    }
+    return response;
   };
 
   // Toggle item stock status (Staff / Manager) with PostgreSQL persistence
@@ -988,7 +1154,7 @@ export function AppProvider({ children }) {
 
   // Strictly completed orders for today in Asia/Manila timezone
   const todayCompletedOrders = orders.filter((o) => {
-    if (o.status !== 'completed') return false;
+    if (o.status !== 'served' || o.paymentStatus !== 'paid') return false;
     const dateVal = o.completed_at || o.createdAt || o.timestamp || o.created_at;
     return isTodayInManila(dateVal);
   });
@@ -1001,6 +1167,7 @@ export function AppProvider({ children }) {
   // Monthly Revenue & Sales Data Analytics
   const liveOrderTotal = completedOrders.reduce((sum, o) => sum + o.total, 0);
   const liveOrderCount = completedOrders.length;
+  const currentMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'Asia/Manila' }).format(new Date());
 
   const monthlySalesData = [
     { month: 'Jan', revenue: 310500, orders: 1820, avgTicket: 170.6, percent: 60, growth: '+8.4%' },
@@ -1011,7 +1178,7 @@ export function AppProvider({ children }) {
     { month: 'Jun', revenue: 462100, orders: 2480, avgTicket: 186.3, percent: 90, growth: '+5.3%' },
     { month: 'Jul', revenue: 489400, orders: 2590, avgTicket: 188.9, percent: 95, growth: '+5.9%' },
     {
-      month: 'Aug',
+      month: currentMonthLabel,
       revenue: 512450 + liveOrderTotal,
       orders: 2710 + liveOrderCount,
       avgTicket: Number(((512450 + liveOrderTotal) / (2710 + liveOrderCount)).toFixed(1)),
@@ -1115,12 +1282,27 @@ export function AppProvider({ children }) {
         refreshStaffList,
         staffOnDuty,
         refreshStaffOnDuty,
+        sizeChangeRequests,
+        refreshSizeChangeRequests,
+        submitSizeChangeRequest,
+        reviewSizeChangeRequest,
+        cashReports,
+        cashReconciliation,
+        orderAudit,
+        refreshCashReports,
+        refreshCashReconciliation,
+        refreshOrderAudit,
+        reviewOrder,
+        submitCashReport,
+        reviewCashReport,
+        closeCashReconciliation,
         syncProductStock,
         saveProduct,
         lastCustomerOrder,
         setLastCustomerOrder,
         placeOrder,
         updateOrderStatus,
+        adjustOrder,
         toggleItemStock,
         todayRevenue,
         todayOrderCount,

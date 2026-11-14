@@ -6,6 +6,7 @@ import StaffLayout from './layouts/StaffLayout';
 import ManagerLayout from './layouts/ManagerLayout';
 import CursorGlow from './components/CursorGlow';
 import './StaffManager.css';
+import './PortalDashboard.css';
 
 function MainAppView() {
   const { currentUser } = useApp();

@@ -28,13 +28,17 @@ async function safeParseJson(res) {
   try {
     return JSON.parse(text);
   } catch {
+    const serverMessage = text.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i)?.[1]
+      ?.replace(/<[^>]*>/g, ' ')
+      ?.replace(/\s+/g, ' ')
+      ?.trim();
     if (res.status === 503 || res.status === 502) {
       return { success: false, message: 'Server is temporarily unavailable. Please try again shortly.' };
     }
     if (res.status >= 500) {
       return { success: false, message: `Server error (${res.status}). Please try again.` };
     }
-    return { success: false, message: text.slice(0, 120) || 'Unexpected server response.' };
+    return { success: false, message: serverMessage || text.slice(0, 120) || 'Unexpected server response.' };
   }
 }
 
@@ -315,13 +319,13 @@ export const api = {
       const res = await fetch(`${API_BASE_URL}/api/orders`, {
         headers: getAuthHeaders()
       });
-      if (!res.ok) return [];
-      const data = await res.json();
+      if (!res.ok) return null;
+      const data = await safeParseJson(res);
       if (Array.isArray(data)) return data;
       if (data && Array.isArray(data.orders)) return data.orders;
-      return [];
+      return null;
     } catch {
-      return [];
+      return null;
     }
   },
 
@@ -345,9 +349,14 @@ export const api = {
         headers: getAuthHeaders(),
         body: JSON.stringify(orderData)
       });
-      return await res.json();
+      const data = await safeParseJson(res);
+      if (res.status === 409 && orderData?.id) {
+        const existingOrder = await this.getOrderById(orderData.id);
+        if (existingOrder) return { success: true, order: existingOrder, duplicate: true };
+      }
+      return res.ok ? data : { ...data, success: false };
     } catch {
-      return { success: true, offline: true, order: orderData };
+      return { success: false, message: 'Unable to confirm order submission. Please retry when the connection is restored.' };
     }
   },
 
@@ -358,9 +367,142 @@ export const api = {
         headers: getAuthHeaders(),
         body: JSON.stringify({ status, staffName })
       });
+      const data = await safeParseJson(res);
+      return res.ok ? data : { ...data, success: false };
+    } catch {
+      return { success: false, message: 'Unable to confirm the order update. Please retry when the connection is restored.' };
+    }
+  },
+
+  async adjustOrder(orderId, action, items) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/orders/${orderId}/adjustment`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ action, items })
+      });
       return await res.json();
     } catch {
-      return { success: true, orderId, status, accepted_by_name: staffName, completed_by_name: staffName };
+      return { success: false, message: 'Unable to connect to the Scialla server.' };
+    }
+  },
+
+  async getSizeChangeRequests(orderId = null) {
+    try {
+      const path = orderId
+        ? `/api/orders/${encodeURIComponent(orderId)}/size-change-requests`
+        : '/api/size-change-requests';
+      const res = await fetch(`${API_BASE_URL}${path}`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      return res.ok ? (data.requests || []) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  async submitSizeChangeRequest(orderId, itemIndex, requestedSize) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/orders/${encodeURIComponent(orderId)}/size-change-requests`, {
+        method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ itemIndex, requestedSize })
+      });
+      return await res.json();
+    } catch {
+      return { success: false, message: 'Unable to connect to the Scialla server.' };
+    }
+  },
+
+  async reviewSizeChangeRequest(requestId, status) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/size-change-requests/${encodeURIComponent(requestId)}`, {
+        method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ status })
+      });
+      return { ...(await res.json()), statusCode: res.status };
+    } catch {
+      return { success: false, message: 'Unable to connect to the Scialla server.' };
+    }
+  },
+
+  async reviewOrder(orderId, decision) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/orders/${encodeURIComponent(orderId)}/approval`, {
+        method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ decision })
+      });
+      const data = await safeParseJson(res);
+      if (!res.ok) {
+        const routeIsMissing = res.status === 404 && String(data?.message || '').startsWith('Cannot PATCH ');
+        return {
+          ...data,
+          success: false,
+          statusCode: res.status,
+          ...(routeIsMissing ? { message: 'The deployed Scialla API is missing its Manager order approval route. Deploy the backend update, then retry.' } : {})
+        };
+      }
+      return data;
+    } catch {
+      return { success: false, message: 'Unable to connect to the Scialla server.' };
+    }
+  },
+
+  async getCashReports() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/cash-reports`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      return res.ok ? (data.reports || []) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  async submitCashReport(orderId, amount) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/orders/${encodeURIComponent(orderId)}/cash-reports`, {
+        method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ amount })
+      });
+      return await res.json();
+    } catch {
+      return { success: false, message: 'Unable to connect to the Scialla server.' };
+    }
+  },
+
+  async reviewCashReport(reportId, decision, note = '') {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/cash-reports/${encodeURIComponent(reportId)}`, {
+        method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ decision, note })
+      });
+      return await res.json();
+    } catch {
+      return { success: false, message: 'Unable to connect to the Scialla server.' };
+    }
+  },
+
+  async getCashReconciliation() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/cash-reconciliation`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      return res.ok ? data : null;
+    } catch {
+      return null;
+    }
+  },
+
+  async closeCashReconciliation(data) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/cash-reconciliation`, {
+        method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch {
+      return { success: false, message: 'Unable to connect to the Scialla server.' };
+    }
+  },
+
+  async getOrderAudit() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/order-audit`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      return res.ok ? (data.audit || []) : [];
+    } catch {
+      return [];
     }
   },
 
